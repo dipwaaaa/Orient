@@ -68,6 +68,7 @@ flutter:
     - assets/4.png
     - assets/5.png
     - assets/6.png
+    - assets/AvatarKimmy.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

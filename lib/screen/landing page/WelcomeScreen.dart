@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'ChatbotScreen.dart';
 
 void main() {
   runApp(const App());
@@ -382,8 +383,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         child: ElevatedButton(
           onPressed: () {
             _stopAutoScroll();
-            debugPrint('Get Started tapped!');
-            // TODO: Add navigation to next screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ChatbotScreen(),
+              ),
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFFE100),
@@ -395,7 +400,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             elevation: 4,
           ),
           child: const Text(
-            'Let\'s Get Started!',
+            "Let's Get Started!",
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
@@ -405,6 +410,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       ),
     );
   }
+
 
   Widget _buildHomeIndicator() {
     return Container(
