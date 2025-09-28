@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../../widget/Animated_Gradient_Background.dart';
 
 void main() {
   runApp(const App());
@@ -27,27 +28,13 @@ class ChatbotScreen extends StatefulWidget {
   State<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateMixin {
+class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
-
-  // Animation Controller untuk animated background
-  late AnimationController _gradientController;
-
-  @override
-  void initState() {
-    super.initState();
-    // Inisialisasi animation controller
-    _gradientController = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    )..repeat(reverse: true); // Repeat dengan reverse untuk smooth animation
-  }
 
   @override
   void dispose() {
     _messageController.dispose();
-    _gradientController.dispose(); // Jangan lupa dispose animation controller
     super.dispose();
   }
 
@@ -84,98 +71,77 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        child: Stack(
-          children: [
-            // Animated Background
-            _buildAnimatedBackground(),
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(child: _buildChatArea()),
-                  _buildMessageInput(),
-                ],
-              ),
-            ),
-          ],
+      body: AnimatedGradientBackground(
+        duration: const Duration(seconds: 4),
+        radius: 2.00,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(screenWidth, screenHeight),
+              Expanded(child: _buildChatArea(screenWidth, screenHeight)),
+              _buildMessageInput(screenWidth, screenHeight),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAnimatedBackground() {
-    return Positioned.fill(
-      child: AnimatedBuilder(
-        animation: _gradientController,
-        builder: (context, child) {
-          final value = _gradientController.value;
-          final dx = 0.6 * (1 - 2 * value);
-          final dy = 0.6 * (2 * value - 1);
+  Widget _buildHeader(double screenWidth, double screenHeight) {
+    final headerPadding = screenWidth * 0.05; // 5% of screen width
+    final avatarSize = screenWidth * 0.125; // 12.5% of screen width
+    final namesFontSize = screenWidth * 0.06; // 6% of screen width
+    final statusFontSize = screenWidth * 0.035; // 3.5% of screen width
 
-          return Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(dx, dy),
-                radius: 2.00,
-                colors: const [
-                  Color(0xFFFF6A00),
-                  Color(0xFFFFE100),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 21, vertical: 16),
+          padding: EdgeInsets.symmetric(
+              horizontal: headerPadding,
+              vertical: screenHeight * 0.02
+          ),
           child: Row(
             children: [
-              _buildBotAvatar(),
-              const SizedBox(width: 18),
-              _buildBotInfo(),
+              _buildBotAvatar(avatarSize),
+              SizedBox(width: screenWidth * 0.045),
+              _buildBotInfo(namesFontSize, statusFontSize),
               const Spacer(),
             ],
           ),
         ),
         Container(
-          height: 2,
+          height: screenHeight * 0.003,
           color: Colors.black,
         ),
       ],
     );
   }
 
-  Widget _buildBotAvatar() {
+  Widget _buildBotAvatar(double avatarSize) {
     return Container(
-      width: 50,
-      height: 50,
+      width: avatarSize,
+      height: avatarSize,
       decoration: const BoxDecoration(
         color: Color(0xFFDEF3FF),
         shape: BoxShape.circle,
       ),
-      child: Image.asset('assets/AvatarKimmy.png'),
-      );
+      child: Image.asset('assets/image/AvatarKimmy.png'),
+    );
   }
 
-  Widget _buildBotInfo() {
-    return const Column(
+  Widget _buildBotInfo(double namesFontSize, double statusFontSize) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Kinny',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 25,
+            fontSize: namesFontSize.clamp(20.0, 28.0),
             fontWeight: FontWeight.w500,
             height: 0.88,
           ),
@@ -185,7 +151,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
           'Online',
           style: TextStyle(
             color: Colors.black54,
-            fontSize: 14,
+            fontSize: statusFontSize.clamp(12.0, 16.0),
             fontWeight: FontWeight.w500,
             height: 1.57,
           ),
@@ -194,23 +160,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildChatArea() {
+  Widget _buildChatArea(double screenWidth, double screenHeight) {
     if (_messages.isEmpty) {
-      return const Center(
+      final emptyIconSize = screenWidth * 0.16; // 16% of screen width
+      final emptyTextSize = screenWidth * 0.04; // 4% of screen width
+
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.chat_bubble_outline,
-              size: 64,
+              size: emptyIconSize,
               color: Colors.black26,
             ),
-            SizedBox(height: 16),
+            SizedBox(height: screenHeight * 0.02),
             Text(
               'Start a conversation with Kinny',
               style: TextStyle(
                 color: Colors.black54,
-                fontSize: 16,
+                fontSize: emptyTextSize.clamp(14.0, 18.0),
               ),
             ),
           ],
@@ -219,28 +188,35 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
-        return _buildMessageBubble(_messages[index]);
+        return _buildMessageBubble(_messages[index], screenWidth);
       },
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
+  Widget _buildMessageBubble(ChatMessage message, double screenWidth) {
+    final bubblePadding = screenWidth * 0.04; // 4% of screen width
+    final messageFontSize = screenWidth * 0.04; // 4% of screen width
+    final borderRadius = screenWidth * 0.05; // 5% of screen width
+
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: EdgeInsets.symmetric(vertical: screenWidth * 0.01),
+        padding: EdgeInsets.symmetric(
+          horizontal: bubblePadding,
+          vertical: screenWidth * 0.03,
+        ),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: screenWidth * 0.75,
         ),
         decoration: BoxDecoration(
           color: message.isUser
               ? const Color(0xFFFF6A00)
               : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -253,57 +229,69 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
           message.text,
           style: TextStyle(
             color: message.isUser ? Colors.white : Colors.black,
-            fontSize: 16,
+            fontSize: messageFontSize.clamp(14.0, 18.0),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMessageInput() {
+  Widget _buildMessageInput(double screenWidth, double screenHeight) {
+    final inputPadding = screenWidth * 0.04; // 4% of screen width
+    final borderRadius = screenWidth * 0.025; // 2.5% of screen width
+    final hintFontSize = screenWidth * 0.035; // 3.5% of screen width
+    final sendButtonSize = screenWidth * 0.1; // 10% of screen width
+    final sendIconSize = screenWidth * 0.05; // 5% of screen width
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(inputPadding),
       child: Row(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.black, width: 2),
-                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: Colors.black,
+                    width: screenWidth * 0.005
+                ),
+                borderRadius: BorderRadius.circular(borderRadius),
               ),
               child: TextField(
                 controller: _messageController,
-                style: const TextStyle(color: Colors.black),
-                decoration: const InputDecoration(
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: hintFontSize.clamp(14.0, 16.0),
+                ),
+                decoration: InputDecoration(
                   hintText: 'Enter your message',
                   hintStyle: TextStyle(
                     color: Colors.black54,
-                    fontSize: 14,
+                    fontSize: hintFontSize.clamp(12.0, 16.0),
                   ),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 8,
+                    horizontal: screenWidth * 0.03,
+                    vertical: screenHeight * 0.01,
                   ),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: screenWidth * 0.02),
           GestureDetector(
             onTap: _sendMessage,
             child: Container(
-              width: 40,
-              height: 40,
+              width: sendButtonSize,
+              height: sendButtonSize,
               decoration: const BoxDecoration(
                 color: Color(0xFFFF6A00),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.send,
                 color: Colors.white,
-                size: 20,
+                size: sendIconSize,
               ),
             ),
           ),
@@ -311,7 +299,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
       ),
     );
   }
-
 }
 
 class ChatMessage {

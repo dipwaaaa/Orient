@@ -485,7 +485,12 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Container(
             height: 1,
             decoration: BoxDecoration(
-              color: Color(0xFF616161),
+              gradient: LinearGradient(
+                colors: [
+                  Color(0x000000),
+                  Color(0xFFFF6A00)
+                ],
+              ),
             ),
           ),
         ),
@@ -493,14 +498,13 @@ class _LoginScreenState extends State<LoginScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 16),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.white,
             borderRadius: BorderRadius.circular(4),
           ),
           child: Text(
-            'Sign in with',
+            'Log in with',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.black,
+              color: Colors.white,
               fontSize: 13,
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w500,
@@ -512,7 +516,12 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Container(
             height: 1,
             decoration: BoxDecoration(
-              color: Color(0xFF616161),
+                gradient: LinearGradient(
+                    colors: [
+                    Color(0xFFFF6A00),
+                    Color(0x000000)
+                ],
+            ),
             ),
           ),
         ),
@@ -524,51 +533,63 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Google Sign In Button
         GestureDetector(
           onTap: () {
             print('Google Sign In tapped');
           },
           child: Container(
-            width: 34,
-            height: 34,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(17),
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Center(
-              child: Text(
-                'G',
-                style: TextStyle(
-                  color: Color(0xFF4285F4),
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'SF Pro',
-                ),
+              child: Image.asset(
+                'assets/image/IconGoogle.png',
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
               ),
             ),
           ),
         ),
-        SizedBox(width: 22),
+        SizedBox(width: 20),
+        // Facebook Sign In Button
         GestureDetector(
           onTap: () {
             print('Facebook Sign In tapped');
           },
           child: Container(
-            width: 34,
-            height: 34,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: Color(0xFF1877F2),
-              borderRadius: BorderRadius.circular(17),
+              color: Colors.white, // Ubah ke white untuk Facebook juga
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Center(
-              child: Text(
-                'f',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'SF Pro',
-                ),
+              child: Image.asset(
+                'assets/image/IconFacebook.png', // Path ke gambar Facebook icon
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
               ),
             ),
           ),

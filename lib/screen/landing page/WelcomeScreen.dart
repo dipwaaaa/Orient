@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'ChatbotScreen.dart';
+import '../../widget/Animated_Gradient_Background.dart';
 
 void main() {
   runApp(const App());
@@ -28,13 +29,7 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen>
-    with SingleTickerProviderStateMixin {
-
-  late final AnimationController _gradientController = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 6),
-  )..repeat(reverse: true);
+class _WelcomeScreenState extends State<WelcomeScreen> {
 
   late final PageController _pageController = PageController();
   Timer? _autoScrollTimer;
@@ -45,42 +40,42 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     PageData(
       title: 'Welcome to Orient!',
       description: 'Trying to keep track of an event you\'re organizing? We\'ve got you covered!',
-      imageUrl: 'assets/1.png',
+      imageUrl: 'assets/image/1.png',
       iconData: Icons.waving_hand,
       iconColor: Colors.orange,
     ),
     PageData(
       title: 'Multitask',
       description: 'Organize multiple events at once! Be it a wedding, a birthday, or a farewell party, we\'ll help you perfect it!',
-      imageUrl: 'assets/2.png',
+      imageUrl: 'assets/image/2.png',
       iconData: Icons.task_alt,
       iconColor: Colors.green,
     ),
     PageData(
       title: 'Task Tracker',
       description: 'Cakes, venues, RSVPs... aaah, so many things to do! But don\'t you worry, we\'ll help you remember everything.',
-      imageUrl: 'assets/3.png',
+      imageUrl: 'assets/image/3.png',
       iconData: Icons.track_changes,
       iconColor: Colors.blue,
     ),
     PageData(
       title: 'Budget Control',
       description: 'Don\'t go under or overboard with your money! Make sure to spend the right amount for the right things.',
-      imageUrl: 'assets/4.png',
+      imageUrl: 'assets/image/4.png',
       iconData: Icons.account_balance_wallet,
       iconColor: Colors.purple,
     ),
     PageData(
       title: 'Guest and Vendor List',
       description: 'Who\'s coming? Who\'s selling? Who\'s renting? Keep every information organized just with a few clicks!',
-      imageUrl: 'assets/5.png',
+      imageUrl: 'assets/image/5.png',
       iconData: Icons.people,
       iconColor: Colors.teal,
     ),
     PageData(
       title: 'Sync Up and Collab',
       description: 'Organizing alone is hard. If you need help, call up your friend, sync up your progress, and work together!',
-      imageUrl: 'assets/6.png',
+      imageUrl: 'assets/image/6.png',
       iconData: Icons.sync,
       iconColor: Colors.indigo,
     )
@@ -90,8 +85,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   static const Duration _autoScrollDuration = Duration(seconds: 4);
   static const Duration _animationDuration = Duration(milliseconds: 500);
-  static const double _imageSize = 300;
-  static const double _horizontalPadding = 28;
 
   @override
   void initState() {
@@ -143,7 +136,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   void dispose() {
-    _gradientController.dispose();
     _pageController.dispose();
     _stopAutoScroll();
     super.dispose();
@@ -151,44 +143,57 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    // Responsive calculations
+    final imageSize = screenWidth * 0.75; // 75% of screen width
+    final maxImageSize = screenHeight * 0.35; // Max 35% of screen height
+    final finalImageSize = imageSize > maxImageSize ? maxImageSize : imageSize;
+    final horizontalPadding = screenWidth * 0.07; // 7% of screen width
+    final titleFontSize = screenWidth * 0.07; // 7% of screen width
+    final descriptionFontSize = screenWidth * 0.04; // 4% of screen width
+    final buttonPadding = screenWidth * 0.1; // 10% of screen width
+
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        clipBehavior: Clip.antiAlias,
-        decoration: const BoxDecoration(color: Colors.white),
-        child: Stack(
-          children: [
-            _buildAnimatedBackground(),
-            SafeArea(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      onPageChanged: (index) {
-                        if (!mounted) return;
-                        setState(() => _currentPage = index);
-                        _restartAutoScroll();
-                      },
-                      itemCount: _pages.length,
-                      itemBuilder: (context, index) {
-                        return GestureDetector(
-                          onTap: _handlePageTap,
-                          child: _buildPage(_pages[index]),
-                        );
-                      },
-                    ),
-                  ),
-                  _buildPageIndicators(),
-                  _buildGetStartedButton(),
-                  const SizedBox(height: 20),
-                  _buildHomeIndicator(),
-                  const SizedBox(height: 8),
-                ],
+      body: AnimatedGradientBackground(
+        duration: const Duration(seconds: 6),
+        radius: 1.75,
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (index) {
+                    if (!mounted) return;
+                    setState(() => _currentPage = index);
+                    _restartAutoScroll();
+                  },
+                  itemCount: _pages.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: _handlePageTap,
+                      child: _buildPage(
+                        _pages[index],
+                        screenWidth,
+                        screenHeight,
+                        finalImageSize,
+                        horizontalPadding,
+                        titleFontSize,
+                        descriptionFontSize,
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+              _buildPageIndicators(screenWidth),
+              _buildGetStartedButton(buttonPadding, screenWidth),
+              SizedBox(height: screenHeight * 0.025),
+              _buildHomeIndicator(screenWidth),
+              SizedBox(height: screenHeight * 0.01),
+            ],
+          ),
         ),
       ),
     );
@@ -201,58 +206,40 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     });
   }
 
-  Widget _buildAnimatedBackground() {
-    return Positioned.fill(
-      child: AnimatedBuilder(
-        animation: _gradientController,
-        builder: (context, child) {
-          final value = _gradientController.value;
-          final dx = 0.6 * (1 - 2 * value);
-          final dy = 0.6 * (2 * value - 1);
-
-          return Container(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(dx, dy),
-                radius: 1.75,
-                colors: const [
-                  Color(0xFFFF6A00),
-                  Color(0xFFFFE100),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPage(PageData pageData) {
+  Widget _buildPage(
+      PageData pageData,
+      double screenWidth,
+      double screenHeight,
+      double imageSize,
+      double horizontalPadding,
+      double titleFontSize,
+      double descriptionFontSize,
+      ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: _imageSize,
-            height: _imageSize,
+            width: imageSize,
+            height: imageSize,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(screenWidth * 0.03),
               color: Colors.white.withOpacity(0.1),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _buildImageWidget(pageData),
+            child: _buildImageWidget(pageData, screenWidth),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: screenHeight * 0.05),
 
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 80),
+            constraints: BoxConstraints(maxHeight: screenHeight * 0.1),
             child: Text(
               pageData.title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 28,
+                fontSize: titleFontSize.clamp(20.0, 32.0),
                 fontWeight: FontWeight.w900,
                 height: 1.1,
               ),
@@ -261,16 +248,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             ),
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: screenHeight * 0.025),
 
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
+            constraints: BoxConstraints(maxHeight: screenHeight * 0.15),
             child: Text(
               pageData.description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: descriptionFontSize.clamp(14.0, 18.0),
                 fontWeight: FontWeight.w400,
                 height: 1.4,
               ),
@@ -283,7 +270,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildImageWidget(PageData pageData) {
+  Widget _buildImageWidget(PageData pageData, double screenWidth) {
     final imageExists = _imageCache[pageData.imageUrl];
 
     if (imageExists == null) {
@@ -298,14 +285,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       return Image.asset(
         pageData.imageUrl,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackWidget(pageData),
+        errorBuilder: (context, error, stackTrace) => _buildFallbackWidget(pageData, screenWidth),
       );
     }
 
-    return _buildFallbackWidget(pageData);
+    return _buildFallbackWidget(pageData, screenWidth);
   }
 
-  Widget _buildFallbackWidget(PageData pageData) {
+  Widget _buildFallbackWidget(PageData pageData, double screenWidth) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -316,7 +303,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             pageData.iconColor.withOpacity(0.1),
           ],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(screenWidth * 0.03),
         border: Border.all(
           color: Colors.white.withOpacity(0.3),
           width: 1,
@@ -326,23 +313,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(screenWidth * 0.05),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(
               pageData.iconData,
-              size: 80,
+              size: screenWidth * 0.2,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: screenWidth * 0.05),
           Text(
             pageData.title.split(' ').first,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: screenWidth * 0.05,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -351,23 +338,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildPageIndicators() {
+  Widget _buildPageIndicators(double screenWidth) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.04),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_pages.length, (index) {
           final isActive = index == _currentPage;
+          final indicatorSize = screenWidth * 0.02;
           return AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: isActive ? 20 : 8,
-            height: 8,
+            margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.01),
+            width: isActive ? indicatorSize * 2.5 : indicatorSize,
+            height: indicatorSize,
             decoration: BoxDecoration(
               color: isActive
                   ? const Color(0xFFD9D9D9)
                   : const Color(0xFF9B9B9B).withOpacity(0.6),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(indicatorSize / 2),
             ),
           );
         }),
@@ -375,9 +363,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  Widget _buildGetStartedButton() {
+  Widget _buildGetStartedButton(double buttonPadding, double screenWidth) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
+      padding: EdgeInsets.symmetric(horizontal: buttonPadding),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
@@ -393,16 +381,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFFE100),
             foregroundColor: Colors.black,
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: EdgeInsets.symmetric(vertical: screenWidth * 0.04),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(50),
             ),
             elevation: 4,
           ),
-          child: const Text(
+          child: Text(
             "Let's Get Started!",
             style: TextStyle(
-              fontSize: 17,
+              fontSize: (screenWidth * 0.045).clamp(16.0, 20.0),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -411,11 +399,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-
-  Widget _buildHomeIndicator() {
+  Widget _buildHomeIndicator(double screenWidth) {
     return Container(
-      width: 134,
-      height: 5,
+      width: screenWidth * 0.35,
+      height: screenWidth * 0.0125,
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(100),
