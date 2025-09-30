@@ -38,6 +38,9 @@ dependencies:
   cached_network_image: ^3.4.1
   flip_card: ^0.7.0
   firebase_core: ^4.1.1
+  firebase_auth: ^6.1.0
+  google_sign_in: ^7.2.0
+  cloud_firestore: ^6.0.2
 
 dev_dependencies:
   flutter_test:

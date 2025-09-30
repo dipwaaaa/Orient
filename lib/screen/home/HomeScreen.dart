@@ -1,22 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:untitled/service/auth_service.dart';
+import '../login_signup_screen.dart';
 import '../../widget/Animated_Gradient_Background.dart';
-
-void main() {
-  runApp(const App());
-}
-
-class App extends StatelessWidget {
-  const App({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: HomeScreen(),
-    );
-  }
-}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +12,35 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final AuthService _authService = AuthService();
+  String _username = 'User';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      try {
+        final userDoc = await _authService.firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists && mounted) {
+          setState(() {
+            _username = userDoc.data()?['username'] ?? user.displayName ?? 'User';
+          });
+        }
+      } catch (e) {
+        print('Error loading user data: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -67,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hi, User!',
+                  'Hi, $_username!',
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 25,
@@ -117,18 +132,29 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(width: 8),
 
-                // Profile avatar
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFFDEF3FF),
-                  ),
-                  child: ClipOval(
-                    child: Container(
+                // Profile avatar - Make it clickable for logout
+                GestureDetector(
+                  onTap: _showProfileMenu,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       color: Color(0xFFDEF3FF),
-                      child: Image.asset('assets/image/AvatarKimmy.png'),
+                    ),
+                    child: ClipOval(
+                      child: Container(
+                        color: Color(0xFFDEF3FF),
+                        child: _authService.currentUser?.photoURL != null
+                            ? Image.network(
+                          _authService.currentUser!.photoURL!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset('assets/image/AvatarKimmy.png');
+                          },
+                        )
+                            : Image.asset('assets/image/AvatarKimmy.png'),
+                      ),
                     ),
                   ),
                 ),
@@ -138,6 +164,93 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  void _showProfileMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Color(0xFFDEF3FF),
+                    backgroundImage: _authService.currentUser?.photoURL != null
+                        ? NetworkImage(_authService.currentUser!.photoURL!)
+                        : AssetImage('assets/image/AvatarKimmy.png') as ImageProvider,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    _username,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    _authService.currentUser?.email ?? '',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1),
+            ListTile(
+              leading: Icon(Icons.person, color: Color(0xFFFF6A00)),
+              title: Text('Profile Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Profile settings coming soon!')),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout, color: Colors.red),
+              title: Text('Sign Out'),
+              onTap: () {
+                Navigator.pop(context);
+                _handleSignOut();
+              },
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleSignOut() async {
+    try {
+      await _authService.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sign out failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildCarousel(double screenWidth) {
@@ -176,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // Event title
                   Text(
-                    "Title Event",
+                    "No Active Event",
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 12,
@@ -285,7 +398,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Task',
             color: Color(0xFFFFE100),
             onTap: () {
-              print('Task tapped');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Task management coming soon!')),
+              );
             },
           ),
           _buildFeatureButton(
@@ -293,7 +408,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Vendor',
             color: Color(0xFFFFE100),
             onTap: () {
-              print('Vendor tapped');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Vendor management coming soon!')),
+              );
             },
           ),
           _buildFeatureButton(
@@ -301,7 +418,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Budget',
             color: Color(0xFFFFE100),
             onTap: () {
-              print('Budget tapped');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Budget tracker coming soon!')),
+              );
             },
           ),
           _buildFeatureButton(
@@ -309,7 +428,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Guest',
             color: Color(0xFFFFE100),
             onTap: () {
-              print('Guest tapped');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Guest list coming soon!')),
+              );
             },
           ),
         ],
