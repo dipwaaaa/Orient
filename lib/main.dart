@@ -5,13 +5,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'screen/login_signup_screen.dart';
 import 'screen/landing_page/WelcomeScreen.dart';
+import 'screen/onboarding/onboarding_chatbot_screen.dart'; // TAMBAH IMPORT INI
 import 'screen/home/HomeScreen.dart';
 import 'service/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase - google-services.json handles the rest for Android
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -61,18 +61,38 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
         // Jika sudah login
         if (snapshot.hasData && snapshot.data != null) {
+          // CEK ONBOARDING STATUS DULU
           return FutureBuilder<bool>(
-            future: _authService.shouldShowWelcomeScreen(),
-            builder: (context, welcomeSnapshot) {
-              if (welcomeSnapshot.connectionState == ConnectionState.waiting) {
+            future: _authService.hasCompletedOnboarding(),
+            builder: (context, onboardingSnapshot) {
+              if (onboardingSnapshot.connectionState == ConnectionState.waiting) {
                 return _buildLoadingScreen();
               }
-              if (welcomeSnapshot.hasError) {
-                return _buildErrorScreen(welcomeSnapshot.error.toString());
+
+              if (onboardingSnapshot.hasError) {
+                return _buildErrorScreen(onboardingSnapshot.error.toString());
               }
-              return welcomeSnapshot.data == true
-                  ? const WelcomeScreen()
-                  : const HomeScreen();
+
+              // Jika belum complete onboarding, tampilkan chatbot
+              if (onboardingSnapshot.data == false) {
+                return const OnboardingChatbotScreen();
+              }
+
+              // Jika sudah onboarding, cek welcome screen
+              return FutureBuilder<bool>(
+                future: _authService.shouldShowWelcomeScreen(),
+                builder: (context, welcomeSnapshot) {
+                  if (welcomeSnapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingScreen();
+                  }
+                  if (welcomeSnapshot.hasError) {
+                    return _buildErrorScreen(welcomeSnapshot.error.toString());
+                  }
+                  return welcomeSnapshot.data == true
+                      ? const WelcomeScreen()
+                      : const HomeScreen();
+                },
+              );
             },
           );
         }
@@ -154,7 +174,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: null,
+                  onPressed: () {
+                    // Retry by rebuilding
+                    setState(() {});
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFFFF6A00),

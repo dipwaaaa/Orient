@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 
@@ -15,10 +16,25 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
   String _username = 'User';
 
+  // Event data
+  String _eventName = 'No Active Event';
+  int _daysUntil = 0;
+  int _hoursUntil = 0;
+  bool _hasEvent = false;
+  Timer? _countdownTimer;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadFirstEvent();
+    _startCountdownTimer();
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -38,6 +54,64 @@ class _HomeScreenState extends State<HomeScreen> {
       } catch (e) {
         print('Error loading user data: $e');
       }
+    }
+  }
+
+  Future<void> _loadFirstEvent() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    try {
+      // Get first event ID from user doc
+      final userDoc = await _authService.firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final firstEventId = userDoc.data()?['firstEventId'];
+
+        if (firstEventId != null) {
+          // Get event details
+          final eventDoc = await _authService.firestore
+              .collection('events')
+              .doc(firstEventId)
+              .get();
+
+          if (eventDoc.exists && mounted) {
+            final data = eventDoc.data()!;
+            final eventDate = (data['eventDate'] as Timestamp).toDate();
+            _updateCountdown(eventDate);
+
+            setState(() {
+              _eventName = data['eventName'] ?? 'No Active Event';
+              _hasEvent = true;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading first event: $e');
+    }
+  }
+
+  void _startCountdownTimer() {
+    _countdownTimer = Timer.periodic(Duration(minutes: 1), (timer) {
+      if (_hasEvent) {
+        _loadFirstEvent();
+      }
+    });
+  }
+
+  void _updateCountdown(DateTime eventDate) {
+    final now = DateTime.now();
+    final difference = eventDate.difference(now);
+
+    if (mounted) {
+      setState(() {
+        _daysUntil = difference.inDays;
+        _hoursUntil = difference.inHours % 24;
+      });
     }
   }
 
@@ -76,7 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Left side - Text content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,8 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
-          // Right side - Icons in container
           Container(
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -116,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Notification icon
                 Container(
                   width: 32.5,
                   height: 32.5,
@@ -131,8 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 SizedBox(width: 8),
-
-                // Profile avatar - Make it clickable for logout
                 GestureDetector(
                   onTap: _showProfileMenu,
                   child: Container(
@@ -280,16 +348,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         child: Stack(
           children: [
-            // Left side content
             Positioned(
               left: 16,
               top: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Event title
                   Text(
-                    "No Active Event",
+                    _eventName,
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 12,
@@ -297,15 +363,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   SizedBox(height: 16),
-
-                  // Days countdown
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '00',
+                        _daysUntil.toString().padLeft(2, '0'),
                         style: TextStyle(
                           color: Colors.black,
                           fontSize: 48,
@@ -326,15 +389,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-
                   SizedBox(height: 8),
-
-                  // Hours countdown
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '00',
+                        _hoursUntil.toString().padLeft(2, '0'),
                         style: TextStyle(
                           color: Colors.black,
                           fontSize: 48,
@@ -358,8 +418,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-
-            // Right side illustration
             Positioned(
               right: 16,
               top: 16,

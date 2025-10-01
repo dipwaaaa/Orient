@@ -1,26 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'ChatbotScreen.dart';
+import '../onboarding/onboarding_chatbot_screen.dart'; // UPDATE IMPORT INI
 import '../../widget/Animated_Gradient_Background.dart';
-
-void main() {
-  runApp(const App());
-}
-
-class App extends StatelessWidget {
-  const App({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color.fromARGB(255, 18, 32, 47),
-      ),
-      home: const WelcomeScreen(),
-    );
-  }
-}
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -146,14 +127,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    // Responsive calculations
-    final imageSize = screenWidth * 0.75; // 75% of screen width
-    final maxImageSize = screenHeight * 0.35; // Max 35% of screen height
+    final imageSize = screenWidth * 0.75;
+    final maxImageSize = screenHeight * 0.35;
     final finalImageSize = imageSize > maxImageSize ? maxImageSize : imageSize;
-    final horizontalPadding = screenWidth * 0.07; // 7% of screen width
-    final titleFontSize = screenWidth * 0.07; // 7% of screen width
-    final descriptionFontSize = screenWidth * 0.04; // 4% of screen width
-    final buttonPadding = screenWidth * 0.1; // 10% of screen width
+    final horizontalPadding = screenWidth * 0.07;
+    final titleFontSize = screenWidth * 0.07;
+    final descriptionFontSize = screenWidth * 0.04;
+    final buttonPadding = screenWidth * 0.1;
 
     return Scaffold(
       body: AnimatedGradientBackground(
@@ -371,10 +351,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         child: ElevatedButton(
           onPressed: () {
             _stopAutoScroll();
-            Navigator.push(
+            // NAVIGATE KE ONBOARDING CHATBOT
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (context) => const ChatbotScreen(),
+                builder: (context) => const OnboardingChatbotScreen(),
               ),
             );
           },

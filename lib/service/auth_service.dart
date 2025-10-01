@@ -37,6 +37,8 @@ class AuthService {
     return hasLetter && hasNumber && hasSymbol;
   }
 
+
+
   // Cek apakah username sudah dipakai user lain dengan error handling yang lebih baik
   Future<bool> _isUsernameTaken(String username) async {
     try {
@@ -102,15 +104,31 @@ class AuthService {
           'email': user.email,
           'username': finalUsername,
           'isNewUser': isNewUser,
+          'hasCompletedOnboarding': false, // TAMBAH BARIS INI
           'createdAt': FieldValue.serverTimestamp(),
           'profileImageUrl': user.photoURL,
-          'friends': [], // Array untuk sync & collab feature
+          'friends': [],
         });
         debugPrint('User document created successfully');
       }
     } catch (e) {
       debugPrint('Error creating user document: $e');
-      // Tidak throw error agar tidak mengganggu flow registration
+    }
+  }
+
+  Future<bool> hasCompletedOnboarding() async {
+    final user = currentUser;
+    if (user == null) return false;
+
+    try {
+      final snap = await firestore.collection('users').doc(user.uid).get();
+      if (!snap.exists) return false;
+
+      final data = snap.data();
+      return data?['hasCompletedOnboarding'] ?? false;
+    } catch (e) {
+      debugPrint('Error checking onboarding status: $e');
+      return false;
     }
   }
 
@@ -250,18 +268,16 @@ class AuthService {
   }
 
   Future<void> _createUserDocumentSafe(User user, String username) async {
-    const maxRetries = 3; // Reduced retries
+    const maxRetries = 3;
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         debugPrint('Attempting to create user document (attempt $attempt)...');
 
-        // Pastikan user masih authenticated
         if (_auth.currentUser == null) {
           throw Exception('User not authenticated');
         }
 
-        // Get fresh token sebelum setiap attempt (dengan timeout)
         try {
           await user.getIdToken(true).timeout(Duration(seconds: 10));
         } catch (e) {
@@ -270,18 +286,18 @@ class AuthService {
 
         final ref = firestore.collection('users').doc(user.uid);
 
-        // Gunakan transaction untuk atomic operation
         await firestore.runTransaction((transaction) async {
           transaction.set(ref, {
             'uid': user.uid,
             'email': user.email,
             'username': username,
             'isNewUser': true,
+            'hasCompletedOnboarding': false, // TAMBAH BARIS INI
             'createdAt': FieldValue.serverTimestamp(),
             'profileImageUrl': user.photoURL,
             'friends': [],
           });
-        }).timeout(Duration(seconds: 15)); // Add timeout
+        }).timeout(Duration(seconds: 15));
 
         debugPrint('User document created successfully with transaction');
         return;
@@ -291,11 +307,9 @@ class AuthService {
 
         if (attempt == maxRetries) {
           debugPrint('Max retries reached, user document may not be created');
-          // Don't throw error - let registration proceed
           return;
         }
 
-        // Shorter delay between retries
         await Future.delayed(Duration(milliseconds: 1000 * attempt));
       }
     }
