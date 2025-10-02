@@ -366,7 +366,7 @@ class _OnboardingChatbotScreenState extends State<OnboardingChatbotScreen> {
           maxWidth: screenWidth * 0.75,
         ),
         decoration: BoxDecoration(
-          color: message.isUser ? const Color(0xFFFF6A00) : Colors.white,
+          color: message.isUser ? const Color(0xFF000000) : Color(0xFFFFBD09),
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(

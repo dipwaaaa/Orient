@@ -50,26 +50,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final result = await _authService.signInWithEmailAndPassword(
+      final result = await _authService.signInWithEmailOrUsername(
         emailController.text.trim(),
         passwordController.text.trim(),
       );
 
       if (result['success']) {
-        // Cek apakah perlu ke welcome screen atau langsung ke home
-        if (result['isNewUser'] == true) {
-          // User baru atau belum pernah melihat welcome screen
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => WelcomeScreen()),
-          );
-        } else {
-          // User lama, langsung ke home screen
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => HomeScreen()),
-          );
-        }
+        // Login SELALU ke HomeScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen()),
+        );
       } else {
         _showErrorDialog(result['error']);
       }
@@ -81,7 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // Handle signup
-// Handle signup dengan better error handling dan retry mechanism
   Future<void> _handleSignUp() async {
     if (usernameController.text.isEmpty ||
         signupEmailController.text.isEmpty ||
@@ -106,15 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result['success']) {
-        // Registrasi SELALU ke welcome screen
-        if (result['needsProfileSetup'] == true) {
-          _showProfileSetupDialog();
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => WelcomeScreen()),
-          );
-        }
+        // Sign Up SELALU ke WelcomeScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => WelcomeScreen()),
+        );
       } else {
         _showErrorDialog(result['error'] ?? 'Registration failed');
       }
@@ -124,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
     }
   }
+
 
   void _showProfileSetupDialog() {
     showDialog(
@@ -184,13 +171,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result['success']) {
         // Cek apakah user baru atau lama
         if (result['isNewUser'] == true) {
-          // User baru dari Google -> Welcome Screen
+          // User baru dari Google → Welcome Screen
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => WelcomeScreen()),
           );
         } else {
-          // User lama -> Home Screen
+          // User lama → Home Screen
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => HomeScreen()),

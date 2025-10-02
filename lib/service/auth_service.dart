@@ -11,7 +11,7 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // ===== Utility =====
+  // ===== Utility ===
   String _generateRandomUsername() {
     const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
@@ -42,15 +42,7 @@ class AuthService {
   // Cek apakah username sudah dipakai user lain dengan error handling yang lebih baik
   Future<bool> _isUsernameTaken(String username) async {
     try {
-      // Pastikan user sudah authenticated sebelum query
-      if (_auth.currentUser == null) {
-        debugPrint('User not authenticated for username check');
-        return false; // Assume tidak taken jika tidak bisa cek
-      }
-
-      // Tunggu sebentar untuk memastikan token sudah valid
-      await Future.delayed(Duration(milliseconds: 500));
-
+      // Sekarang tidak perlu cek currentUser
       final querySnapshot = await firestore
           .collection('users')
           .where('username', isEqualTo: username)
@@ -60,7 +52,6 @@ class AuthService {
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
       debugPrint('Error checking username availability: $e');
-      // Jika error, assume username tidak taken untuk menghindari blocking registration
       return false;
     }
   }
@@ -68,7 +59,8 @@ class AuthService {
   // Cari email berdasarkan username
   Future<String?> _getEmailFromUsername(String username) async {
     try {
-      if (_auth.currentUser == null) return null;
+      // Tidak perlu cek currentUser karena Firestore Rules sudah handle
+      // Query ini diizinkan oleh rules karena limit = 1 dan query username
 
       final querySnapshot = await firestore
           .collection('users')

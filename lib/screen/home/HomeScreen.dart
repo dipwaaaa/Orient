@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
 import '../../widget/Animated_Gradient_Background.dart';
+import '../../widget/NavigationBar.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,26 +15,144 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
-  String _username = 'User';
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Event data
-  String _eventName = 'No Active Event';
-  int _daysUntil = 0;
-  int _hoursUntil = 0;
-  bool _hasEvent = false;
+  String _username = 'User';
+  int _currentIndex = 1;
+
+  // Event data untuk countdown
+  DateTime? _currentEventDate;
+  String _currentEventName = 'No Active Event';
   Timer? _countdownTimer;
+  StreamSubscription<QuerySnapshot>? _eventSubscription;
+
+  // Countdown notifier
+  final ValueNotifier<Map<String, int>> _countdownNotifier =
+  ValueNotifier({'days': 0, 'hours': 0});
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _loadFirstEvent();
-    _startCountdownTimer();
+    _listenToEvents();
+
+    // Timer untuk countdown - update setiap detik
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_currentEventDate != null) {
+        final now = DateTime.now();
+        final difference = _currentEventDate!.difference(now);
+        final newDays = difference.inDays.clamp(0, 999);
+        final newHours = (difference.inHours % 24).clamp(0, 23);
+
+        // Hanya update jika nilai berubah
+        if (_countdownNotifier.value['days'] != newDays ||
+            _countdownNotifier.value['hours'] != newHours) {
+          _countdownNotifier.value = {
+            'days': newDays,
+            'hours': newHours,
+          };
+        }
+      }
+    });
+  }
+
+  void _listenToEvents() {
+    final user = _authService.currentUser;
+
+    print('🔍 _listenToEvents called');
+
+    if (user == null) {
+      print('❌ User is NULL - not logged in');
+      return;
+    }
+
+    print('✅ User authenticated');
+    print('   UID: ${user.uid}');
+    print('   Email: ${user.email}');
+
+    _eventSubscription = _firestore
+        .collection('events')
+        .where('ownerId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snapshot) {
+
+      print('📦 Firestore snapshot received');
+      print('   Document count: ${snapshot.docs.length}');
+
+      if (!mounted) {
+        print('⚠️ Widget not mounted, ignoring update');
+        return;
+      }
+
+      if (snapshot.docs.isEmpty) {
+        print('❌ No events found for user: ${user.uid}');
+        print('   Make sure the ownerId in Firestore matches this UID exactly');
+        setState(() {
+          _currentEventDate = null;
+          _currentEventName = 'No Active Event';
+        });
+        _countdownNotifier.value = {'days': 0, 'hours': 0};
+        return;
+      }
+
+      print('✅ Found ${snapshot.docs.length} event(s)');
+
+      // Sort di client side
+      final events = snapshot.docs.toList();
+
+      // Debug: Print semua events
+      for (var i = 0; i < events.length; i++) {
+        final data = events[i].data();
+        print('   Event $i:');
+        print('     - Name: ${data['eventName']}');
+        print('     - Date: ${data['eventDate']}');
+        print('     - Owner: ${data['ownerId']}');
+      }
+
+      events.sort((a, b) {
+        final dateA = (a.data()['eventDate'] as Timestamp).toDate();
+        final dateB = (b.data()['eventDate'] as Timestamp).toDate();
+        return dateA.compareTo(dateB);
+      });
+
+      final eventData = events.first.data();
+      final eventName = eventData['eventName'] ?? 'Active Event';
+      final Timestamp timestamp = eventData['eventDate'];
+      final eventDate = timestamp.toDate();
+
+      print('🎯 Selected event:');
+      print('   Name: $eventName');
+      print('   Date: $eventDate');
+
+      if (_currentEventDate != eventDate || _currentEventName != eventName) {
+        print('🔄 Updating event state');
+        setState(() {
+          _currentEventDate = eventDate;
+          _currentEventName = eventName;
+        });
+
+        final now = DateTime.now();
+        final difference = eventDate.difference(now);
+        _countdownNotifier.value = {
+          'days': difference.inDays.clamp(0, 999),
+          'hours': (difference.inHours % 24).clamp(0, 23),
+        };
+
+        print('⏰ Countdown: ${_countdownNotifier.value}');
+      } else {
+        print('✓ Event unchanged, no update needed');
+      }
+    }, onError: (error) {
+      print('❌ Firestore error: $error');
+      print('   Stack trace: ${StackTrace.current}');
+    });
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _eventSubscription?.cancel();
+    _countdownNotifier.dispose();
     super.dispose();
   }
 
@@ -47,8 +166,15 @@ class _HomeScreenState extends State<HomeScreen> {
             .get();
 
         if (userDoc.exists && mounted) {
+          String username = userDoc.data()?['username'] ?? user.displayName ?? '';
+          username = username.replaceAll(' ', '');
+
+          if (username.isEmpty) {
+            username = _generateRandomUsername();
+          }
+
           setState(() {
-            _username = userDoc.data()?['username'] ?? user.displayName ?? 'User';
+            _username = username;
           });
         }
       } catch (e) {
@@ -57,62 +183,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFirstEvent() async {
-    final user = _authService.currentUser;
-    if (user == null) return;
+  String _generateRandomUsername() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    final random = DateTime.now().millisecondsSinceEpoch;
+    String username = '';
 
-    try {
-      // Get first event ID from user doc
-      final userDoc = await _authService.firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (userDoc.exists) {
-        final firstEventId = userDoc.data()?['firstEventId'];
-
-        if (firstEventId != null) {
-          // Get event details
-          final eventDoc = await _authService.firestore
-              .collection('events')
-              .doc(firstEventId)
-              .get();
-
-          if (eventDoc.exists && mounted) {
-            final data = eventDoc.data()!;
-            final eventDate = (data['eventDate'] as Timestamp).toDate();
-            _updateCountdown(eventDate);
-
-            setState(() {
-              _eventName = data['eventName'] ?? 'No Active Event';
-              _hasEvent = true;
-            });
-          }
-        }
-      }
-    } catch (e) {
-      print('Error loading first event: $e');
+    for (int i = 0; i < 8; i++) {
+      username += chars[(random + i) % chars.length];
     }
-  }
 
-  void _startCountdownTimer() {
-    _countdownTimer = Timer.periodic(Duration(minutes: 1), (timer) {
-      if (_hasEvent) {
-        _loadFirstEvent();
-      }
-    });
-  }
-
-  void _updateCountdown(DateTime eventDate) {
-    final now = DateTime.now();
-    final difference = eventDate.difference(now);
-
-    if (mounted) {
-      setState(() {
-        _daysUntil = difference.inDays;
-        _hoursUntil = difference.inHours % 24;
-      });
-    }
+    return username;
   }
 
   @override
@@ -140,8 +220,281 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+      bottomNavigationBar: CustomBottomNavigationBar(
+        currentIndex: _currentIndex,
+        onIndexChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+      ),
     );
   }
+
+  Widget _buildCarousel(double screenWidth) {
+    final cardWidth = screenWidth * 0.85;
+    final cardHeight = 189.0;
+
+    return ValueListenableBuilder<Map<String, int>>(
+      valueListenable: _countdownNotifier,
+      builder: (context, countdown, child) {
+        if (_currentEventDate == null) {
+          return _buildEmptyCarousel(cardWidth, cardHeight);
+        }
+
+        return _buildEventCarousel(
+          cardWidth,
+          cardHeight,
+          _currentEventName,
+          countdown['days']!,
+          countdown['hours']!,
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyCarousel(double cardWidth, double cardHeight) {
+    return Container(
+      width: cardWidth,
+      height: cardHeight,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AnimatedGradientBackground(
+        duration: Duration(seconds: 5),
+        radius: 1.5,
+        colors: [
+          Color(0xFFFFE100),
+          Color(0xFFFF6A00),
+        ],
+        child: Stack(
+          children: [
+            Positioned(
+              left: 16,
+              top: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "No Active Event",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '00',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 48,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w700,
+                          height: 0.9,
+                        ),
+                      ),
+                      Text(
+                        'DAYS',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '00',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 48,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w700,
+                          height: 0.9,
+                        ),
+                      ),
+                      Text(
+                        'HOURS',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: 16,
+              bottom: 16,
+              child: Container(
+                width: cardWidth * 0.70,
+                child: _buildIllustration(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventCarousel(
+      double cardWidth,
+      double cardHeight,
+      String eventName,
+      int days,
+      int hours,
+      ) {
+    return Container(
+      width: cardWidth,
+      height: cardHeight,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: AnimatedGradientBackground(
+        duration: Duration(seconds: 5),
+        radius: 1.5,
+        colors: [
+          Color(0xFFFFE100),
+          Color(0xFFFF6A00),
+        ],
+        child: Stack(
+          children: [
+            Positioned(
+              left: 16,
+              top: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    constraints: BoxConstraints(maxWidth: cardWidth * 0.4),
+                    child: Text(
+                      eventName,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        days.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 48,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w700,
+                          height: 0.9,
+                        ),
+                      ),
+                      Text(
+                        'DAYS',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hours.toString().padLeft(2, '0'),
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 48,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w700,
+                          height: 0.9,
+                        ),
+                      ),
+                      Text(
+                        'HOURS',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: 16,
+              bottom: 16,
+              child: Container(
+                width: cardWidth * 0.70,
+                child: _buildIllustration(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIllustration() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        image: DecorationImage(
+          image: AssetImage('assets/image/CarouselImage.png'),
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
+
 
   Widget _buildHeader() {
     return Container(
@@ -218,7 +571,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           _authService.currentUser!.photoURL!,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return Image.asset('assets/image/AvatarKimmy.png');
+                            return Image.asset(
+                                'assets/image/AvatarKimmy.png');
                           },
                         )
                             : Image.asset('assets/image/AvatarKimmy.png'),
@@ -256,7 +610,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: Color(0xFFDEF3FF),
                     backgroundImage: _authService.currentUser?.photoURL != null
                         ? NetworkImage(_authService.currentUser!.photoURL!)
-                        : AssetImage('assets/image/AvatarKimmy.png') as ImageProvider,
+                        : AssetImage('assets/image/AvatarKimmy.png')
+                    as ImageProvider,
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -319,130 +674,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
-  }
-
-  Widget _buildCarousel(double screenWidth) {
-    final cardWidth = screenWidth * 0.85;
-    final cardHeight = 189.0;
-
-    return Container(
-      width: cardWidth,
-      height: cardHeight,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: AnimatedGradientBackground(
-        duration: Duration(seconds: 5),
-        radius: 1.5,
-        colors: [
-          Color(0xFFFFE100),
-          Color(0xFFFF6A00),
-        ],
-        child: Stack(
-          children: [
-            Positioned(
-              left: 16,
-              top: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _eventName,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 12,
-                      fontFamily: 'SF Pro',
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _daysUntil.toString().padLeft(2, '0'),
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 48,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w700,
-                          height: 0.9,
-                        ),
-                      ),
-                      Text(
-                        'DAYS',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _hoursUntil.toString().padLeft(2, '0'),
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 48,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w700,
-                          height: 0.9,
-                        ),
-                      ),
-                      Text(
-                        'HOURS',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              right: 16,
-              top: 16,
-              bottom: 16,
-              child: Container(
-                width: cardWidth * 0.70,
-                child: _buildIllustration(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIllustration() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
-          image: AssetImage('assets/image/CarouselImage.png'),
-          fit: BoxFit.contain,
-        ),
-      ),
-    );
   }
 
   Widget _buildFeatureButtons() {
@@ -543,3 +774,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
