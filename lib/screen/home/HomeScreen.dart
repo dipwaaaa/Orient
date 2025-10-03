@@ -5,6 +5,7 @@ import '../login_signup_screen.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'task/TaskPageScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,11 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
     print('🔍 _listenToEvents called');
 
     if (user == null) {
-      print('❌ User is NULL - not logged in');
+      print(' User is NULL - not logged in');
       return;
     }
 
-    print('✅ User authenticated');
+    print(' User authenticated');
     print('   UID: ${user.uid}');
     print('   Email: ${user.email}');
 
@@ -76,16 +77,16 @@ class _HomeScreenState extends State<HomeScreen> {
         .snapshots()
         .listen((snapshot) {
 
-      print('📦 Firestore snapshot received');
+      print(' Firestore snapshot received');
       print('   Document count: ${snapshot.docs.length}');
 
       if (!mounted) {
-        print('⚠️ Widget not mounted, ignoring update');
+        print(' Widget not mounted, ignoring update');
         return;
       }
 
       if (snapshot.docs.isEmpty) {
-        print('❌ No events found for user: ${user.uid}');
+        print(' No events found for user: ${user.uid}');
         print('   Make sure the ownerId in Firestore matches this UID exactly');
         setState(() {
           _currentEventDate = null;
@@ -95,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      print('✅ Found ${snapshot.docs.length} event(s)');
+      print(' Found ${snapshot.docs.length} event(s)');
 
       // Sort di client side
       final events = snapshot.docs.toList();
@@ -120,12 +121,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final Timestamp timestamp = eventData['eventDate'];
       final eventDate = timestamp.toDate();
 
-      print('🎯 Selected event:');
+      print(' Selected event:');
       print('   Name: $eventName');
       print('   Date: $eventDate');
 
       if (_currentEventDate != eventDate || _currentEventName != eventName) {
-        print('🔄 Updating event state');
+        print(' Updating event state');
         setState(() {
           _currentEventDate = eventDate;
           _currentEventName = eventName;
@@ -138,12 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
           'hours': (difference.inHours % 24).clamp(0, 23),
         };
 
-        print('⏰ Countdown: ${_countdownNotifier.value}');
+        print(' Countdown: ${_countdownNotifier.value}');
       } else {
         print('✓ Event unchanged, no update needed');
       }
     }, onError: (error) {
-      print('❌ Firestore error: $error');
+      print(' Firestore error: $error');
       print('   Stack trace: ${StackTrace.current}');
     });
   }
@@ -676,6 +677,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String? _pressedButton;
+
   Widget _buildFeatureButtons() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16),
@@ -687,8 +690,10 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Task',
             color: Color(0xFFFFE100),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Task management coming soon!')),
+              // Navigate to TaskScreen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => TaskScreen()),
               );
             },
           ),
@@ -733,16 +738,38 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final isPressed = _pressedButton == label;
+
     return GestureDetector(
-      onTap: onTap,
+      onTapDown: (_) {
+        setState(() {
+          _pressedButton = label;
+        });
+      },
+      onTapUp: (_) {
+        setState(() {
+          _pressedButton = null;
+        });
+        onTap();
+      },
+      onTapCancel: () {
+        setState(() {
+          _pressedButton = null;
+        });
+      },
       child: Column(
         children: [
-          Container(
+          AnimatedContainer(
+            duration: Duration(milliseconds: 150),
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color,
+              color: isPressed ? Colors.white : color,
               shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.yellow,
+                width: isPressed ? 2 : 0,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
@@ -753,9 +780,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: Padding(
               padding: EdgeInsets.all(12),
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.contain,
+              child: ColorFiltered(
+                colorFilter: isPressed
+                    ? ColorFilter.mode(Colors.black, BlendMode.srcIn)
+                    : ColorFilter.mode(Colors.transparent, BlendMode.dst),
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),
