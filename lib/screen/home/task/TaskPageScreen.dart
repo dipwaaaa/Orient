@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'AddTaskScreen.dart';
 import '../../../widget/ProfileMenu.dart';
+import '../../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +15,7 @@ class TaskScreen extends StatefulWidget {
 }
 
 class _TaskScreenState extends State<TaskScreen> {
+  int _currentIndex = 0;
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -202,11 +205,15 @@ class _TaskScreenState extends State<TaskScreen> {
               ),
             ),
 
-            SizedBox(height: 20),
+            SizedBox(height: 24),
 
             // Calendar View
             if (_isWeekView) _buildWeekView() else _buildMonthView(),
 
+            // To Do Section with curved black background for Month view
+// Replace the Expanded section in TaskScreen with this code:
+
+            // To Do Section with curved black background for Month view
             Expanded(
               child: Container(
                 decoration: _isWeekView ? null : BoxDecoration(
@@ -242,43 +249,82 @@ class _TaskScreenState extends State<TaskScreen> {
                             child: IconButton(
                               icon: Icon(Icons.add, size: 25),
                               padding: EdgeInsets.zero,
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Add task coming soon!')),
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => AddTaskPage(),
+                                  ),
                                 );
+                                if (result == true) {
+                                  setState(() {});
+                                }
                               },
                             ),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 10),
                     Expanded(
-                      child: Center(
-                        child: Image.asset(
-                          _isWeekView
-                              ? 'assets/image/TaskImageWeek.png'
-                              : 'assets/image/TaskImageMonth.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            print('Error loading image: $error');
-                            return Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Image not found',
-                                  style: TextStyle(color: Colors.grey),
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('tasks')
+                            .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(
+                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)))
+                            .where('dueDate', isLessThan: Timestamp.fromDate(
+                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1)))
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          final hasTasks = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+
+                          return Stack(
+                            children: [
+                              // Background Image - always visible
+                              Positioned.fill(
+                                child: Opacity(
+                                  opacity: hasTasks ? 0.15 : 1.0,
+                                  child: Center(
+                                    child: Image.asset(
+                                      _isWeekView
+                                          ? 'assets/image/TaskImageWeek.png'
+                                          : 'assets/image/TaskImageMonth.png',
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.task_outlined,
+                                              size: 64,
+                                              color: _isWeekView ? Colors.grey : Colors.white.withOpacity(0.5),
+                                            ),
+                                            SizedBox(height: 16),
+                                            Text(
+                                              'No tasks for this date',
+                                              style: TextStyle(
+                                                color: _isWeekView ? Colors.grey : Colors.white,
+                                                fontSize: 16,
+                                                fontFamily: 'SF Pro',
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
                                 ),
-                                Text(
-                                  _isWeekView ? 'TaskImageWeek.png' : 'TaskImageMonth.png',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+
+                              // Task List - on top of image
+                              if (hasTasks)
+                                TaskListWidget(
+                                  filterDate: _selectedDate,
+                                  showInBlackBackground: !_isWeekView,
                                 ),
-                              ],
-                            );
-                          },
-                        ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -411,7 +457,7 @@ class _TaskScreenState extends State<TaskScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Month Header
+          // Month Header with black background buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -515,7 +561,7 @@ class _TaskScreenState extends State<TaskScreen> {
                     color: isToday
                         ? Color(0xFFFF6B00)
                         : (isSelected ? Color(0xFFFFE100) : Colors.transparent),
-                    shape: BoxShape.circle,
+                    shape: BoxShape.rectangle,
                   ),
                   child: Center(
                     child: Text(

@@ -4,6 +4,7 @@ import 'package:untitled/service/auth_service.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
 import '../../widget/ProfileMenu.dart';
+import '../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'task/TaskPageScreen.dart';
 
@@ -21,13 +22,12 @@ class _HomeScreenState extends State<HomeScreen> {
   String _username = 'User';
   int _currentIndex = 1;
 
-  // Event data untuk countdown
   DateTime? _currentEventDate;
   String _currentEventName = 'No Active Event';
+  String? _currentEventId;
   Timer? _countdownTimer;
   StreamSubscription<QuerySnapshot>? _eventSubscription;
 
-  // Countdown notifier
   final ValueNotifier<Map<String, int>> _countdownNotifier =
   ValueNotifier({'days': 0, 'hours': 0});
 
@@ -37,7 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserData();
     _listenToEvents();
 
-    // Timer untuk countdown - update setiap detik
     _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (_currentEventDate != null) {
         final now = DateTime.now();
@@ -45,7 +44,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final newDays = difference.inDays.clamp(0, 999);
         final newHours = (difference.inHours % 24).clamp(0, 23);
 
-        // Hanya update jika nilai berubah
         if (_countdownNotifier.value['days'] != newDays ||
             _countdownNotifier.value['hours'] != newHours) {
           _countdownNotifier.value = {
@@ -60,16 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _listenToEvents() {
     final user = _authService.currentUser;
 
-    print('🔍 _listenToEvents called');
-
     if (user == null) {
-      print('❌ User is NULL - not logged in');
       return;
     }
-
-    print('✅ User authenticated');
-    print('   UID: ${user.uid}');
-    print('   Email: ${user.email}');
 
     _eventSubscription = _firestore
         .collection('events')
@@ -77,38 +68,21 @@ class _HomeScreenState extends State<HomeScreen> {
         .snapshots()
         .listen((snapshot) {
 
-      print('📦 Firestore snapshot received');
-      print('   Document count: ${snapshot.docs.length}');
-
       if (!mounted) {
-        print('⚠️ Widget not mounted, ignoring update');
         return;
       }
 
       if (snapshot.docs.isEmpty) {
-        print('📭 No events found for user: ${user.uid}');
-        print('   Make sure the ownerId in Firestore matches this UID exactly');
         setState(() {
           _currentEventDate = null;
           _currentEventName = 'No Active Event';
+          _currentEventId = null;
         });
         _countdownNotifier.value = {'days': 0, 'hours': 0};
         return;
       }
 
-      print('📋 Found ${snapshot.docs.length} event(s)');
-
-      // Sort di client side
       final events = snapshot.docs.toList();
-
-      // Debug: Print semua events
-      for (var i = 0; i < events.length; i++) {
-        final data = events[i].data();
-        print('   Event $i:');
-        print('     - Name: ${data['eventName']}');
-        print('     - Date: ${data['eventDate']}');
-        print('     - Owner: ${data['ownerId']}');
-      }
 
       events.sort((a, b) {
         final dateA = (a.data()['eventDate'] as Timestamp).toDate();
@@ -120,16 +94,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final eventName = eventData['eventName'] ?? 'Active Event';
       final Timestamp timestamp = eventData['eventDate'];
       final eventDate = timestamp.toDate();
-
-      print('🎯 Selected event:');
-      print('   Name: $eventName');
-      print('   Date: $eventDate');
+      final eventId = events.first.id;
 
       if (_currentEventDate != eventDate || _currentEventName != eventName) {
-        print('🔄 Updating event state');
         setState(() {
           _currentEventDate = eventDate;
           _currentEventName = eventName;
+          _currentEventId = eventId;
         });
 
         final now = DateTime.now();
@@ -138,14 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
           'days': difference.inDays.clamp(0, 999),
           'hours': (difference.inHours % 24).clamp(0, 23),
         };
-
-        print('⏱️ Countdown: ${_countdownNotifier.value}');
-      } else {
-        print('✓ Event unchanged, no update needed');
       }
-    }, onError: (error) {
-      print('❌ Firestore error: $error');
-      print('   Stack trace: ${StackTrace.current}');
     });
   }
 
@@ -202,23 +166,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(
-        height: double.infinity,
-        width: double.infinity,
-        child: Stack(
-          children: [
-            SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  SizedBox(height: 24),
-                  _buildCarousel(screenWidth),
-                  SizedBox(height: 32),
-                  _buildFeatureButtons(),
-                ],
-              ),
-            )
-          ],
+      body: SingleChildScrollView(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              SizedBox(height: 24),
+              _buildCarousel(screenWidth),
+              SizedBox(height: 16),
+              _buildFeatureButtons(),
+              SizedBox(height: 24),
+              if (_currentEventId != null)
+                _buildTaskSection(),
+              SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: CustomBottomNavigationBar(
@@ -228,6 +190,64 @@ class _HomeScreenState extends State<HomeScreen> {
             _currentIndex = index;
           });
         },
+      ),
+    );
+  }
+
+  Widget _buildTaskSection() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Task',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TaskScreen()),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'View all',
+                      style: TextStyle(
+                        color: Colors.black.withOpacity(0.6),
+                        fontSize: 14,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.black.withOpacity(0.6),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          TaskListWidget(
+            eventId: _currentEventId,
+            maxItems: 3,
+          ),
+        ],
       ),
     );
   }
