@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../model/task_model.dart';
+import '../screen/home/task/IndividualTaskScreen.dart';
 
 class TaskListWidget extends StatelessWidget {
   final String? eventId;
   final DateTime? filterDate;
   final bool showInBlackBackground;
   final int? maxItems;
+  final bool hideCompletedInHome;
 
   const TaskListWidget({
     super.key,
@@ -15,6 +17,7 @@ class TaskListWidget extends StatelessWidget {
     this.filterDate,
     this.showInBlackBackground = false,
     this.maxItems,
+    this.hideCompletedInHome = false,
   });
 
   @override
@@ -51,7 +54,12 @@ class TaskListWidget extends StatelessWidget {
             .map((doc) => TaskModel.fromMap(doc.data() as Map<String, dynamic>))
             .toList();
 
-        final filteredTasks = _filterTasksByDate(tasks);
+        var filteredTasks = _filterTasksByDate(tasks);
+
+        // Hide completed tasks in HomeScreen if hideCompletedInHome is true
+        if (hideCompletedInHome) {
+          filteredTasks = filteredTasks.where((task) => task.status != 'completed').toList();
+        }
 
         if (filteredTasks.isEmpty) {
           return _buildEmptyState();
@@ -69,7 +77,7 @@ class TaskListWidget extends StatelessWidget {
           itemCount: displayTasks.length,
           separatorBuilder: (context, index) => SizedBox(height: 12),
           itemBuilder: (context, index) {
-            return _buildTaskCard(displayTasks[index], filteredTasks.length);
+            return _buildTaskCard(context, displayTasks[index], filteredTasks.length);
           },
         );
       },
@@ -83,13 +91,10 @@ class TaskListWidget extends StatelessWidget {
       query = query.where('eventId', isEqualTo: eventId);
     }
 
-    // Removed orderBy to avoid composite index requirement
-    // Sorting will be done on client side
     return query.snapshots();
   }
 
   List<TaskModel> _filterTasksByDate(List<TaskModel> tasks) {
-    // Sort by dueDate first (client-side sorting)
     tasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
     if (filterDate == null) return tasks;
@@ -129,115 +134,158 @@ class TaskListWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskCard(TaskModel task, int totalTasks) {
+  Future<void> _toggleTaskStatus(BuildContext context, TaskModel task) async {
+    try {
+      final newStatus = task.status == 'completed' ? 'pending' : 'completed';
+
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(task.taskId)
+          .update({
+        'status': newStatus,
+        'updatedAt': DateTime.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(newStatus == 'completed' ? 'Task completed!' : 'Task reopened'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update task'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildTaskCard(BuildContext context, TaskModel task, int totalTasks) {
     final isCompleted = task.status == 'completed';
 
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isCompleted ? Color(0xFFFFE100) : Colors.black.withOpacity(0.3),
-                    width: 2,
-                  ),
-                  color: isCompleted ? Color(0xFFFFE100) : Colors.transparent,
-                ),
-                child: isCompleted
-                    ? Icon(
-                  Icons.check,
-                  size: 14,
-                  color: Colors.black,
-                )
-                    : null,
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  task.name,
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w600,
-                    decoration: isCompleted ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-              ),
-              Text(
-                DateFormat('MM/dd/yyyy').format(task.dueDate),
-                style: TextStyle(
-                  color: Colors.black.withOpacity(0.6),
-                  fontSize: 14,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => IndividualTaskScreen(taskId: task.taskId),
           ),
-          SizedBox(height: 12),
-          // Progress bar
-          Stack(
-            children: [
-              Container(
-                height: 6,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(3),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.black.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    // Stop propagation to parent GestureDetector
+                    _toggleTaskStatus(context, task);
+                  },
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isCompleted ? Color(0xFFFF6A00) : Colors.black.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      color: isCompleted ? Color(0xFFFF6A00) : Colors.transparent,
+                    ),
+                    child: isCompleted
+                        ? Icon(
+                      Icons.check,
+                      size: 14,
+                      color: Colors.white,
+                    )
+                        : null,
+                  ),
                 ),
-              ),
-              FractionallySizedBox(
-                widthFactor: isCompleted ? 1.0 : 0.0,
-                child: Container(
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    task.name,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w600,
+                      decoration: isCompleted ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ),
+                Text(
+                  DateFormat('MM/dd/yyyy').format(task.dueDate),
+                  style: TextStyle(
+                    color: Colors.black.withOpacity(0.6),
+                    fontSize: 14,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            Stack(
+              children: [
+                Container(
                   height: 6,
                   decoration: BoxDecoration(
-                    color: Color(0xFFFFE100),
+                    color: Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${isCompleted ? 100 : 0}% completed',
-                style: TextStyle(
-                  color: Colors.black.withOpacity(0.5),
-                  fontSize: 12,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w500,
+                FractionallySizedBox(
+                  widthFactor: isCompleted ? 1.0 : 0.0,
+                  child: Container(
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFFE100),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
                 ),
-              ),
-              Text(
-                '${isCompleted ? 1 : 0} out of 1',
-                style: TextStyle(
-                  color: Colors.black.withOpacity(0.5),
-                  fontSize: 12,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w500,
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${isCompleted ? 100 : 0}% completed',
+                  style: TextStyle(
+                    color: Colors.black.withOpacity(0.5),
+                    fontSize: 12,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                Text(
+                  '${isCompleted ? 1 : 0} out of 1',
+                  style: TextStyle(
+                    color: Colors.black.withOpacity(0.5),
+                    fontSize: 12,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

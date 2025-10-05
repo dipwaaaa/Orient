@@ -246,6 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
           TaskListWidget(
             eventId: _currentEventId,
             maxItems: 3,
+            hideCompletedInHome: true,
           ),
         ],
       ),

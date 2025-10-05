@@ -155,6 +155,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
       final taskId = _firestore.collection('tasks').doc().id;
       final now = DateTime.now();
 
+      // Parse budget value
+      double? budgetValue;
+      if (_budgetController.text.isNotEmpty) {
+        budgetValue = double.tryParse(_budgetController.text.replaceAll(',', ''));
+      }
+
       final task = TaskModel(
         taskId: taskId,
         eventId: _selectedEventId!,
@@ -163,6 +169,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         dueDate: _selectedDate!,
         status: _selectedStatus,
         note: _noteController.text.isNotEmpty ? _noteController.text.trim() : null,
+        budget: budgetValue, // TAMBAHKAN budget
         imageUrls: null,
         createdBy: user.uid,
         createdAt: now,
