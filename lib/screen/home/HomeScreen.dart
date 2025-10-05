@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
-import '../login_signup_screen.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
+import '../../widget/ProfileMenu.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'task/TaskPageScreen.dart';
 
@@ -63,11 +63,11 @@ class _HomeScreenState extends State<HomeScreen> {
     print('🔍 _listenToEvents called');
 
     if (user == null) {
-      print(' User is NULL - not logged in');
+      print('❌ User is NULL - not logged in');
       return;
     }
 
-    print(' User authenticated');
+    print('✅ User authenticated');
     print('   UID: ${user.uid}');
     print('   Email: ${user.email}');
 
@@ -77,16 +77,16 @@ class _HomeScreenState extends State<HomeScreen> {
         .snapshots()
         .listen((snapshot) {
 
-      print(' Firestore snapshot received');
+      print('📦 Firestore snapshot received');
       print('   Document count: ${snapshot.docs.length}');
 
       if (!mounted) {
-        print(' Widget not mounted, ignoring update');
+        print('⚠️ Widget not mounted, ignoring update');
         return;
       }
 
       if (snapshot.docs.isEmpty) {
-        print(' No events found for user: ${user.uid}');
+        print('📭 No events found for user: ${user.uid}');
         print('   Make sure the ownerId in Firestore matches this UID exactly');
         setState(() {
           _currentEventDate = null;
@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      print(' Found ${snapshot.docs.length} event(s)');
+      print('📋 Found ${snapshot.docs.length} event(s)');
 
       // Sort di client side
       final events = snapshot.docs.toList();
@@ -121,12 +121,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final Timestamp timestamp = eventData['eventDate'];
       final eventDate = timestamp.toDate();
 
-      print(' Selected event:');
+      print('🎯 Selected event:');
       print('   Name: $eventName');
       print('   Date: $eventDate');
 
       if (_currentEventDate != eventDate || _currentEventName != eventName) {
-        print(' Updating event state');
+        print('🔄 Updating event state');
         setState(() {
           _currentEventDate = eventDate;
           _currentEventName = eventName;
@@ -139,12 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
           'hours': (difference.inHours % 24).clamp(0, 23),
         };
 
-        print(' Countdown: ${_countdownNotifier.value}');
+        print('⏱️ Countdown: ${_countdownNotifier.value}');
       } else {
         print('✓ Event unchanged, no update needed');
       }
     }, onError: (error) {
-      print(' Firestore error: $error');
+      print('❌ Firestore error: $error');
       print('   Stack trace: ${StackTrace.current}');
     });
   }
@@ -495,8 +495,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-
   Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.all(16),
@@ -565,18 +563,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Color(0xFFDEF3FF),
                     ),
                     child: ClipOval(
-                      child: Container(
-                        color: Color(0xFFDEF3FF),
-                        child: _authService.currentUser?.photoURL != null
-                            ? Image.network(
-                          _authService.currentUser!.photoURL!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.asset(
-                                'assets/image/AvatarKimmy.png');
-                          },
-                        )
-                            : Image.asset('assets/image/AvatarKimmy.png'),
+                      child: _authService.currentUser?.photoURL != null
+                          ? Image.network(
+                        _authService.currentUser!.photoURL!,
+                        fit: BoxFit.cover,
+                      )
+                          : Image.asset(
+                        'assets/image/AvatarKimmy.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
@@ -590,91 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showProfileMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        margin: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Color(0xFFDEF3FF),
-                    backgroundImage: _authService.currentUser?.photoURL != null
-                        ? NetworkImage(_authService.currentUser!.photoURL!)
-                        : AssetImage('assets/image/AvatarKimmy.png')
-                    as ImageProvider,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    _username,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _authService.currentUser?.email ?? '',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1),
-            ListTile(
-              leading: Icon(Icons.person, color: Color(0xFFFF6A00)),
-              title: Text('Profile Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Profile settings coming soon!')),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.logout, color: Colors.red),
-              title: Text('Sign Out'),
-              onTap: () {
-                Navigator.pop(context);
-                _handleSignOut();
-              },
-            ),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleSignOut() async {
-    try {
-      await _authService.signOut();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sign out failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    ProfileMenu.show(context, _authService, _username);
   }
 
   String? _pressedButton;
@@ -690,7 +600,6 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Task',
             color: Color(0xFFFFE100),
             onTap: () {
-              // Navigate to TaskScreen
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => TaskScreen()),
@@ -806,4 +715,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
