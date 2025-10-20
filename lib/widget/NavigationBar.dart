@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/screen/home/HomeScreen.dart';
+import 'package:untitled/screen/Event/ListEventScreen.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -129,17 +131,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         onIndexChanged(index);
-
-        // Show snackbar for coming soon features
-        if (index == 0) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Event coming soon!')),
-          );
-        } else if (index == 2) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Message coming soon!')),
-          );
-        }
+        _handleNavigation(context, index);
       },
       child: Container(
         width: 60,
@@ -156,6 +148,57 @@ class CustomBottomNavigationBar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _handleNavigation(BuildContext context, int index) {
+    // Cek apakah sudah berada di screen yang benar
+    final currentRoute = ModalRoute.of(context)?.settings.name;
+
+    switch (index) {
+      case 0:
+      // Navigate to EventListScreen
+        if (currentRoute != '/event-list') {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const EventListScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+              settings: const RouteSettings(name: '/event-list'),
+            ),
+          );
+        }
+        break;
+
+      case 1:
+      // Navigate to HomeScreen
+        if (currentRoute != '/home') {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const HomeScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+              settings: const RouteSettings(name: '/home'),
+            ),
+          );
+        }
+        break;
+
+      case 2:
+      // Message screen coming soon
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message feature coming soon!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        break;
+    }
   }
 }
 

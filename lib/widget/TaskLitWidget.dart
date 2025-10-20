@@ -58,7 +58,10 @@ class TaskListWidget extends StatelessWidget {
 
         // Hide completed tasks in HomeScreen if hideCompletedInHome is true
         if (hideCompletedInHome) {
-          filteredTasks = filteredTasks.where((task) => task.status != 'completed').toList();
+          filteredTasks =
+              filteredTasks
+                  .where((task) => task.status != 'completed')
+                  .toList();
         }
 
         if (filteredTasks.isEmpty) {
@@ -66,7 +69,8 @@ class TaskListWidget extends StatelessWidget {
         }
 
         // Limit tasks if maxItems is specified
-        final displayTasks = maxItems != null && maxItems! < filteredTasks.length
+        final displayTasks = maxItems != null &&
+            maxItems! < filteredTasks.length
             ? filteredTasks.take(maxItems!).toList()
             : filteredTasks;
 
@@ -77,7 +81,8 @@ class TaskListWidget extends StatelessWidget {
           itemCount: displayTasks.length,
           separatorBuilder: (context, index) => SizedBox(height: 12),
           itemBuilder: (context, index) {
-            return _buildTaskCard(context, displayTasks[index], filteredTasks.length);
+            return _buildTaskCard(
+                context, displayTasks[index], filteredTasks.length);
           },
         );
       },
@@ -116,7 +121,9 @@ class TaskListWidget extends StatelessWidget {
             Icon(
               Icons.task_outlined,
               size: 64,
-              color: showInBlackBackground ? Colors.white.withOpacity(0.5) : Colors.grey,
+              color: showInBlackBackground
+                  ? Colors.white.withOpacity(0.5)
+                  : Colors.grey,
             ),
             SizedBox(height: 16),
             Text(
@@ -148,7 +155,8 @@ class TaskListWidget extends StatelessWidget {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(newStatus == 'completed' ? 'Task completed!' : 'Task reopened'),
+          content: Text(
+              newStatus == 'completed' ? 'Task completed!' : 'Task reopened'),
           duration: Duration(seconds: 1),
         ),
       );
@@ -161,6 +169,8 @@ class TaskListWidget extends StatelessWidget {
       );
     }
   }
+
+// Ganti method _buildTaskCard di TaskListWidget dengan kode ini:
 
   Widget _buildTaskCard(BuildContext context, TaskModel task, int totalTasks) {
     final isCompleted = task.status == 'completed';
@@ -177,10 +187,15 @@ class TaskListWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
+          // Background hitam untuk month view, putih untuk week view
+          color: showInBlackBackground
+              ? Colors.black.withOpacity(0.9)
+              : Colors.white.withOpacity(0.9),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Colors.black.withOpacity(0.1),
+            color: showInBlackBackground
+                ? Colors.white.withOpacity(0.2)
+                : Colors.black.withOpacity(0.1),
             width: 1,
           ),
         ),
@@ -191,7 +206,6 @@ class TaskListWidget extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () {
-                    // Stop propagation to parent GestureDetector
                     _toggleTaskStatus(context, task);
                   },
                   child: Container(
@@ -200,7 +214,11 @@ class TaskListWidget extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isCompleted ? Color(0xFFFF6A00) : Colors.black.withOpacity(0.3),
+                        color: isCompleted
+                            ? Color(0xFFFF6A00)
+                            : (showInBlackBackground
+                            ? Colors.white.withOpacity(0.5)
+                            : Colors.black.withOpacity(0.3)),
                         width: 2,
                       ),
                       color: isCompleted ? Color(0xFFFF6A00) : Colors.transparent,
@@ -219,7 +237,8 @@ class TaskListWidget extends StatelessWidget {
                   child: Text(
                     task.name,
                     style: TextStyle(
-                      color: Colors.black,
+                      // Warna teks: putih untuk black background (month), hitam untuk week
+                      color: showInBlackBackground ? Colors.white : Colors.black,
                       fontSize: 16,
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
@@ -230,7 +249,10 @@ class TaskListWidget extends StatelessWidget {
                 Text(
                   DateFormat('MM/dd/yyyy').format(task.dueDate),
                   style: TextStyle(
-                    color: Colors.black.withOpacity(0.6),
+                    // Warna tanggal: putih dengan opacity untuk month, hitam dengan opacity untuk week
+                    color: showInBlackBackground
+                        ? Colors.white.withOpacity(0.7)
+                        : Colors.black.withOpacity(0.6),
                     fontSize: 14,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w500,
@@ -244,7 +266,9 @@ class TaskListWidget extends StatelessWidget {
                 Container(
                   height: 6,
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.2),
+                    color: showInBlackBackground
+                        ? Colors.white.withOpacity(0.2)
+                        : Colors.grey.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -267,7 +291,10 @@ class TaskListWidget extends StatelessWidget {
                 Text(
                   '${isCompleted ? 100 : 0}% completed',
                   style: TextStyle(
-                    color: Colors.black.withOpacity(0.5),
+                    // Warna progress text: putih untuk month, hitam untuk week
+                    color: showInBlackBackground
+                        ? Colors.white.withOpacity(0.6)
+                        : Colors.black.withOpacity(0.5),
                     fontSize: 12,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w500,
@@ -276,7 +303,9 @@ class TaskListWidget extends StatelessWidget {
                 Text(
                   '${isCompleted ? 1 : 0} out of 1',
                   style: TextStyle(
-                    color: Colors.black.withOpacity(0.5),
+                    color: showInBlackBackground
+                        ? Colors.white.withOpacity(0.6)
+                        : Colors.black.withOpacity(0.5),
                     fontSize: 12,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w500,
@@ -314,7 +343,9 @@ class TaskProgressWidget extends StatelessWidget {
         }
 
         final totalTasks = tasks.length;
-        final completedTasks = tasks.where((task) => task.status == 'completed').length;
+        final completedTasks = tasks
+            .where((task) => task.status == 'completed')
+            .length;
         final percentage = (completedTasks / totalTasks * 100).round();
 
         return Container(
@@ -383,6 +414,7 @@ class TaskProgressWidget extends StatelessWidget {
       },
     );
   }
+
 
   Stream<QuerySnapshot> _getTasksStream() {
     Query query = FirebaseFirestore.instance.collection('tasks');

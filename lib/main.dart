@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'dart:async';
 import 'firebase_options.dart';
 import 'screen/login_signup_screen.dart';
 import 'screen/landing_page/WelcomeScreen.dart';
-import 'screen/onboarding/onboarding_chatbot_screen.dart'; // TAMBAH IMPORT INI
+import 'screen/onboarding/onboarding_chatbot_screen.dart';
 import 'screen/home/HomeScreen.dart';
 import 'service/auth_service.dart';
+import 'widget/Animated_Gradient_Background.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,10 +32,190 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.orange,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const AuthWrapper(),
+      home: const SplashScreen(), // UBAH: Mulai dari SplashScreen
     );
   }
 }
+
+// ============== SPLASH SCREEN ==============
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+
+  // Constants untuk warna
+  static const Color _primaryYellow = Color(0xFFFFE100);
+  static const Color _primaryOrange = Color(0xFFFF6A00);
+  static const Color _transparentOrange = Color(0x00FF6A00);
+
+  // Auth service
+  final AuthService _authService = AuthService();
+
+  // Animation controller untuk fade in logo
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Setup animation
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    ));
+
+    // Start animation
+    _animationController.forward();
+
+    // Check auth and navigate after 3 seconds
+    _checkAuthAndNavigate();
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    // Tunggu minimal 3 detik untuk splash screen
+    await Future.delayed(const Duration(seconds: 5));
+
+    if (!mounted) return;
+
+    try {
+      // Cek apakah user sudah login
+      final user = _authService.currentUser;
+
+      if (user != null) {
+        // User sudah login, cek onboarding status
+        final hasCompletedOnboarding = await _authService.hasCompletedOnboarding();
+
+        if (!hasCompletedOnboarding) {
+          // Belum complete onboarding → OnboardingChatbot
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OnboardingChatbotScreen()),
+          );
+        } else {
+          // Sudah onboarding, cek welcome screen
+          final shouldShowWelcome = await _authService.shouldShowWelcomeScreen();
+
+          if (shouldShowWelcome) {
+            // User baru → WelcomeScreen
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+            );
+          } else {
+            // User lama → HomeScreen
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        }
+      } else {
+        // User belum login → LoginScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking auth: $e');
+      // Jika error, arahkan ke LoginScreen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: AnimatedGradientBackground(
+        duration: const Duration(seconds: 3),
+        radius: 2.22,
+        colors: const [
+          Color(0xFFFF6A00), // Orange
+          Color(0xFFFFE100), // Yellow
+        ],
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Image.asset(
+              'assets/image/Orient.png',
+              width: 225,
+              height: 79,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Background dengan gradient radial orange-yellow
+  Widget _buildBackgroundGradient() {
+    return Positioned(
+      left: -303,
+      top: -73,
+      child: Container(
+        width: 999,
+        height: 999,
+        decoration: const ShapeDecoration(
+          color: _primaryYellow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(1000)),
+          ),
+        ),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0.00, 1.00),
+              radius: 2.22,
+              colors: [_primaryOrange, _transparentOrange],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Logo aplikasi di tengah layar dengan fade animation
+  Widget _buildAnimatedLogo() {
+    return Center(
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Image.asset(
+          'assets/image/Orient.png',
+          width: 225,
+          height: 79,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+}
+
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -176,7 +357,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 ElevatedButton(
                   onPressed: () {
                     // Retry by rebuilding
-                    setState(() {});
+                    // setState(() {});
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,

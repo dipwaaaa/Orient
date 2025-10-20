@@ -210,10 +210,6 @@ class _TaskScreenState extends State<TaskScreen> {
             // Calendar View
             if (_isWeekView) _buildWeekView() else _buildMonthView(),
 
-            // To Do Section with curved black background for Month view
-// Replace the Expanded section in TaskScreen with this code:
-
-            // To Do Section with curved black background for Month view
             Expanded(
               child: Container(
                 decoration: _isWeekView ? null : BoxDecoration(
@@ -279,15 +275,14 @@ class _TaskScreenState extends State<TaskScreen> {
 
                           return Stack(
                             children: [
-                              // Background Image - always visible
-                              Positioned.fill(
-                                child: Opacity(
-                                  opacity: hasTasks ? 0.15 : 1.0,
+                              // Background Image - hanya tampil jika TIDAK ada tasks
+                              if (!hasTasks)
+                                Positioned.fill(
                                   child: Center(
                                     child: Image.asset(
                                       _isWeekView
-                                          ? 'assets/image/TaskImageWeek.png'
-                                          : 'assets/image/TaskImageMonth.png',
+                                          ? 'assets/image/NoTaskImage.png'
+                                          : 'assets/image/NoTaskImage2.png',
                                       fit: BoxFit.contain,
                                       errorBuilder: (context, error, stackTrace) {
                                         return Column(
@@ -314,9 +309,8 @@ class _TaskScreenState extends State<TaskScreen> {
                                     ),
                                   ),
                                 ),
-                              ),
 
-                              // Task List - on top of image
+                              // Task List - tampil jika ada tasks
                               if (hasTasks)
                                 TaskListWidget(
                                   filterDate: _selectedDate,
