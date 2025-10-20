@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
 import 'package:untitled/widget/ProfileMenu.dart';
+import 'package:untitled/screen/Event/EventDetailScreen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -278,11 +279,19 @@ class _EventListScreenState extends State<EventListScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () {
+          onTap: () async {
             // Navigate to event detail
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Opening $eventName details...')),
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EventDetailScreen(eventId: eventId),
+              ),
             );
+
+            // Refresh list if event was deleted
+            if (result == true && mounted) {
+              setState(() {});
+            }
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -374,7 +383,7 @@ class _EventListScreenState extends State<EventListScreen> {
           BoxShadow(
             color: const Color(0xFFFF6A00).withOpacity(0.4),
             blurRadius: 12,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
