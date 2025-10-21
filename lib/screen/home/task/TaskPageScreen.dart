@@ -8,8 +8,8 @@ import '../../../service/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class TaskScreen extends StatefulWidget {
-  final String? eventId; // Tambahkan parameter eventId
-  final String? eventName; // Tambahkan parameter eventName (optional)
+  final String? eventId;
+  final String? eventName;
 
   const TaskScreen({super.key, this.eventId, this.eventName});
 
@@ -23,8 +23,8 @@ class _TaskScreenState extends State<TaskScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String _username = 'User';
-  String? _selectedEventId; // Simpan eventId yang dipilih
-  String _selectedEventName = ''; // Simpan nama event
+  String? _selectedEventId;
+  String _selectedEventName = '';
   bool _isWeekView = true;
   DateTime _selectedDate = DateTime.now();
   DateTime _currentMonth = DateTime.now();
@@ -34,11 +34,11 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedEventId = widget.eventId; // Ambil eventId dari parameter
-    _selectedEventName = widget.eventName ?? ''; // Ambil eventName dari parameter
+    _selectedEventId = widget.eventId;
+    _selectedEventName = widget.eventName ?? '';
     _loadUserData();
     if (_selectedEventId != null && _selectedEventName.isEmpty) {
-      _loadEventName(); // Load nama event jika belum ada
+      _loadEventName();
     }
   }
 
@@ -245,7 +245,9 @@ class _TaskScreenState extends State<TaskScreen> {
 
             Expanded(
               child: Container(
-                decoration: _isWeekView ? null : BoxDecoration(
+                decoration: _isWeekView
+                    ? null
+                    : BoxDecoration(
                   color: Colors.black,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(30),
@@ -283,7 +285,7 @@ class _TaskScreenState extends State<TaskScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => AddTaskPage(
-                                      eventId: _selectedEventId, // Kirim eventId ke AddTaskPage
+                                      eventId: _selectedEventId,
                                     ),
                                   ),
                                 );
@@ -297,73 +299,10 @@ class _TaskScreenState extends State<TaskScreen> {
                       ),
                     ),
                     Expanded(
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: _selectedEventId != null
-                            ? FirebaseFirestore.instance
-                            .collection('tasks')
-                            .where('eventId', isEqualTo: _selectedEventId) // Filter berdasarkan eventId
-                            .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(
-                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)))
-                            .where('dueDate', isLessThan: Timestamp.fromDate(
-                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1)))
-                            .snapshots()
-                            : FirebaseFirestore.instance
-                            .collection('tasks')
-                            .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(
-                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)))
-                            .where('dueDate', isLessThan: Timestamp.fromDate(
-                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1)))
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          final hasTasks = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
-
-                          return Stack(
-                            children: [
-                              // Background Image - hanya tampil jika TIDAK ada tasks
-                              if (!hasTasks)
-                                Positioned.fill(
-                                  child: Center(
-                                    child: Image.asset(
-                                      _isWeekView
-                                          ? 'assets/image/NoTaskImage.png'
-                                          : 'assets/image/NoTaskImage2.png',
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.task_outlined,
-                                              size: 64,
-                                              color: _isWeekView ? Colors.grey : Colors.white.withOpacity(0.5),
-                                            ),
-                                            SizedBox(height: 16),
-                                            Text(
-                                              'No tasks for this date',
-                                              style: TextStyle(
-                                                color: _isWeekView ? Colors.grey : Colors.white,
-                                                fontSize: 16,
-                                                fontFamily: 'SF Pro',
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-
-                              // Task List - tampil jika ada tasks
-                              if (hasTasks)
-                                TaskListWidget(
-                                  eventId: _selectedEventId, // Kirim eventId ke TaskListWidget
-                                  filterDate: _selectedDate,
-                                  showInBlackBackground: !_isWeekView,
-                                ),
-                            ],
-                          );
-                        },
+                      child: TaskListWidget(
+                        eventId: _selectedEventId,
+                        filterDate: _selectedDate,
+                        showInBlackBackground: !_isWeekView,
                       ),
                     ),
                   ],
@@ -445,10 +384,14 @@ class _TaskScreenState extends State<TaskScreen> {
                       margin: EdgeInsets.symmetric(horizontal: 2),
                       padding: EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        color: isToday ? Colors.black : (isSelected ? Color(0xFFFFE100) : Colors.white),
+                        color: isToday
+                            ? Colors.black
+                            : (isSelected ? Color(0xFFFFE100) : Colors.white),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isToday ? Colors.black : (isSelected ? Color(0xFFFFE100) : Color(0xFFFFE100)),
+                          color: isToday
+                              ? Colors.black
+                              : (isSelected ? Color(0xFFFFE100) : Color(0xFFFFE100)),
                           width: 1,
                         ),
                       ),
@@ -458,7 +401,9 @@ class _TaskScreenState extends State<TaskScreen> {
                           Text(
                             monthShort,
                             style: TextStyle(
-                              color: isToday ? Color(0xFFFFE100) : (isSelected ? Colors.black : Color(0xFFFFE100)),
+                              color: isToday
+                                  ? Color(0xFFFFE100)
+                                  : (isSelected ? Colors.black : Color(0xFFFFE100)),
                               fontSize: 10,
                               fontFamily: 'SF Pro',
                               fontWeight: FontWeight.w600,
@@ -468,7 +413,9 @@ class _TaskScreenState extends State<TaskScreen> {
                           Text(
                             '${date.day}',
                             style: TextStyle(
-                              color: isToday ? Color(0xFFFFE100) : (isSelected ? Colors.black : Color(0xFFFFE100)),
+                              color: isToday
+                                  ? Color(0xFFFFE100)
+                                  : (isSelected ? Colors.black : Color(0xFFFFE100)),
                               fontSize: 17,
                               fontFamily: 'SF Pro',
                               fontWeight: FontWeight.w700,
@@ -496,7 +443,6 @@ class _TaskScreenState extends State<TaskScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          // Month Header with black background buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -548,11 +494,10 @@ class _TaskScreenState extends State<TaskScreen> {
             ],
           ),
           SizedBox(height: 8),
-
-          // Week Days Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: weekDays.map((day) => Expanded(
+            children: weekDays
+                .map((day) => Expanded(
               child: Center(
                 child: Text(
                   day,
@@ -564,11 +509,10 @@ class _TaskScreenState extends State<TaskScreen> {
                   ),
                 ),
               ),
-            )).toList(),
+            ))
+                .toList(),
           ),
           SizedBox(height: 8),
-
-          // Calendar Grid
           GridView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
