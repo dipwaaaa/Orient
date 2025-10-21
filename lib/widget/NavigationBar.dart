@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/screen/home/HomeScreen.dart';
 import 'package:untitled/screen/Event/ListEventScreen.dart';
+import 'package:untitled/screen/message/ChatScreen.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;
@@ -190,13 +191,19 @@ class CustomBottomNavigationBar extends StatelessWidget {
         break;
 
       case 2:
-      // Message screen coming soon
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Message feature coming soon!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        if (currentRoute != '/chat') {
+          Navigator.pushReplacement(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const ChatScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 300),
+              settings: const RouteSettings(name: '/chat'),
+            ),
+          );
+        }
         break;
     }
   }

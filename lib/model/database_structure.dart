@@ -121,4 +121,36 @@ Predefined Categories:
 - Photo & Video
 - Transportation
 - Accommodation
+
+8. chats/
+   - {chatId}/
+     - chatId: string (format: smaller_userId_larger_userId)
+     - participants: array<string> [userId1, userId2]
+     - participantDetails: map {
+         userId1: {
+           username: string
+           profileImageUrl: string?
+         },
+         userId2: {
+           username: string
+           profileImageUrl: string?
+         }
+       }
+     - lastMessage: string
+     - lastMessageTime: timestamp
+     - lastMessageSender: string (userId)
+     - createdAt: timestamp
+     - updatedAt: timestamp
+
+9. messages/ {
+  messageId: {
+    chatId: string,
+    senderId: string,
+    receiverId: string,
+    encryptedMessage: string,  // ✨ NEW
+    iv: string,                // ✨ NEW
+    timestamp: timestamp,
+    isRead: boolean
+  }
+}
 */
