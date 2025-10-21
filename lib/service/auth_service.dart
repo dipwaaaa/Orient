@@ -8,10 +8,13 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
+
+  FirebaseAuth get auth => _auth;
+
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // ===== Utility ===
+  // Utility
   String _generateRandomUsername() {
     const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
@@ -37,12 +40,9 @@ class AuthService {
     return hasLetter && hasNumber && hasSymbol;
   }
 
-
-
   // Cek apakah username sudah dipakai user lain dengan error handling yang lebih baik
   Future<bool> _isUsernameTaken(String username) async {
     try {
-      // Sekarang tidak perlu cek currentUser
       final querySnapshot = await firestore
           .collection('users')
           .where('username', isEqualTo: username)
@@ -59,9 +59,6 @@ class AuthService {
   // Cari email berdasarkan username
   Future<String?> _getEmailFromUsername(String username) async {
     try {
-      // Tidak perlu cek currentUser karena Firestore Rules sudah handle
-      // Query ini diizinkan oleh rules karena limit = 1 dan query username
-
       final querySnapshot = await firestore
           .collection('users')
           .where('username', isEqualTo: username.trim())
@@ -96,7 +93,7 @@ class AuthService {
           'email': user.email,
           'username': finalUsername,
           'isNewUser': isNewUser,
-          'hasCompletedOnboarding': false, // TAMBAH BARIS INI
+          'hasCompletedOnboarding': false,
           'createdAt': FieldValue.serverTimestamp(),
           'profileImageUrl': user.photoURL,
           'friends': [],
@@ -124,17 +121,15 @@ class AuthService {
     }
   }
 
-// ===== Email/Username/Password Login =====
+  // ===== Email/Username/Password Login =====
   Future<Map<String, dynamic>> signInWithEmailOrUsername(
       String emailOrUsername, String password) async {
     try {
       String emailToUse;
 
-      // Cek apakah input adalah email atau username
       if (_isEmail(emailOrUsername)) {
         emailToUse = emailOrUsername;
       } else {
-        // Jika username, cari email yang terkait
         final email = await _getEmailFromUsername(emailOrUsername);
         if (email == null) {
           return {'success': false, 'error': 'Username not found'};
@@ -146,16 +141,14 @@ class AuthService {
           email: emailToUse, password: password);
 
       if (result.user != null) {
-        // Pastikan user document ada
         await _createUserDocument(result.user!, isNewUser: false);
 
-        // Cek apakah user perlu melihat welcome screen
         final shouldShowWelcome = await shouldShowWelcomeScreen();
 
         return {
           'success': true,
           'userCredential': result,
-          'isNewUser': shouldShowWelcome // true jika perlu ke welcome screen
+          'isNewUser': shouldShowWelcome
         };
       }
       return {'success': false, 'error': 'Authentication failed'};
@@ -166,22 +159,19 @@ class AuthService {
     }
   }
 
-  // Backward compatibility - redirect to new method
   Future<Map<String, dynamic>> signInWithEmailAndPassword(
       String email, String password) async {
     return signInWithEmailOrUsername(email, password);
   }
 
-// ===== Email/Password Register (IMPROVED) =====
+  // ===== Email/Password Register =====
   Future<Map<String, dynamic>> registerWithEmailAndPassword(
       String email, String password, String username) async {
     try {
-      // Validasi username tidak boleh kosong
       if (username.trim().isEmpty) {
         return {'success': false, 'error': 'Username cannot be empty'};
       }
 
-      // Validasi username format (opsional - tambahkan aturan sesuai kebutuhan)
       final usernameRegex = RegExp(r'^[a-zA-Z0-9_]{3,20}$');
       if (!usernameRegex.hasMatch(username.trim())) {
         return {
@@ -190,7 +180,6 @@ class AuthService {
         };
       }
 
-      // Validasi password
       if (!_isValidPassword(password)) {
         return {
           'success': false,
@@ -200,7 +189,6 @@ class AuthService {
 
       debugPrint('Starting registration process...');
 
-      // LANGKAH 1: Buat user di Firebase Auth terlebih dahulu
       final result = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
 
@@ -210,7 +198,6 @@ class AuthService {
 
       debugPrint('User created in Auth: ${result.user!.uid}');
 
-      // LANGKAH 2: Update display name
       try {
         await result.user!.updateDisplayName(username.trim());
         debugPrint('Display name updated');
@@ -218,23 +205,18 @@ class AuthService {
         debugPrint('Failed to update display name: $e');
       }
 
-      // LANGKAH 3: Tunggu dan reload user untuk mendapatkan token yang segar
       await Future.delayed(Duration(seconds: 2));
       try {
         await result.user!.reload();
-
-        // Get fresh token untuk memastikan permissions
         final token = await result.user!.getIdToken(true);
         debugPrint('Fresh token obtained: ${token != null}');
       } catch (e) {
         debugPrint('Token refresh failed: $e');
       }
 
-      // LANGKAH 4: Cek username availability (setelah user sudah authenticated)
       try {
         bool usernameTaken = await _isUsernameTaken(username.trim());
         if (usernameTaken) {
-          // Generate alternative username
           final altUsername = '${username.trim()}_${Random().nextInt(9999)}';
           debugPrint('Username was taken, using: $altUsername');
           await _createUserDocumentSafe(result.user!, altUsername);
@@ -243,11 +225,9 @@ class AuthService {
         }
       } catch (e) {
         debugPrint('Username check/creation failed: $e');
-        // Fallback: create with random username
         await _createUserDocumentSafe(result.user!, _generateRandomUsername());
       }
 
-      // SELALU return success untuk registrasi yang berhasil di Auth
       return {'success': true, 'userCredential': result, 'isNewUser': true};
 
     } on FirebaseAuthException catch (e) {
@@ -284,7 +264,7 @@ class AuthService {
             'email': user.email,
             'username': username,
             'isNewUser': true,
-            'hasCompletedOnboarding': false, // TAMBAH BARIS INI
+            'hasCompletedOnboarding': false,
             'createdAt': FieldValue.serverTimestamp(),
             'profileImageUrl': user.photoURL,
             'friends': [],
@@ -307,16 +287,14 @@ class AuthService {
     }
   }
 
-// Method untuk setup profile nanti jika gagal saat registrasi
   Future<bool> retryProfileSetup() async {
     final user = currentUser;
     if (user == null) return false;
 
     try {
       final doc = await firestore.collection('users').doc(user.uid).get();
-      if (doc.exists) return true; // Sudah ada
+      if (doc.exists) return true;
 
-      // Coba buat ulang
       await _createUserDocumentSafe(user, user.displayName ?? _generateRandomUsername());
       return true;
     } catch (e) {
@@ -325,7 +303,7 @@ class AuthService {
     }
   }
 
-  // ===== Google Sign-In v6+ untuk Android =====
+  // ===== Google Sign-In =====
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
       debugPrint("Starting Google Sign-In...");
@@ -375,10 +353,8 @@ class AuthService {
 
       final isNew = result.additionalUserInfo?.isNewUser ?? false;
 
-      // Untuk Google Sign-In, gunakan display name dari Google atau generate random
       String username = result.user?.displayName ?? _generateRandomUsername();
 
-      // Cek apakah username sudah dipakai, jika ya tambahkan angka random
       try {
         bool usernameTaken = await _isUsernameTaken(username);
         if (usernameTaken) {
@@ -399,8 +375,6 @@ class AuthService {
   }
 
   // ===== Helper Methods untuk Username =====
-
-  // Cek ketersediaan username
   Future<bool> isUsernameAvailable(String username) async {
     if (username.trim().isEmpty) return false;
     try {
@@ -410,7 +384,6 @@ class AuthService {
     }
   }
 
-  // Generate username suggestions jika yang diinginkan sudah dipakai
   Future<List<String>> generateUsernameSuggestions(String baseUsername) async {
     List<String> suggestions = [];
     final cleanBase = baseUsername.trim().toLowerCase();
@@ -421,7 +394,6 @@ class AuthService {
         suggestions.add(suggestion);
       }
 
-      // Tambah variasi lain
       if (suggestions.length < 5) {
         String suggestion2 = '${cleanBase}_${Random().nextInt(999)}';
         if (await isUsernameAvailable(suggestion2)) {
@@ -441,14 +413,12 @@ class AuthService {
     try {
       final snap = await firestore.collection('users').doc(user.uid).get();
       if (!snap.exists) {
-        // Jika dokumen tidak ada, anggap sebagai user baru
         return true;
       }
 
       final data = snap.data();
       final isNew = data?['isNewUser'] ?? false;
 
-      // Jika masih flagged sebagai new user, update flag dan return true
       if (isNew) {
         try {
           await firestore
@@ -472,9 +442,10 @@ class AuthService {
     try {
       await GoogleSignIn.instance.signOut();
     } catch (e) {
-      debugPrint("Error signing out: $e");
+      debugPrint("Error signing out from Google: $e");
     }
     await _auth.signOut();
+    debugPrint("User signed out successfully");
   }
 
   String _handleAuthError(FirebaseAuthException e) {

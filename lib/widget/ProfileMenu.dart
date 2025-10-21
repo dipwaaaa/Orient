@@ -66,9 +66,23 @@ class ProfileMenu {
             ListTile(
               leading: Icon(Icons.logout, color: Colors.red),
               title: Text('Sign Out'),
-              onTap: () {
+              onTap: () async {
+                // Tutup bottom sheet
                 Navigator.pop(context);
-                _handleSignOut(context, authService);
+
+                // Tampilkan loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
+                    ),
+                  ),
+                );
+
+                // Sign out
+                await _handleSignOut(context, authService);
               },
             ),
             SizedBox(height: 20),
@@ -78,23 +92,43 @@ class ProfileMenu {
     );
   }
 
-  static Future<void> _handleSignOut(
-      BuildContext context,
-      AuthService authService,
-      ) async {
+  static Future<void> _handleSignOut(BuildContext context, AuthService authService) async {
     try {
+      // Sign out dari Firebase
       await authService.signOut();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
+
+      // Tunggu sebentar untuk memastikan sign out selesai
+      await Future.delayed(Duration(milliseconds: 300));
+
+      // Tutup loading dialog jika masih terbuka
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Navigate ke login screen dan hapus semua route
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+              (route) => false,
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sign out failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint('Sign out error: $e');
+
+      // Tutup loading dialog
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // Tampilkan error
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to sign out. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

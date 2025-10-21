@@ -6,6 +6,7 @@ import '../../widget/NavigationBar.dart';
 import '../../widget/ProfileMenu.dart';
 import '../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../login_signup_screen.dart';
 import 'task/TaskPageScreen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -35,11 +36,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Timer? _countdownTimer;
   StreamSubscription<QuerySnapshot>? _eventSubscription;
+  StreamSubscription? _authSubscription;
 
   final ValueNotifier<Map<String, int>> _countdownNotifier =
   ValueNotifier({'days': 0, 'hours': 0});
 
   @override
+  void initState() {
+    super.initState();
+    _setupAuthListener();
+    _loadUserData();
+    _listenToEvents();
+
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_currentEventDate != null && mounted) {
+        final now = DateTime.now();
+        final difference = _currentEventDate!.difference(now);
+        final newDays = difference.inDays.clamp(0, 999);
+        final newHours = (difference.inHours % 24).clamp(0, 23);
+
+        if (_countdownNotifier.value['days'] != newDays ||
+            _countdownNotifier.value['hours'] != newHours) {
+          _countdownNotifier.value = {
+            'days': newDays,
+            'hours': newHours,
+          };
+        }
+      }
+    });
+  }
+
+
+  void _setupAuthListener() {
+    _authSubscription = _authService.auth.authStateChanges().listen((user) {
+      if (user == null && mounted) {
+        // User signed out, navigate to login
+        _cleanupAndNavigateToLogin();
+      }
+    });
+  }
+
   void _listenToEvents() {
     final user = _authService.currentUser;
 
@@ -64,15 +100,20 @@ class _HomeScreenState extends State<HomeScreen> {
         .snapshots()
         .listen((ownerSnapshot) async {
 
+      // Cek apakah user masih login
+      if (_authService.currentUser == null) {
+        return; // Stop jika user sudah logout
+      }
+
       try {
         // Query untuk events dimana user adalah collaborator
         final collaboratorSnapshot = await _firestore
             .collection('events')
             .where('collaborators', arrayContains: user.uid)
             .get()
-            .timeout(Duration(seconds: 10)); // Tambahkan timeout
+            .timeout(Duration(seconds: 10));
 
-        if (!mounted) return;
+        if (!mounted || _authService.currentUser == null) return;
 
         // Gabungan kedua hasil query
         final allEventDocs = [
@@ -87,13 +128,15 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         if (uniqueEvents.isEmpty) {
-          setState(() {
-            _userEvents = [];
-            _isLoadingEvents = false;
-            _currentEventDate = null;
-            _currentEventName = 'No Active Event';
-            _currentEventId = null;
-          });
+          if (mounted) {
+            setState(() {
+              _userEvents = [];
+              _isLoadingEvents = false;
+              _currentEventDate = null;
+              _currentEventName = 'No Active Event';
+              _currentEventId = null;
+            });
+          }
           _countdownNotifier.value = {'days': 0, 'hours': 0};
           return;
         }
@@ -141,17 +184,18 @@ class _HomeScreenState extends State<HomeScreen> {
           };
         }).toList();
 
-        setState(() {
-          _userEvents = eventsList;
-          _isLoadingEvents = false;
-          if (_userEvents.isNotEmpty && _currentCarouselIndex < _userEvents.length) {
-            _updateCurrentEvent(_currentCarouselIndex);
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _userEvents = eventsList;
+            _isLoadingEvents = false;
+            if (_userEvents.isNotEmpty && _currentCarouselIndex < _userEvents.length) {
+              _updateCurrentEvent(_currentCarouselIndex);
+            }
+          });
+        }
       } catch (e) {
         debugPrint('Error loading collaborator events: $e');
-        // Tetap tampilkan owner events meski collaborator query gagal
-        if (!mounted) return;
+        if (!mounted || _authService.currentUser == null) return;
 
         final events = ownerSnapshot.docs.toList();
         final eventsList = events.map((doc) {
@@ -169,10 +213,12 @@ class _HomeScreenState extends State<HomeScreen> {
           };
         }).whereType<Map<String, dynamic>>().toList();
 
-        setState(() {
-          _userEvents = eventsList;
-          _isLoadingEvents = false;
-        });
+        if (mounted) {
+          setState(() {
+            _userEvents = eventsList;
+            _isLoadingEvents = false;
+          });
+        }
       }
     }, onError: (error) {
       debugPrint('Stream error: $error');
@@ -183,8 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
   }
-
-
 
   void _updateCurrentEvent(int index) {
     if (_userEvents.isEmpty) {
@@ -216,37 +260,29 @@ class _HomeScreenState extends State<HomeScreen> {
     };
   }
 
+  void _cleanupAndNavigateToLogin() {
+    // Cancel semua listener
+    _countdownTimer?.cancel();
+    _eventSubscription?.cancel();
+    _authSubscription?.cancel(); // Tambahkan ini
+
+    // Navigate ke login
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
+    _authSubscription?.cancel(); // Tambahkan ini
     _countdownNotifier.dispose();
     _carouselController.dispose();
     super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-    _listenToEvents();
-
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_currentEventDate != null) {
-        final now = DateTime.now();
-        final difference = _currentEventDate!.difference(now);
-        final newDays = difference.inDays.clamp(0, 999);
-        final newHours = (difference.inHours % 24).clamp(0, 23);
-
-        if (_countdownNotifier.value['days'] != newDays ||
-            _countdownNotifier.value['hours'] != newHours) {
-          _countdownNotifier.value = {
-            'days': newDays,
-            'hours': newHours,
-          };
-        }
-      }
-    });
   }
 
   Future<void> _loadUserData() async {
@@ -322,6 +358,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Sisanya sama seperti kode asli...
+  // (Saya tidak menyertakan semua widget builder untuk menghemat ruang,
+  // tapi gunakan yang dari kode asli Anda)
+
   Widget _buildTaskSection() {
     return Container(
       width: double.infinity,
@@ -386,6 +426,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Tambahkan semua method _build lainnya dari kode asli Anda
+  // (_buildCarousel, _buildEmptyCarousel, _buildEventCarousel, dll.)
+
   Widget _buildCarousel(double screenWidth) {
     final cardWidth = screenWidth * 0.85;
     final cardHeight = 189.0;
@@ -424,7 +467,6 @@ class _HomeScreenState extends State<HomeScreen> {
               return ValueListenableBuilder<Map<String, int>>(
                 valueListenable: _countdownNotifier,
                 builder: (context, countdown, child) {
-                  // Only show countdown for current carousel item
                   if (index == _currentCarouselIndex) {
                     return _buildEventCarousel(
                       cardWidth,
@@ -434,7 +476,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       countdown['hours']!,
                     );
                   } else {
-                    // For other items, calculate their own countdown
                     final eventDate = event['date'] as DateTime;
                     final difference = eventDate.difference(DateTime.now());
                     return _buildEventCarousel(
@@ -451,7 +492,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         SizedBox(height: 12),
-        // Carousel Indicators
         if (_userEvents.length > 1)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -806,7 +846,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   String? _pressedButton;
 
   Widget _buildFeatureButtons() {
@@ -824,8 +863,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => TaskScreen(
-                    eventId: _currentEventId, // Kirim eventId yang sedang aktif
-                    eventName: _currentEventName, // Kirim nama event
+                    eventId: _currentEventId,
+                    eventName: _currentEventName,
                   ),
                 ),
               );
