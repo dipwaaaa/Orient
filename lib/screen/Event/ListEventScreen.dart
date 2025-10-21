@@ -4,6 +4,7 @@ import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
 import 'package:untitled/widget/ProfileMenu.dart';
 import 'package:untitled/screen/Event/EventDetailScreen.dart';
+import 'AddEventScreen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -382,7 +383,6 @@ class _EventListScreenState extends State<EventListScreen> {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFFF6A00).withOpacity(0.4),
-            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -391,10 +391,19 @@ class _EventListScreenState extends State<EventListScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(30),
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Create new event coming soon!')),
+          onTap: () async {
+            // Navigate to CreateEventScreen
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CreateEventScreen(),
+              ),
             );
+
+            // Refresh list if event was created
+            if (result == true && mounted) {
+              setState(() {});
+            }
           },
           child: const Icon(
             Icons.add,
