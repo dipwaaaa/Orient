@@ -40,83 +40,151 @@ class _HomeScreenState extends State<HomeScreen> {
   ValueNotifier({'days': 0, 'hours': 0});
 
   @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-    _listenToEvents();
-
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (_currentEventDate != null) {
-        final now = DateTime.now();
-        final difference = _currentEventDate!.difference(now);
-        final newDays = difference.inDays.clamp(0, 999);
-        final newHours = (difference.inHours % 24).clamp(0, 23);
-
-        if (_countdownNotifier.value['days'] != newDays ||
-            _countdownNotifier.value['hours'] != newHours) {
-          _countdownNotifier.value = {
-            'days': newDays,
-            'hours': newHours,
-          };
-        }
-      }
-    });
-  }
-
   void _listenToEvents() {
     final user = _authService.currentUser;
 
     if (user == null) {
+      setState(() {
+        _isLoadingEvents = false;
+      });
       return;
     }
 
+    // Set loading di awal
+    if (_isLoadingEvents) {
+      setState(() {
+        _isLoadingEvents = true;
+      });
+    }
+
+    // Query untuk events dimana user adalah owner
     _eventSubscription = _firestore
         .collection('events')
         .where('ownerId', isEqualTo: user.uid)
         .snapshots()
-        .listen((snapshot) {
-      if (!mounted) return;
+        .listen((ownerSnapshot) async {
 
-      if (snapshot.docs.isEmpty) {
-        setState(() {
-          _userEvents = [];
-          _isLoadingEvents = false;
-          _currentEventDate = null;
-          _currentEventName = 'No Active Event';
-          _currentEventId = null;
+      try {
+        // Query untuk events dimana user adalah collaborator
+        final collaboratorSnapshot = await _firestore
+            .collection('events')
+            .where('collaborators', arrayContains: user.uid)
+            .get()
+            .timeout(Duration(seconds: 10)); // Tambahkan timeout
+
+        if (!mounted) return;
+
+        // Gabungan kedua hasil query
+        final allEventDocs = [
+          ...ownerSnapshot.docs,
+          ...collaboratorSnapshot.docs,
+        ];
+
+        // Remove duplicates berdasarkan eventId
+        final uniqueEvents = <String, QueryDocumentSnapshot>{};
+        for (var doc in allEventDocs) {
+          uniqueEvents[doc.id] = doc;
+        }
+
+        if (uniqueEvents.isEmpty) {
+          setState(() {
+            _userEvents = [];
+            _isLoadingEvents = false;
+            _currentEventDate = null;
+            _currentEventName = 'No Active Event';
+            _currentEventId = null;
+          });
+          _countdownNotifier.value = {'days': 0, 'hours': 0};
+          return;
+        }
+
+        // Sort events by date
+        final events = uniqueEvents.values.toList();
+        events.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>?;
+          final dataB = b.data() as Map<String, dynamic>?;
+
+          if (dataA == null || dataB == null) return 0;
+
+          final dateA = (dataA['eventDate'] as Timestamp?)?.toDate();
+          final dateB = (dataB['eventDate'] as Timestamp?)?.toDate();
+
+          if (dateA == null || dateB == null) return 0;
+
+          return dateA.compareTo(dateB);
         });
-        _countdownNotifier.value = {'days': 0, 'hours': 0};
-        return;
+
+        // Convert to list of maps
+        final eventsList = events.map((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+
+          if (data == null) {
+            return {
+              'id': doc.id,
+              'name': 'Unnamed Event',
+              'date': DateTime.now(),
+              'location': '',
+              'description': '',
+              'isOwner': false,
+              'isCollaborator': false,
+            };
+          }
+
+          return {
+            'id': doc.id,
+            'name': data['eventName'] ?? 'Unnamed Event',
+            'date': (data['eventDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            'location': data['eventLocation'] ?? '',
+            'description': data['description'] ?? '',
+            'isOwner': data['ownerId'] == user.uid,
+            'isCollaborator': (data['collaborators'] as List<dynamic>?)?.contains(user.uid) ?? false,
+          };
+        }).toList();
+
+        setState(() {
+          _userEvents = eventsList;
+          _isLoadingEvents = false;
+          if (_userEvents.isNotEmpty && _currentCarouselIndex < _userEvents.length) {
+            _updateCurrentEvent(_currentCarouselIndex);
+          }
+        });
+      } catch (e) {
+        debugPrint('Error loading collaborator events: $e');
+        // Tetap tampilkan owner events meski collaborator query gagal
+        if (!mounted) return;
+
+        final events = ownerSnapshot.docs.toList();
+        final eventsList = events.map((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data == null) return null;
+
+          return {
+            'id': doc.id,
+            'name': data['eventName'] ?? 'Unnamed Event',
+            'date': (data['eventDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            'location': data['eventLocation'] ?? '',
+            'description': data['description'] ?? '',
+            'isOwner': true,
+            'isCollaborator': false,
+          };
+        }).whereType<Map<String, dynamic>>().toList();
+
+        setState(() {
+          _userEvents = eventsList;
+          _isLoadingEvents = false;
+        });
       }
-
-      // Sort events by date
-      final events = snapshot.docs.toList();
-      events.sort((a, b) {
-        final dateA = (a.data()['eventDate'] as Timestamp).toDate();
-        final dateB = (b.data()['eventDate'] as Timestamp).toDate();
-        return dateA.compareTo(dateB);
-      });
-
-      // Convert to list of maps
-      final eventsList = events.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'name': data['eventName'] ?? 'Unnamed Event',
-          'date': (data['eventDate'] as Timestamp).toDate(),
-          'location': data['eventLocation'] ?? '',
-          'description': data['description'] ?? '',
-        };
-      }).toList();
-
-      setState(() {
-        _userEvents = eventsList;
-        _isLoadingEvents = false;
-        // Set current event to the first one (or keep carousel index)
-        _updateCurrentEvent(_currentCarouselIndex);
-      });
+    }, onError: (error) {
+      debugPrint('Stream error: $error');
+      if (mounted) {
+        setState(() {
+          _isLoadingEvents = false;
+        });
+      }
     });
   }
+
+
 
   void _updateCurrentEvent(int index) {
     if (_userEvents.isEmpty) {
@@ -155,6 +223,30 @@ class _HomeScreenState extends State<HomeScreen> {
     _countdownNotifier.dispose();
     _carouselController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _listenToEvents();
+
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_currentEventDate != null) {
+        final now = DateTime.now();
+        final difference = _currentEventDate!.difference(now);
+        final newDays = difference.inDays.clamp(0, 999);
+        final newHours = (difference.inHours % 24).clamp(0, 23);
+
+        if (_countdownNotifier.value['days'] != newDays ||
+            _countdownNotifier.value['hours'] != newHours) {
+          _countdownNotifier.value = {
+            'days': newDays,
+            'hours': newHours,
+          };
+        }
+      }
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -253,7 +345,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => TaskScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => TaskScreen(
+                        eventId: _currentEventId,
+                        eventName: _currentEventName,
+                      ),
+                    ),
                   );
                 },
                 child: Row(
@@ -678,7 +775,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(width: 8),
                 GestureDetector(
-                  onTap: _showProfileMenu,
+                  onTap: () {
+                    ProfileMenu.show(context, _authService, _username);
+                  },
                   child: Container(
                     width: 32,
                     height: 32,
@@ -707,9 +806,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showProfileMenu() {
-    ProfileMenu.show(context, _authService, _username);
-  }
 
   String? _pressedButton;
 
@@ -729,7 +825,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(
                   builder: (context) => TaskScreen(
                     eventId: _currentEventId, // Kirim eventId yang sedang aktif
-                    eventName: _currentEventName, // Kirim nama event (optional)
+                    eventName: _currentEventName, // Kirim nama event
                   ),
                 ),
               );

@@ -138,11 +138,13 @@ class _EventListScreenState extends State<EventListScreen> {
                 ),
                 const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: _showProfileMenu,
+                  onTap: () {
+                    ProfileMenu.show(context, _authService, _username);
+                  },
                   child: Container(
                     width: 32,
                     height: 32,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Color(0xFFDEF3FF),
                     ),
@@ -167,9 +169,7 @@ class _EventListScreenState extends State<EventListScreen> {
     );
   }
 
-  void _showProfileMenu() {
-    ProfileMenu.show(context, _authService, _username);
-  }
+
 
   Widget _buildEventList() {
     final user = _authService.currentUser;
@@ -184,36 +184,97 @@ class _EventListScreenState extends State<EventListScreen> {
       stream: _firestore
           .collection('events')
           .where('ownerId', isEqualTo: user.uid)
-      // .orderBy('eventDate', descending: false) // Temporarily commented out
           .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
-            ),
-          );
-        }
+      builder: (context, ownerSnapshot) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('events')
+              .where('collaborators', arrayContains: user.uid)
+              .snapshots(),
+          builder: (context, collaboratorSnapshot) {
+            if (ownerSnapshot.connectionState == ConnectionState.waiting ||
+                collaboratorSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
+                ),
+              );
+            }
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
+            if (ownerSnapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      SizedBox(height: 16),
+                      Text('Error: ${ownerSnapshot.error}'),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => setState(() {}),
+                        child: Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildEmptyState();
-        }
+            if (collaboratorSnapshot.hasError) {
+              return Center(
+                child: Text('Error: ${collaboratorSnapshot.error}'),
+              );
+            }
 
-        final events = snapshot.data!.docs;
+            // Gabungkan events dari owner dan collaborator
+            final allEvents = <String, QueryDocumentSnapshot>{};
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: events.length,
-          itemBuilder: (context, index) {
-            final event = events[index].data() as Map<String, dynamic>;
-            final eventId = events[index].id;
-            return _buildEventCard(event, eventId);
+            if (ownerSnapshot.hasData && ownerSnapshot.data != null) {
+              for (var doc in ownerSnapshot.data!.docs) {
+                allEvents[doc.id] = doc;
+              }
+            }
+
+            if (collaboratorSnapshot.hasData && collaboratorSnapshot.data != null) {
+              for (var doc in collaboratorSnapshot.data!.docs) {
+                allEvents[doc.id] = doc;
+              }
+            }
+
+            if (allEvents.isEmpty) {
+              return _buildEmptyState();
+            }
+
+            // Sort by date
+            final sortedEvents = allEvents.values.toList()
+              ..sort((a, b) {
+                final dataA = a.data() as Map<String, dynamic>?;
+                final dataB = b.data() as Map<String, dynamic>?;
+
+                if (dataA == null || dataB == null) return 0;
+
+                final dateA = dataA['eventDate'] as Timestamp?;
+                final dateB = dataB['eventDate'] as Timestamp?;
+
+                if (dateA == null || dateB == null) return 0;
+
+                return dateA.compareTo(dateB);
+              });
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: sortedEvents.length,
+              itemBuilder: (context, index) {
+                final docData = sortedEvents[index].data();
+                final event = docData is Map<String, dynamic>
+                    ? docData
+                    : <String, dynamic>{};
+                final eventId = sortedEvents[index].id;
+                return _buildEventCard(event, eventId);
+              },
+            );
           },
         );
       },
@@ -253,9 +314,17 @@ class _EventListScreenState extends State<EventListScreen> {
   }
 
   Widget _buildEventCard(Map<String, dynamic> event, String eventId) {
-    final eventName = event['eventName'] ?? 'Unnamed Event';
+    final eventName = event['eventName'] as String? ?? 'Unnamed Event';
     final eventDate = (event['eventDate'] as Timestamp?)?.toDate();
-    final eventLocation = event['eventLocation'] ?? 'No location';
+    final eventLocation = event['eventLocation'] as String? ?? 'No location';
+    final ownerId = event['ownerId'] as String? ?? '';
+    final collaborators = event['collaborators'] != null
+        ? List<String>.from(event['collaborators'] as List)
+        : <String>[];
+
+    final user = _authService.currentUser;
+    final isOwner = user != null && ownerId == user.uid;
+    final isCollaborator = user != null && collaborators.contains(user.uid);
 
     // Calculate days remaining
     int daysRemaining = 0;
@@ -281,7 +350,6 @@ class _EventListScreenState extends State<EventListScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () async {
-            // Navigate to event detail
             final result = await Navigator.push(
               context,
               MaterialPageRoute(
@@ -289,81 +357,108 @@ class _EventListScreenState extends State<EventListScreen> {
               ),
             );
 
-            // Refresh list if event was deleted
             if (result == true && mounted) {
               setState(() {});
             }
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Event Info (Left Side)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        eventName,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 18,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            size: 14,
-                            color: Colors.black54,
+                // Badge Row - Owner or Collaborator
+                if (isOwner || isCollaborator)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              eventLocation,
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                                fontFamily: 'SF Pro',
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          decoration: BoxDecoration(
+                            color: isOwner
+                                ? Colors.black
+                                : Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isOwner ? 'Owner' : 'Collaborator',
+                            style: const TextStyle(
+                              color: Color(0xFFFFE100),
+                              fontSize: 10,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w600,
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Event Info Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            eventName,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 18,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: Colors.black54,
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  eventLocation,
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 12,
+                                    fontFamily: 'SF Pro',
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                // Days Remaining (Right Side)
-                Text(
-                  eventDate != null
-                      ? 'In $daysRemaining days'
-                      : 'No date',
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 13,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Arrow Icon
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.black,
-                  size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      eventDate != null ? 'In $daysRemaining days' : 'No date',
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 13,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.black,
+                      size: 20,
+                    ),
+                  ],
                 ),
               ],
             ),
