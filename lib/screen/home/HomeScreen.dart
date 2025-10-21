@@ -22,9 +22,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String _username = 'User';
   int _currentIndex = 1;
 
+  // Carousel and Event State
+  PageController _carouselController = PageController();
+  int _currentCarouselIndex = 0;
+  List<Map<String, dynamic>> _userEvents = [];
+  bool _isLoadingEvents = true;
+
+  // Current Event State
   DateTime? _currentEventDate;
   String _currentEventName = 'No Active Event';
   String? _currentEventId;
+
   Timer? _countdownTimer;
   StreamSubscription<QuerySnapshot>? _eventSubscription;
 
@@ -67,13 +75,12 @@ class _HomeScreenState extends State<HomeScreen> {
         .where('ownerId', isEqualTo: user.uid)
         .snapshots()
         .listen((snapshot) {
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (snapshot.docs.isEmpty) {
         setState(() {
+          _userEvents = [];
+          _isLoadingEvents = false;
           _currentEventDate = null;
           _currentEventName = 'No Active Event';
           _currentEventId = null;
@@ -82,35 +89,63 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
+      // Sort events by date
       final events = snapshot.docs.toList();
-
       events.sort((a, b) {
         final dateA = (a.data()['eventDate'] as Timestamp).toDate();
         final dateB = (b.data()['eventDate'] as Timestamp).toDate();
         return dateA.compareTo(dateB);
       });
 
-      final eventData = events.first.data();
-      final eventName = eventData['eventName'] ?? 'Active Event';
-      final Timestamp timestamp = eventData['eventDate'];
-      final eventDate = timestamp.toDate();
-      final eventId = events.first.id;
-
-      if (_currentEventDate != eventDate || _currentEventName != eventName) {
-        setState(() {
-          _currentEventDate = eventDate;
-          _currentEventName = eventName;
-          _currentEventId = eventId;
-        });
-
-        final now = DateTime.now();
-        final difference = eventDate.difference(now);
-        _countdownNotifier.value = {
-          'days': difference.inDays.clamp(0, 999),
-          'hours': (difference.inHours % 24).clamp(0, 23),
+      // Convert to list of maps
+      final eventsList = events.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'name': data['eventName'] ?? 'Unnamed Event',
+          'date': (data['eventDate'] as Timestamp).toDate(),
+          'location': data['eventLocation'] ?? '',
+          'description': data['description'] ?? '',
         };
-      }
+      }).toList();
+
+      setState(() {
+        _userEvents = eventsList;
+        _isLoadingEvents = false;
+        // Set current event to the first one (or keep carousel index)
+        _updateCurrentEvent(_currentCarouselIndex);
+      });
     });
+  }
+
+  void _updateCurrentEvent(int index) {
+    if (_userEvents.isEmpty) {
+      setState(() {
+        _currentEventDate = null;
+        _currentEventName = 'No Active Event';
+        _currentEventId = null;
+      });
+      _countdownNotifier.value = {'days': 0, 'hours': 0};
+      return;
+    }
+
+    final event = _userEvents[index];
+    final eventDate = event['date'] as DateTime;
+    final eventName = event['name'] as String;
+    final eventId = event['id'] as String;
+
+    setState(() {
+      _currentEventDate = eventDate;
+      _currentEventName = eventName;
+      _currentEventId = eventId;
+    });
+
+    final now = DateTime.now();
+    final difference = eventDate.difference(now);
+    _countdownNotifier.value = {
+      'days': difference.inDays.clamp(0, 999),
+      'hours': (difference.inHours % 24).clamp(0, 23),
+    };
   }
 
   @override
@@ -118,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
     _countdownNotifier.dispose();
+    _carouselController.dispose();
     super.dispose();
   }
 
@@ -257,21 +293,87 @@ class _HomeScreenState extends State<HomeScreen> {
     final cardWidth = screenWidth * 0.85;
     final cardHeight = 189.0;
 
-    return ValueListenableBuilder<Map<String, int>>(
-      valueListenable: _countdownNotifier,
-      builder: (context, countdown, child) {
-        if (_currentEventDate == null) {
-          return _buildEmptyCarousel(cardWidth, cardHeight);
-        }
+    if (_isLoadingEvents) {
+      return Container(
+        width: cardWidth,
+        height: cardHeight,
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
+          ),
+        ),
+      );
+    }
 
-        return _buildEventCarousel(
-          cardWidth,
-          cardHeight,
-          _currentEventName,
-          countdown['days']!,
-          countdown['hours']!,
-        );
-      },
+    if (_userEvents.isEmpty) {
+      return _buildEmptyCarousel(cardWidth, cardHeight);
+    }
+
+    return Column(
+      children: [
+        Container(
+          height: cardHeight,
+          child: PageView.builder(
+            controller: _carouselController,
+            itemCount: _userEvents.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentCarouselIndex = index;
+              });
+              _updateCurrentEvent(index);
+            },
+            itemBuilder: (context, index) {
+              final event = _userEvents[index];
+              return ValueListenableBuilder<Map<String, int>>(
+                valueListenable: _countdownNotifier,
+                builder: (context, countdown, child) {
+                  // Only show countdown for current carousel item
+                  if (index == _currentCarouselIndex) {
+                    return _buildEventCarousel(
+                      cardWidth,
+                      cardHeight,
+                      event['name'],
+                      countdown['days']!,
+                      countdown['hours']!,
+                    );
+                  } else {
+                    // For other items, calculate their own countdown
+                    final eventDate = event['date'] as DateTime;
+                    final difference = eventDate.difference(DateTime.now());
+                    return _buildEventCarousel(
+                      cardWidth,
+                      cardHeight,
+                      event['name'],
+                      difference.inDays.clamp(0, 999),
+                      (difference.inHours % 24).clamp(0, 23),
+                    );
+                  }
+                },
+              );
+            },
+          ),
+        ),
+        SizedBox(height: 12),
+        // Carousel Indicators
+        if (_userEvents.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              _userEvents.length,
+                  (index) => Container(
+                margin: EdgeInsets.symmetric(horizontal: 4),
+                width: _currentCarouselIndex == index ? 24 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: _currentCarouselIndex == index
+                      ? Color(0xFFFFE100)
+                      : Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -394,6 +496,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       width: cardWidth,
       height: cardHeight,
+      margin: EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -623,7 +726,12 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => TaskScreen()),
+                MaterialPageRoute(
+                  builder: (context) => TaskScreen(
+                    eventId: _currentEventId, // Kirim eventId yang sedang aktif
+                    eventName: _currentEventName, // Kirim nama event (optional)
+                  ),
+                ),
               );
             },
           ),

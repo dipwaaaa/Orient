@@ -3,6 +3,7 @@ import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/EventService.dart';
 import 'package:intl/intl.dart';
 import '../../widget/Animated_Gradient_Background.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -14,6 +15,7 @@ class CreateEventScreen extends StatefulWidget {
 class _CreateEventScreenState extends State<CreateEventScreen> {
   final AuthService _authService = AuthService();
   final EventService _eventService = EventService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Form controllers
   final TextEditingController _nameController = TextEditingController();
@@ -33,6 +35,147 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _descriptionController.dispose();
     _collaboratorController.dispose();
     super.dispose();
+  }
+
+  // Tambahkan method untuk validasi collaborator
+  Future<Map<String, dynamic>> _validateCollaborators(List<String> collaborators) async {
+    List<String> validCollaboratorIds = [];
+    List<String> invalidCollaborators = [];
+
+    for (String identifier in collaborators) {
+      try {
+        // Cek apakah identifier adalah email atau username
+        QuerySnapshot userQuery;
+
+        // Cek berdasarkan email
+        if (identifier.contains('@')) {
+          userQuery = await _firestore
+              .collection('users')
+              .where('email', isEqualTo: identifier.trim().toLowerCase())
+              .limit(1)
+              .get();
+        } else {
+          // Cek berdasarkan username
+          userQuery = await _firestore
+              .collection('users')
+              .where('username', isEqualTo: identifier.trim())
+              .limit(1)
+              .get();
+        }
+
+        if (userQuery.docs.isNotEmpty) {
+          // User ditemukan, ambil UID
+          validCollaboratorIds.add(userQuery.docs.first.id);
+        } else {
+          // User tidak ditemukan
+          invalidCollaborators.add(identifier);
+        }
+      } catch (e) {
+        debugPrint('Error validating collaborator $identifier: $e');
+        invalidCollaborators.add(identifier);
+      }
+    }
+
+    return {
+      'validIds': validCollaboratorIds,
+      'invalid': invalidCollaborators,
+    };
+  }
+
+// Modifikasi method _createEvent
+  Future<void> _createEvent() async {
+    // Validation
+    if (_nameController.text.trim().isEmpty) {
+      _showErrorDialog('Please enter event name');
+      return;
+    }
+
+    if (_selectedDate == null) {
+      _showErrorDialog('Please select event date');
+      return;
+    }
+
+    if (_locationController.text.trim().isEmpty) {
+      _showErrorDialog('Please enter event location');
+      return;
+    }
+
+    final user = _authService.currentUser;
+    if (user == null) {
+      _showErrorDialog('Please login first');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Prepare collaborators list
+      List<String> collaboratorInputs = [];
+      if (_collaboratorController.text.trim().isNotEmpty) {
+        collaboratorInputs = _collaboratorController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+
+      // Validate collaborators
+      List<String> validCollaboratorIds = [];
+      if (collaboratorInputs.isNotEmpty) {
+        final validationResult = await _validateCollaborators(collaboratorInputs);
+        validCollaboratorIds = validationResult['validIds'] as List<String>;
+        List<String> invalidCollaborators = validationResult['invalid'] as List<String>;
+
+        // Jika ada collaborator yang tidak valid, tampilkan error
+        if (invalidCollaborators.isNotEmpty) {
+          setState(() {
+            _isLoading = false;
+          });
+          _showErrorDialog(
+              'The following collaborators were not found:\n${invalidCollaborators.join(', ')}\n\nPlease check the username/email and try again.'
+          );
+          return;
+        }
+      }
+
+      // Pastikan owner tidak termasuk dalam collaborators
+      validCollaboratorIds.remove(user.uid);
+
+      final result = await _eventService.createEvent(
+        eventName: _nameController.text.trim(),
+        eventDate: _selectedDate!,
+        eventType: 'General',
+        eventLocation: _locationController.text.trim(),
+        description: _descriptionController.text.trim(),
+        ownerId: user.uid,
+        collaborators: validCollaboratorIds,
+      );
+
+      if (result['success']) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate back to EventListScreen
+        Navigator.pop(context, true);
+      } else {
+        _showErrorDialog(result['error']);
+      }
+    } catch (e) {
+      _showErrorDialog('Failed to create event: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -437,79 +580,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       setState(() {
         _selectedDate = picked;
       });
-    }
-  }
-
-  Future<void> _createEvent() async {
-    // Validation
-    if (_nameController.text.trim().isEmpty) {
-      _showErrorDialog('Please enter event name');
-      return;
-    }
-
-    if (_selectedDate == null) {
-      _showErrorDialog('Please select event date');
-      return;
-    }
-
-    if (_locationController.text.trim().isEmpty) {
-      _showErrorDialog('Please enter event location');
-      return;
-    }
-
-    final user = _authService.currentUser;
-    if (user == null) {
-      _showErrorDialog('Please login first');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Prepare collaborators list
-      List<String> collaborators = [];
-      if (_collaboratorController.text.trim().isNotEmpty) {
-        collaborators = _collaboratorController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-      }
-
-      final result = await _eventService.createEvent(
-        eventName: _nameController.text.trim(),
-        eventDate: _selectedDate!,
-        eventType: 'General', // Default type, you can add type selector
-        eventLocation: _locationController.text.trim(),
-        description: _descriptionController.text.trim(),
-        ownerId: user.uid,
-        collaborators: collaborators,
-      );
-
-      if (result['success']) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Navigate back to EventListScreen
-        Navigator.pop(context, true); // Return true to indicate success
-      } else {
-        _showErrorDialog(result['error']);
-      }
-    } catch (e) {
-      _showErrorDialog('Failed to create event: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 

@@ -200,6 +200,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {

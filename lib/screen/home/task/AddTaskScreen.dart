@@ -45,8 +45,29 @@ class _AddTaskPageState extends State<AddTaskPage> {
   void initState() {
     super.initState();
     _selectedEventId = widget.eventId;
-    if (_selectedEventId == null) {
+    if (_selectedEventId != null) {
+      _loadEventName(); // Load nama event jika eventId sudah ada
+    } else {
       _fetchUserEvent();
+    }
+  }
+
+  Future<void> _loadEventName() async {
+    if (_selectedEventId == null) return;
+
+    try {
+      final eventDoc = await _firestore
+          .collection('events')
+          .doc(_selectedEventId)
+          .get();
+
+      if (eventDoc.exists && mounted) {
+        setState(() {
+          _selectedEventName = eventDoc.data()?['eventName'] ?? 'Active Event';
+        });
+      }
+    } catch (e) {
+      print('Error loading event name: $e');
     }
   }
 

@@ -8,7 +8,10 @@ import '../../../service/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class TaskScreen extends StatefulWidget {
-  const TaskScreen({super.key});
+  final String? eventId; // Tambahkan parameter eventId
+  final String? eventName; // Tambahkan parameter eventName (optional)
+
+  const TaskScreen({super.key, this.eventId, this.eventName});
 
   @override
   State<TaskScreen> createState() => _TaskScreenState();
@@ -20,6 +23,8 @@ class _TaskScreenState extends State<TaskScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String _username = 'User';
+  String? _selectedEventId; // Simpan eventId yang dipilih
+  String _selectedEventName = ''; // Simpan nama event
   bool _isWeekView = true;
   DateTime _selectedDate = DateTime.now();
   DateTime _currentMonth = DateTime.now();
@@ -29,13 +34,37 @@ class _TaskScreenState extends State<TaskScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedEventId = widget.eventId; // Ambil eventId dari parameter
+    _selectedEventName = widget.eventName ?? ''; // Ambil eventName dari parameter
     _loadUserData();
+    if (_selectedEventId != null && _selectedEventName.isEmpty) {
+      _loadEventName(); // Load nama event jika belum ada
+    }
   }
 
   @override
   void dispose() {
     _weekPageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadEventName() async {
+    if (_selectedEventId == null) return;
+
+    try {
+      final eventDoc = await _firestore
+          .collection('events')
+          .doc(_selectedEventId)
+          .get();
+
+      if (eventDoc.exists && mounted) {
+        setState(() {
+          _selectedEventName = eventDoc.data()?['eventName'] ?? '';
+        });
+      }
+    } catch (e) {
+      print('Error loading event name: $e');
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -103,29 +132,33 @@ class _TaskScreenState extends State<TaskScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Today's Tasks",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 25,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w900,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Today's Tasks",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 25,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        DateFormat('MMMM d, yyyy').format(DateTime.now()),
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 13,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w500,
+                        SizedBox(height: 4),
+                        Text(
+                          _selectedEventName.isNotEmpty
+                              ? 'For $_selectedEventName'
+                              : DateFormat('MMMM d, yyyy').format(DateTime.now()),
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 13,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   Container(
                     padding: EdgeInsets.all(8),
@@ -249,7 +282,9 @@ class _TaskScreenState extends State<TaskScreen> {
                                 final result = await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => AddTaskPage(),
+                                    builder: (context) => AddTaskPage(
+                                      eventId: _selectedEventId, // Kirim eventId ke AddTaskPage
+                                    ),
                                   ),
                                 );
                                 if (result == true) {
@@ -263,7 +298,16 @@ class _TaskScreenState extends State<TaskScreen> {
                     ),
                     Expanded(
                       child: StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
+                        stream: _selectedEventId != null
+                            ? FirebaseFirestore.instance
+                            .collection('tasks')
+                            .where('eventId', isEqualTo: _selectedEventId) // Filter berdasarkan eventId
+                            .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(
+                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)))
+                            .where('dueDate', isLessThan: Timestamp.fromDate(
+                            DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day + 1)))
+                            .snapshots()
+                            : FirebaseFirestore.instance
                             .collection('tasks')
                             .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(
                             DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)))
@@ -313,6 +357,7 @@ class _TaskScreenState extends State<TaskScreen> {
                               // Task List - tampil jika ada tasks
                               if (hasTasks)
                                 TaskListWidget(
+                                  eventId: _selectedEventId, // Kirim eventId ke TaskListWidget
                                   filterDate: _selectedDate,
                                   showInBlackBackground: !_isWeekView,
                                 ),
