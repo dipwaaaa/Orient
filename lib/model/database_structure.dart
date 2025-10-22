@@ -147,8 +147,8 @@ Predefined Categories:
     chatId: string,
     senderId: string,
     receiverId: string,
-    encryptedMessage: string,  // ✨ NEW
-    iv: string,                // ✨ NEW
+    encryptedMessage: string,
+    iv: string,
     timestamp: timestamp,
     isRead: boolean
   }

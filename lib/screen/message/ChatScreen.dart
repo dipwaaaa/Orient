@@ -458,8 +458,8 @@ class _ChatScreenState extends State<ChatScreen> {
         },
       ),
       floatingActionButton: Container(
-        width: screenWidth * 0.12,
-        height: screenWidth * 0.12,
+        width: screenWidth * 0.15,
+        height: screenWidth * 0.15,
         decoration: BoxDecoration(
           color: const Color(0xFFFFBD09),
           shape: BoxShape.circle,
