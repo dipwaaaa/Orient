@@ -279,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
-    _authSubscription?.cancel(); // Tambahkan ini
+    _authSubscription?.cancel();
     _countdownNotifier.dispose();
     _carouselController.dispose();
     super.dispose();
@@ -757,8 +757,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(screenWidth * 0.044),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -771,18 +774,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Hi, $_username!',
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 25,
+                    fontSize: screenWidth * 0.069,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w900,
                     height: 1.2,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: screenHeight * 0.005),
                 Text(
                   'What event are you planning today?',
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 13,
+                    fontSize: screenWidth * 0.036,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w500,
                     height: 1.4,
@@ -792,17 +795,17 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Container(
-            padding: EdgeInsets.all(8),
+            padding: EdgeInsets.all(screenWidth * 0.022),
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(screenWidth * 0.069),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 32.5,
-                  height: 32.5,
+                  width: screenWidth * 0.089,
+                  height: screenWidth * 0.089,
                   decoration: BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
@@ -810,17 +813,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: 25,
+                    size: screenWidth * 0.069,
                   ),
                 ),
-                SizedBox(width: 8),
+                SizedBox(width: screenWidth * 0.022),
                 GestureDetector(
                   onTap: () {
                     ProfileMenu.show(context, _authService, _username);
                   },
                   child: Container(
-                    width: 32,
-                    height: 32,
+                    width: screenWidth * 0.088,
+                    height: screenWidth * 0.088,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Color(0xFFDEF3FF),

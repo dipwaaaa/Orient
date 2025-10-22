@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:untitled/service/encryption_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
 import 'package:untitled/widget/ProfileMenu.dart';
 import 'RoomChatScreen.dart';
+import '../login_signup_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -21,10 +24,12 @@ class _ChatScreenState extends State<ChatScreen> {
   int _currentIndex = 2;
   List<ChatItem> _chatList = [];
   List<ChatItem> _filteredChatList = [];
+  StreamSubscription? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    _setupAuthListener();
     _loadUserData();
     _loadChats();
     _searchController.addListener(_filterChats);
@@ -33,6 +38,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _authSubscription?.cancel();
     super.dispose();
   }
 
@@ -48,6 +54,28 @@ class _ChatScreenState extends State<ChatScreen> {
         }).toList();
       }
     });
+  }
+
+  void _setupAuthListener() {
+    _authSubscription = _authService.auth.authStateChanges().listen((user) {
+      if (user == null && mounted) {
+        // User signed out, navigate to login
+        _cleanupAndNavigateToLogin();
+      }
+    });
+  }
+
+  void _cleanupAndNavigateToLogin() {
+    // Cancel auth subscription
+    _authSubscription?.cancel();
+
+    // Navigate to login and clear stack
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+      );
+    }
   }
 
   void _loadChats() {
@@ -77,6 +105,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
           final otherUserData = participantDetails[otherUserId] as Map<String, dynamic>?;
           final otherUsername = otherUserData?['username'] ?? 'Unknown';
+          final otherProfileImageUrl = otherUserData?['profileImageUrl'] as String?;
 
           // Dekripsi last message
           String lastMessage = data['lastMessage'] ?? '';
@@ -109,6 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
             lastMessage: lastMessage,
             time: time,
             chatId: chatId,
+            profileImageUrl: otherProfileImageUrl,
           );
         }).toList();
         _filteredChatList = _chatList;
@@ -502,15 +532,37 @@ class _ChatScreenState extends State<ChatScreen> {
                 color: const Color(0xFFDEF3FF),
                 shape: BoxShape.circle,
               ),
-              child: Center(
-                child: Text(
-                  chat.username.isNotEmpty
-                      ? chat.username[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    fontSize: screenWidth * 0.049,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+              child: ClipOval(
+                child: chat.profileImageUrl != null && chat.profileImageUrl!.isNotEmpty
+                    ? Image.network(
+                  chat.profileImageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to initial if image fails
+                    return Center(
+                      child: Text(
+                        chat.username.isNotEmpty
+                            ? chat.username[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontSize: screenWidth * 0.049,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    );
+                  },
+                )
+                    : Center(
+                  child: Text(
+                    chat.username.isNotEmpty
+                        ? chat.username[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.049,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
               ),
@@ -633,7 +685,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 SizedBox(width: screenWidth * 0.022),
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
+                    print('Profile avatar tapped');
+                    if (_authService.currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please login first')),
+                      );
+                      return;
+                    }
                     ProfileMenu.show(context, _authService, _username);
                   },
                   child: Container(
@@ -667,7 +727,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildSearchBar(double screenWidth, double screenHeight) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.044),
-      height: screenHeight * 0.050,
+      height: screenHeight * 0.048,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(
@@ -712,11 +772,13 @@ class ChatItem {
   final String lastMessage;
   final String time;
   final String chatId;
+  final String? profileImageUrl;
 
   ChatItem({
     required this.username,
     required this.lastMessage,
     required this.time,
     required this.chatId,
+    this.profileImageUrl,
   });
 }

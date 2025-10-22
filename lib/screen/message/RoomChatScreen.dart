@@ -680,18 +680,18 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       child: Container(
         margin: EdgeInsets.only(bottom: 12),
         constraints: BoxConstraints(
-          maxWidth: screenWidth * 0.71,  // Tetap ada batas maksimal
-          minWidth: 60,  // Lebar minimum untuk menampung waktu
+          maxWidth: screenWidth * 0.71,
+          minWidth: 60,
         ),
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
           color: isMe ? const Color(0xFFF6D1A7) : const Color(0xFFFFF4CC),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: IntrinsicWidth(  // Tambahkan IntrinsicWidth
+        child: IntrinsicWidth(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,  // Tambahkan ini
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (hasFile) ...[
                 GestureDetector(
@@ -803,7 +803,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: 16,
-        vertical: 10,
+        vertical: 11,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -830,7 +830,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               onPressed: _isUploading ? null : _showAttachmentOptions,
             ),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 11),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
