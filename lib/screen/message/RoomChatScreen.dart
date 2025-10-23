@@ -6,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
-import 'package:mime/mime.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class RoomChatScreen extends StatefulWidget {
@@ -184,7 +183,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 _buildAttachmentOption(
                   icon: Icons.photo_library,
                   label: 'Gallery',
-                  color: Color(0xFFFFBD09),
+                  color: Color(0xFFFF9800),
                   onTap: () {
                     Navigator.pop(context);
                     _pickImageFromGallery();
@@ -193,7 +192,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 _buildAttachmentOption(
                   icon: Icons.camera_alt,
                   label: 'Camera',
-                  color: Color(0xFFFF7A01),
+                  color: Color(0xFFFF9800),
                   onTap: () {
                     Navigator.pop(context);
                     _pickImageFromCamera();
@@ -202,7 +201,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 _buildAttachmentOption(
                   icon: Icons.insert_drive_file,
                   label: 'Document',
-                  color: Colors.blue,
+                  color: Color(0xFFFF9800),
                   onTap: () {
                     Navigator.pop(context);
                     _pickDocument();
@@ -246,54 +245,43 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
   Future<void> _pickImageFromGallery() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         await _uploadFile(File(image.path), 'image');
       }
     } catch (e) {
       print('Error picking image: $e');
-      _showErrorSnackBar('Failed to pick image');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick image')),
+      );
     }
   }
 
   Future<void> _pickImageFromCamera() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-
+      final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
       if (image != null) {
         await _uploadFile(File(image.path), 'image');
       }
     } catch (e) {
       print('Error taking photo: $e');
-      _showErrorSnackBar('Failed to take photo');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to take photo')),
+      );
     }
   }
 
   Future<void> _pickDocument() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'],
-      );
-
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
       if (result != null && result.files.single.path != null) {
-        File file = File(result.files.single.path!);
-        await _uploadFile(file, 'document');
+        await _uploadFile(File(result.files.single.path!), 'document');
       }
     } catch (e) {
       print('Error picking document: $e');
-      _showErrorSnackBar('Failed to pick document');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick document')),
+      );
     }
   }
 
@@ -306,77 +294,26 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
     try {
       final fileName = file.path.split('/').last;
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storageRef = _storage.ref().child(
-          'chats/$_chatId/$fileType/${timestamp}_$fileName'
-      );
+      final storageRef = _storage.ref().child('chat_attachments/$_chatId/$fileName');
 
-      // Upload file
-      final uploadTask = storageRef.putFile(file);
+      await storageRef.putFile(file);
+      final fileUrl = await storageRef.getDownloadURL();
 
-      // Show progress
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}%');
-      });
-
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      // Send message with file
       await _sendMessage(
-        fileUrl: downloadUrl,
+        fileUrl: fileUrl,
         fileName: fileName,
         fileType: fileType,
       );
-
-      setState(() {
-        _isUploading = false;
-      });
     } catch (e) {
       print('Error uploading file: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to upload file')),
+      );
+    } finally {
       setState(() {
         _isUploading = false;
       });
-      _showErrorSnackBar('Failed to upload file');
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  Future<void> _markMessagesAsRead() async {
-    if (_chatId == null) return;
-
-    try {
-      final unreadMessages = await _firestore
-          .collection('messages')
-          .where('chatId', isEqualTo: _chatId)
-          .where('receiverId', isEqualTo: widget.currentUserId)
-          .where('isRead', isEqualTo: false)
-          .get();
-
-      final batch = _firestore.batch();
-      for (var doc in unreadMessages.docs) {
-        batch.update(doc.reference, {'isRead': true});
-      }
-      await batch.commit();
-    } catch (e) {
-      print('Error marking messages as read: $e');
-    }
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
   }
 
   @override
@@ -390,272 +327,199 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Colors.black, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
+            // Avatar TANPA background warna
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFDEF3FF),
                 shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey[300]!, width: 1.5),
               ),
               child: Center(
                 child: Text(
-                  widget.username.isNotEmpty
-                      ? widget.username[0].toUpperCase()
-                      : '?',
+                  widget.username[0].toUpperCase(),
                   style: TextStyle(
+                    color: Colors.black87,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    fontFamily: 'SF Pro',
                   ),
                 ),
               ),
             ),
             SizedBox(width: 12),
             Expanded(
-              child: Text(
-                widget.username,
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.username,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'SF Pro',
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-      body: SafeArea(
-        child: !_isInitialized
-            ? Center(child: CircularProgressIndicator())
-            : Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: _chatId == null
-                      ? Center(child: CircularProgressIndicator())
-                      : StreamBuilder<QuerySnapshot>(
-                    stream: _firestore
-                        .collection('messages')
-                        .where('chatId', isEqualTo: _chatId)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Center(child: CircularProgressIndicator());
-                      }
+      body: !_isInitialized
+          ? Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('messages')
+                  .where('chatId', isEqualTo: _chatId)
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
 
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.chat_bubble_outline,
-                                size: 60,
-                                color: Colors.grey[300],
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Start a conversation',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 16,
-                                  fontFamily: 'SF Pro',
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Messages are end-to-end encrypted',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 12,
-                                  fontFamily: 'SF Pro',
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
 
-                      // Sort messages manually by timestamp
-                      final messages = snapshot.data!.docs;
-                      messages.sort((a, b) {
-                        final aTime = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-                        final bTime = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-                        if (aTime == null || bTime == null) return 0;
-                        return aTime.compareTo(bTime);
-                      });
+                final messages = snapshot.data!.docs;
 
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _markMessagesAsRead();
-                        _scrollToBottom();
-                      });
+                if (messages.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No messages yet\nStart the conversation!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 14,
+                        fontFamily: 'SF Pro',
+                      ),
+                    ),
+                  );
+                }
 
-                      return ListView.builder(
-                        controller: _scrollController,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final messageData = messages[index].data() as Map<String, dynamic>;
-                          final isMe = messageData['senderId'] == widget.currentUserId;
-                          final timestamp = messageData['timestamp'] as Timestamp?;
-                          final time = timestamp != null
-                              ? DateFormat('HH:mm').format(timestamp.toDate())
-                              : '';
+                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
-                          // Check if message has file attachment
-                          final hasFile = messageData.containsKey('fileUrl');
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.all(16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final messageDoc = messages[index];
+                    final messageData = messageDoc.data() as Map<String, dynamic>;
 
-                          String decryptedMessage = '';
-                          if (messageData.containsKey('encryptedMessage')) {
-                            try {
-                              final encryptedMsg = messageData['encryptedMessage'];
-                              final iv = messageData['iv'];
-                              if (encryptedMsg != null && iv != null) {
-                                decryptedMessage = EncryptionService.decryptMessage(
-                                  encryptedMsg,
-                                  iv,
-                                  _chatId!,
-                                );
-                              }
-                            } catch (e) {
-                              print('Error decrypting message: $e');
-                              decryptedMessage = '[Failed to decrypt]';
-                            }
-                          }
+                    final isMe = messageData['senderId'] == widget.currentUserId;
+                    final timestamp = messageData['timestamp'] as Timestamp?;
+                    final isRead = messageData['isRead'] ?? false;
 
-                          // Check if we need to show date divider
-                          bool showDateDivider = false;
-                          String? dateLabel;
-
-                          if (timestamp != null) {
-                            if (index == 0) {
-                              showDateDivider = true;
-                              dateLabel = _getDateLabel(timestamp.toDate());
-                            } else {
-                              final prevMessageData = messages[index - 1].data() as Map<String, dynamic>;
-                              final prevTimestamp = prevMessageData['timestamp'] as Timestamp?;
-
-                              if (prevTimestamp != null) {
-                                final currentDate = DateTime(
-                                  timestamp.toDate().year,
-                                  timestamp.toDate().month,
-                                  timestamp.toDate().day,
-                                );
-                                final prevDate = DateTime(
-                                  prevTimestamp.toDate().year,
-                                  prevTimestamp.toDate().month,
-                                  prevTimestamp.toDate().day,
-                                );
-
-                                if (currentDate != prevDate) {
-                                  showDateDivider = true;
-                                  dateLabel = _getDateLabel(timestamp.toDate());
-                                }
-                              }
-                            }
-                          }
-
-                          return Column(
-                            children: [
-                              if (showDateDivider && dateLabel != null)
-                                _buildDateDivider(dateLabel),
-                              _buildMessageBubble(
-                                message: decryptedMessage,
-                                isMe: isMe,
-                                time: time,
-                                isRead: messageData['isRead'] ?? false,
-                                screenWidth: screenWidth,
-                                screenHeight: screenHeight,
-                                fileUrl: hasFile ? messageData['fileUrl'] : null,
-                                fileName: hasFile ? messageData['fileName'] : null,
-                                fileType: hasFile ? messageData['fileType'] : null,
-                              ),
-                            ],
-                          );
-                        },
+                    // Dekripsi pesan
+                    String messageText = '';
+                    if (messageData['encryptedMessage'] != null && messageData['iv'] != null) {
+                      messageText = EncryptionService.decryptMessage(
+                        messageData['encryptedMessage'],
+                        messageData['iv'],
+                        _chatId!,
                       );
-                    },
-                  ),
-                ),
-                _buildMessageInput(screenWidth, screenHeight),
-              ],
-            ),
-            if (_isUploading)
-              Container(
-                color: Colors.black54,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(
-                        color: Color(0xFFFFBD09),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Uploading file...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontFamily: 'SF Pro',
+                    }
+
+                    final fileUrl = messageData['fileUrl'];
+                    final fileName = messageData['fileName'];
+                    final fileType = messageData['fileType'];
+
+                    // Format waktu
+                    String timeString = '';
+                    if (timestamp != null) {
+                      final dateTime = timestamp.toDate();
+                      timeString = DateFormat('HH:mm').format(dateTime);
+                    }
+
+                    // Tampilkan date label jika perlu
+                    bool showDateLabel = false;
+                    String dateLabel = '';
+                    if (index == 0 || (index > 0 && timestamp != null)) {
+                      final currentDate = timestamp?.toDate();
+                      final previousTimestamp = index > 0
+                          ? (messages[index - 1].data() as Map<String, dynamic>)['timestamp'] as Timestamp?
+                          : null;
+                      final previousDate = previousTimestamp?.toDate();
+
+                      if (currentDate != null &&
+                          (previousDate == null ||
+                              currentDate.day != previousDate.day ||
+                              currentDate.month != previousDate.month ||
+                              currentDate.year != previousDate.year)) {
+                        showDateLabel = true;
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final yesterday = today.subtract(Duration(days: 1));
+                        final messageDate = DateTime(currentDate.year, currentDate.month, currentDate.day);
+
+                        if (messageDate == today) {
+                          dateLabel = 'Today';
+                        } else if (messageDate == yesterday) {
+                          dateLabel = 'Yesterday';
+                        } else {
+                          dateLabel = DateFormat('MMMM d, yyyy').format(currentDate);
+                        }
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        if (showDateLabel) _buildDateLabel(dateLabel),
+                        _buildMessageBubble(
+                          message: messageText,
+                          isMe: isMe,
+                          time: timeString,
+                          isRead: isRead,
+                          screenWidth: screenWidth,
+                          screenHeight: screenHeight,
+                          fileUrl: fileUrl,
+                          fileName: fileName,
+                          fileType: fileType,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          _buildMessageInput(screenWidth, screenHeight),
+        ],
       ),
     );
   }
 
-  String _getDateLabel(DateTime messageDate) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final messageDay = DateTime(messageDate.year, messageDate.month, messageDate.day);
-
-    if (messageDay == today) {
-      return 'Today';
-    } else if (messageDay == yesterday) {
-      return 'Yesterday';
-    } else {
-      return DateFormat('dd MMM yyyy').format(messageDate);
-    }
-  }
-
-  Widget _buildDateDivider(String dateLabel) {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 16),
-      child: Center(
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 6,
-          ),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFB84D),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            dateLabel,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontFamily: 'SF Pro',
-              fontWeight: FontWeight.w600,
-            ),
+  Widget _buildDateLabel(String dateLabel) {
+    return Center(
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 16),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 6,
+        ),
+        decoration: BoxDecoration(
+          color: Color(0xFFFF9800),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          dateLabel,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -685,7 +549,8 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         ),
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFF6D1A7) : const Color(0xFFFFF4CC),
+          // Bubble pengirim: #FFF6D2A7, penerima: kuning pastel
+          color: isMe ? Color(0xFFFFF6D2A7) : Color(0xFFFFF9C4),
           borderRadius: BorderRadius.circular(10),
         ),
         child: IntrinsicWidth(
@@ -708,14 +573,14 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                         Icon(
                           _getFileIcon(fileType ?? 'unknown'),
                           size: 24,
-                          color: Colors.black,
+                          color: Colors.black87,
                         ),
                         SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             fileName ?? 'File',
                             style: TextStyle(
-                              color: Colors.black,
+                              color: Colors.black87,
                               fontSize: 14,
                               fontFamily: 'SF Pro',
                               fontWeight: FontWeight.w500,
@@ -731,11 +596,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               ],
               if (message.isNotEmpty)
                 Padding(
-                  padding: EdgeInsets.only(bottom: 4),  // Kurangi padding
+                  padding: EdgeInsets.only(bottom: 4),
                   child: Text(
                     message,
                     style: TextStyle(
-                      color: Colors.black,
+                      color: Colors.black87,
                       fontSize: 15,
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w500,
@@ -743,7 +608,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     ),
                   ),
                 ),
-              // Time and read status at bottom right
               Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -783,8 +647,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     }
     return Icons.attach_file;
   }
-
-
 
   void _openFile(String fileUrl, String fileName, String fileType) async {
     try {
@@ -835,7 +697,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(width: 1, color: Colors.black),
+                border: Border.all(width: 1, color: Colors.black), // Border HITAM
                 borderRadius: BorderRadius.circular(20),
               ),
               child: TextField(
@@ -869,7 +731,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: _isUploading ? Colors.grey : Colors.black,
+                color: _isUploading ? Colors.grey : Colors.black, // Tombol HITAM
                 shape: BoxShape.circle,
               ),
               child: Icon(
