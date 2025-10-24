@@ -230,30 +230,231 @@ class _AddTaskPageState extends State<AddTaskPage> {
           // Animated Gradient Background
           Positioned.fill(
             child: AnimatedGradientBackground(
-              duration: Duration(seconds: 5),
-              radius: 2.22,
-              colors: [
-                Color(0xFFFF6A00),
-                Color(0xFFFFE100),
-              ],
             ),
           ),
+
           // Content
-          SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  SizedBox(height: 16),
-                  _buildHeader(),
-                  SizedBox(height: 25),
-                  _buildFormSection(),
-                  SizedBox(height: 24),
-                  _buildCategorySection(),
-                ],
+          Column(
+            children: [
+              // Header dengan SafeArea
+              SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    SizedBox(height: 16),
+                    _buildHeader(),
+                    SizedBox(height: 25),
+                  ],
+                ),
               ),
-            ),
+
+              // Form dan Category dengan scroll
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildFormSection(),
+                      SizedBox(height: 24),
+
+                      // Category Section
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height * 0.45,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(40),
+                              topRight: Radius.circular(40),
+                            ),
+                          ),
+                          child: SafeArea(
+                            top: false,
+                            child: Padding(
+                              padding: EdgeInsets.all(31),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Category header
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Category',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 14,
+                                          fontFamily: 'SF Pro',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 20,
+                                        height: 20,
+                                        child: Icon(Icons.info_outline, size: 20),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 9),
+
+                                  // Category chips
+                                  Wrap(
+                                    spacing: 7,
+                                    runSpacing: 7,
+                                    children: _categories.map((category) {
+                                      final isSelected = _selectedCategory == category;
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedCategory = category;
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? Color(0xFFFFE100) : Colors.white,
+                                            border: Border.all(width: 1, color: Colors.black),
+                                            borderRadius: BorderRadius.circular(25),
+                                          ),
+                                          child: Text(
+                                            category,
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 14,
+                                              fontFamily: 'SF Pro',
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+
+                                  SizedBox(height: 25),
+
+                                  // Status section
+                                  _buildStatusSection(),
+
+                                  SizedBox(height: 25),
+
+                                  // Create button
+                                  _buildCreateButton(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+// Method untuk status section
+  Widget _buildStatusSection() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Status',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 7),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: ['Completed', 'Pending'].map((status) {
+                  final statusValue = status.toLowerCase();
+                  final isSelected = _selectedStatus == statusValue;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedStatus = statusValue;
+                      });
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 50, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Color(0xFFFFE100) : Colors.white,
+                        border: Border.all(width: 1, color: Colors.black),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 14,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 10),
+        Image.asset(
+          'assets/image/AddTaskImageCat.png',
+          height: 110,
+          fit: BoxFit.contain,
+        ),
+      ],
+    );
+  }
+
+// Method untuk create button
+  Widget _buildCreateButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _createTask,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _isLoading ? Colors.grey : Color(0xFFFFE100),
+          foregroundColor: Colors.black,
+          padding: EdgeInsets.symmetric(vertical: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+          elevation: 0,
+        ),
+        child: _isLoading
+            ? SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+          ),
+        )
+            : Text(
+          'Create Task',
+          style: TextStyle(
+            fontSize: 17,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

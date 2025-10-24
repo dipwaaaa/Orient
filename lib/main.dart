@@ -48,10 +48,6 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
 
-  // Constants untuk warna
-  static const Color _primaryYellow = Color(0xFFFFE100);
-  static const Color _primaryOrange = Color(0xFFFF6A00);
-  static const Color _transparentOrange = Color(0x00FF6A00);
 
   // Auth service
   final AuthService _authService = AuthService();
@@ -173,47 +169,8 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  /// Background dengan gradient radial orange-yellow
-  Widget _buildBackgroundGradient() {
-    return Positioned(
-      left: -303,
-      top: -73,
-      child: Container(
-        width: 999,
-        height: 999,
-        decoration: const ShapeDecoration(
-          color: _primaryYellow,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(1000)),
-          ),
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0.00, 1.00),
-              radius: 2.22,
-              colors: [_primaryOrange, _transparentOrange],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  /// Logo aplikasi di tengah layar dengan fade animation
-  Widget _buildAnimatedLogo() {
-    return Center(
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Image.asset(
-          'assets/image/Orient.png',
-          width: 225,
-          height: 79,
-          fit: BoxFit.contain,
-        ),
-      ),
-    );
-  }
+
 }
 
 

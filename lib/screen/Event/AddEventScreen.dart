@@ -37,7 +37,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     super.dispose();
   }
 
-  // Tambahkan method untuk validasi collaborator
+  // method untuk validasi collaborator
   Future<Map<String, dynamic>> _validateCollaborators(List<String> collaborators) async {
     List<String> validCollaboratorIds = [];
     List<String> invalidCollaborators = [];
@@ -183,43 +183,76 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
-          children: [
-      // Animated Gradient Background
-      Positioned.fill(
-      child: AnimatedGradientBackground(
-      duration: Duration(seconds: 5),
-      radius: 2.22,
-      colors: [
-        Color(0xFFFF6A00),
-        Color(0xFFFFE100),
-      ],
-    ),
-    ),
-        SafeArea(
-          child: Column(
+        children: [
+          // Animated Gradient Background
+          Positioned.fill(
+            child: AnimatedGradientBackground(
+            ),
+          ),
+
+          Column(
             children: [
-              _buildHeader(),
+              SafeArea(
+                bottom: false,
+                child: _buildHeader(),
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 30),
                       _buildForm(),
                       const SizedBox(height: 30),
-                      _buildBottomSection(),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height * 0.35,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(31),
+                          decoration: const ShapeDecoration(
+                            color: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(40),
+                                topRight: Radius.circular(40),
+                              ),
+                            ),
+                          ),
+                          child: SafeArea(
+                            top: false,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Status',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 14,
+                                    fontFamily: 'SF Pro',
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                _buildStatusSelector(),
+                                const SizedBox(height: 25),
+                                _buildCreateButton(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
             ],
           ),
-        ),
-            ]
+        ],
       ),
-
     );
   }
-
   Widget _buildHeader() {
     return Container(
       width: double.infinity,

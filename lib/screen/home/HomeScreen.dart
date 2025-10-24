@@ -530,12 +530,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       clipBehavior: Clip.antiAlias,
       child: AnimatedGradientBackground(
-        duration: Duration(seconds: 5),
-        radius: 1.5,
-        colors: [
-          Color(0xFFFFE100),
-          Color(0xFFFF6A00),
-        ],
         child: Stack(
           children: [
             Positioned(
