@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../widget/Animated_Gradient_Background.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AuthService authService;
@@ -357,413 +358,415 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Profile',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 24,
-            fontFamily: 'SF Pro',
-            fontWeight: FontWeight.w700,
+    return AnimatedGradientBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.of(context).pop(),
           ),
-        ),
-        centerTitle: true,
-        actions: [
-          if (!_isEditMode)
-            IconButton(
-              icon: Icon(Icons.edit, color: Colors.black),
-              onPressed: () {
-                setState(() => _isEditMode = true);
-              },
+          title: Text(
+            'Profile',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 24,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w700,
             ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Column(
-              children: [
-                // Profile Picture
-                GestureDetector(
-                  onTap: _isEditMode ? _pickAndUploadImage : null,
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    child: Stack(
-                      children: [
-                        // Main circle with image
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFFDEF3FF),
-                            image: _profileImageUrl != null
-                                ? DecorationImage(
-                              image: NetworkImage(_profileImageUrl!),
-                              fit: BoxFit.cover,
-                            )
-                                : DecorationImage(
-                              image: AssetImage('assets/image/AvatarKimmy.png'),
-                              fit: BoxFit.cover,
+          ),
+          centerTitle: true,
+          actions: [
+            if (!_isEditMode)
+              IconButton(
+                icon: Icon(Icons.edit, color: Colors.black),
+                onPressed: () {
+                  setState(() => _isEditMode = true);
+                },
+              ),
+          ],
+        ),
+        body: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  // Profile Picture
+                  GestureDetector(
+                    onTap: _isEditMode ? _pickAndUploadImage : null,
+                    child: Container(
+                      width: 130,
+                      height: 130,
+                      child: Stack(
+                        children: [
+                          // Main circle with image
+                          Container(
+                            width: 130,
+                            height: 130,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFFDEF3FF),
+                              image: _profileImageUrl != null
+                                  ? DecorationImage(
+                                image: NetworkImage(_profileImageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                                  : DecorationImage(
+                                image: AssetImage('assets/image/AvatarKimmy.png'),
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                          ),
-                        ),
-                        // Edit button (bottom right)
-                        if (_isEditMode)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 35,
-                              height: 35,
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                shape: BoxShape.circle,
-                                border: Border.all(
+                         ),
+                          // Edit button (bottom right)
+                          if (_isEditMode)
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                width: 35,
+                                height: 35,
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.edit,
                                   color: Colors.white,
-                                  width: 3,
+                                  size: 18,
                                 ),
                               ),
-                              child: Icon(
-                                Icons.edit,
-                                color: Colors.white,
-                                size: 18,
-                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                SizedBox(height: 40),
+                  SizedBox(height: 40),
 
-                // Username Field
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 37),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Username',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 9),
-                      Container(
-                        height: 48,
-                        decoration: ShapeDecoration(
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(width: 2, color: Colors.black),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: TextFormField(
-                          controller: _usernameController,
-                          enabled: _isEditMode,
-                          decoration: InputDecoration(
-                            hintText: 'Type here',
-                            hintStyle: TextStyle(
-                              color: const Color(0xFF1D1D1D).withOpacity(0.6),
-                              fontSize: 13,
-                              fontFamily: 'SF Pro',
-                              fontWeight: FontWeight.w500,
-                            ),
-                            contentPadding: EdgeInsets.all(12),
-                            border: InputBorder.none,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter username';
-                            }
-                            if (value.trim().length < 3 || value.trim().length > 20) {
-                              return 'Username must be 3-20 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '3-20 characters, letters, numbers, and underscores only',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 24),
-
-                // Email Field
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 37),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Email',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 9),
-                      Container(
-                        height: 48,
-                        decoration: ShapeDecoration(
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(width: 2, color: Colors.black),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: TextFormField(
-                          controller: _emailController,
-                          enabled: _isEditMode,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            hintText: 'Type here',
-                            hintStyle: TextStyle(
-                              color: const Color(0xFF1D1D1D).withOpacity(0.6),
-                              fontSize: 13,
-                              fontFamily: 'SF Pro',
-                              fontWeight: FontWeight.w500,
-                            ),
-                            contentPadding: EdgeInsets.all(12),
-                            border: InputBorder.none,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter email';
-                            }
-                            if (!value.contains('@') || !value.contains('.')) {
-                              return 'Please enter valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Email changes require verification',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 24),
-
-                // Password Field
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 37),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Password',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      SizedBox(height: 9),
-                      Container(
-                        height: 48,
-                        decoration: ShapeDecoration(
-                          shape: RoundedRectangleBorder(
-                            side: BorderSide(width: 2, color: Colors.black),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: _isEditMode
-                            ? TextFormField(
-                          controller: _passwordController,
-                          enabled: _isEditMode,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            hintText: _hasPassword
-                                ? 'Leave empty to keep current password'
-                                : 'Set a password for your account',
-                            hintStyle: TextStyle(
-                              color: const Color(0xFF1D1D1D).withOpacity(0.6),
-                              fontSize: 11,
-                              fontFamily: 'SF Pro',
-                              fontWeight: FontWeight.w500,
-                            ),
-                            contentPadding: EdgeInsets.all(12),
-                            border: InputBorder.none,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value != null && value.isNotEmpty) {
-                              if (value.length < 8) {
-                                return 'Password must be at least 8 characters';
-                              }
-                              final hasLetter = value.contains(RegExp(r'[a-zA-Z]'));
-                              final hasNumber = value.contains(RegExp(r'[0-9]'));
-                              final hasSymbol = value.contains(RegExp(r'[!@#\$%&*\-_+=]'));
-
-                              if (!hasLetter || !hasNumber || !hasSymbol) {
-                                return 'Must contain letters, numbers, and symbols';
-                              }
-                            }
-                            return null;
-                          },
-                        )
-                            : TextFormField(
-                          enabled: false,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            hintText: _hasPassword ? '••••••••' : 'No password set',
-                            hintStyle: TextStyle(
-                              color: _hasPassword
-                                  ? Colors.black
-                                  : Colors.orange,
-                              fontSize: 13,
-                              fontFamily: 'SF Pro',
-                              fontWeight: _hasPassword
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                            contentPadding: EdgeInsets.all(12),
-                            border: InputBorder.none,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        _hasPassword
-                            ? 'Leave empty if you don\'t want to change it.\nIf changing: 8+ chars with letters, numbers, and symbols'
-                            : _isGoogleUser
-                            ? 'You signed in with Google. Add a password for additional security.'
-                            : 'Password is required',
-                        style: TextStyle(
-                          color: _hasPassword || !_isGoogleUser
-                              ? Colors.grey[600]
-                              : Colors.orange,
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 40),
-
-                // Update/Cancel Buttons
-                if (_isEditMode)
+                  // Username Field
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 37),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _updateProfile,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFFFF6A00),
-                              disabledBackgroundColor: Colors.grey,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: _isLoading
-                                ? SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                strokeWidth: 2.5,
-                              ),
-                            )
-                                : Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                        Text(
+                          'Username',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: OutlinedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () {
-                              setState(() {
-                                _isEditMode = false;
-                                _passwordController.clear();
-                              });
-                              _loadUserData();
+                        SizedBox(height: 9),
+                        Container(
+                          height: 48,
+                          decoration: ShapeDecoration(
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(width: 2, color: Colors.black),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: TextFormField(
+                            controller: _usernameController,
+                            enabled: _isEditMode,
+                            decoration: InputDecoration(
+                              hintText: 'Type here',
+                              hintStyle: TextStyle(
+                                color: const Color(0xFF1D1D1D).withOpacity(0.6),
+                                fontSize: 13,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w500,
+                              ),
+                              contentPadding: EdgeInsets.all(12),
+                              border: InputBorder.none,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter username';
+                              }
+                              if (value.trim().length < 3 || value.trim().length > 20) {
+                                return 'Username must be 3-20 characters';
+                              }
+                              return null;
                             },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.black, width: 2),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Text(
-                              'Cancel',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '3-20 characters, letters, numbers, and underscores only',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                SizedBox(height: 40),
-              ],
+                  SizedBox(height: 24),
+
+                  // Email Field
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 37),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Email',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 9),
+                        Container(
+                          height: 48,
+                          decoration: ShapeDecoration(
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(width: 2, color: Colors.black),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: TextFormField(
+                            controller: _emailController,
+                            enabled: _isEditMode,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              hintText: 'Type here',
+                              hintStyle: TextStyle(
+                                color: const Color(0xFF1D1D1D).withOpacity(0.6),
+                                fontSize: 13,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w500,
+                              ),
+                              contentPadding: EdgeInsets.all(12),
+                              border: InputBorder.none,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter email';
+                              }
+                              if (!value.contains('@') || !value.contains('.')) {
+                                return 'Please enter valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Email changes require verification',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 24),
+
+                  // Password Field
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 37),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Password',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 9),
+                        Container(
+                          height: 48,
+                          decoration: ShapeDecoration(
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(width: 2, color: Colors.black),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: _isEditMode
+                              ? TextFormField(
+                            controller: _passwordController,
+                            enabled: _isEditMode,
+                            obscureText: _obscurePassword,
+                            decoration: InputDecoration(
+                              hintText: _hasPassword
+                                  ? 'Leave empty to keep current password'
+                                  : 'Set a password for your account',
+                              hintStyle: TextStyle(
+                                color: const Color(0xFF1D1D1D).withOpacity(0.6),
+                                fontSize: 11,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w500,
+                              ),
+                              contentPadding: EdgeInsets.all(12),
+                              border: InputBorder.none,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value != null && value.isNotEmpty) {
+                                if (value.length < 8) {
+                                  return 'Password must be at least 8 characters';
+                                }
+                                final hasLetter = value.contains(RegExp(r'[a-zA-Z]'));
+                                final hasNumber = value.contains(RegExp(r'[0-9]'));
+                                final hasSymbol = value.contains(RegExp(r'[!@#\$%&*\-_+=]'));
+
+                                if (!hasLetter || !hasNumber || !hasSymbol) {
+                                  return 'Must contain letters, numbers, and symbols';
+                                }
+                              }
+                              return null;
+                            },
+                          )
+                              : TextFormField(
+                            enabled: false,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              hintText: _hasPassword ? '••••••••' : 'No password set',
+                              hintStyle: TextStyle(
+                                color: _hasPassword
+                                    ? Colors.black
+                                    : Colors.orange,
+                                fontSize: 13,
+                                fontFamily: 'SF Pro',
+                                fontWeight: _hasPassword
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                              contentPadding: EdgeInsets.all(12),
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          _hasPassword
+                              ? 'Leave empty if you don\'t want to change it.\nIf changing: 8+ chars with letters, numbers, and symbols'
+                              : _isGoogleUser
+                              ? 'You signed in with Google. Add a password for additional security.'
+                              : 'Password is required',
+                          style: TextStyle(
+                            color: _hasPassword || !_isGoogleUser
+                                ? Colors.grey[600]
+                                : Colors.orange,
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 40),
+
+                  // Update/Cancel Buttons
+                  if (_isEditMode)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 37),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _updateProfile,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFFFF6A00),
+                                disabledBackgroundColor: Colors.grey,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                                  : Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: OutlinedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () {
+                                setState(() {
+                                  _isEditMode = false;
+                                  _passwordController.clear();
+                                });
+                                _loadUserData();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.black, width: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),
