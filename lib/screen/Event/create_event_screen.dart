@@ -130,12 +130,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
         // Jika ada collaborator yang tidak valid, tampilkan error
         if (invalidCollaborators.isNotEmpty) {
-          setState(() {
-            _isLoading = false;
-          });
-          _showErrorDialog(
-              'The following collaborators were not found:\n${invalidCollaborators.join(', ')}\n\nPlease check the username/email and try again.'
-          );
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+            _showErrorDialog(
+                'The following collaborators were not found:\n${invalidCollaborators.join(', ')}\n\nPlease check the username/email and try again.'
+            );
+          }
           return;
         }
       }
@@ -153,22 +155,26 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         collaborators: validCollaboratorIds,
       );
 
-      if (result['success']) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: Colors.green,
-          ),
-        );
+      if (mounted) {
+        if (result['success']) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message']),
+              backgroundColor: Colors.green,
+            ),
+          );
 
-        // Navigate back to EventListScreen
-        Navigator.pop(context, true);
-      } else {
-        _showErrorDialog(result['error']);
+          // Navigate back to EventListScreen
+          Navigator.pop(context, true);
+        } else {
+          _showErrorDialog(result['error']);
+        }
       }
     } catch (e) {
-      _showErrorDialog('Failed to create event: $e');
+      if (mounted) {
+        _showErrorDialog('Failed to create event: $e');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -253,63 +259,43 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       ),
     );
   }
+
   Widget _buildHeader() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 51),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
               width: 40,
               height: 40,
-              decoration: const BoxDecoration(
-                color: Colors.transparent,
+              decoration: const ShapeDecoration(
+                color: Color(0xFFFFE100),
+                shape: OvalBorder(),
               ),
-                child: Image.asset(
-                'assets/image/close.png',
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
-            ),
-          ),
-          ),
-          const Text(
-            'Create an Event',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 25,
-              fontFamily: 'SF Pro',
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Colors.transparent,
-            ),
-            child: _isLoading
-                ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-              ),
-            )
-                : GestureDetector(
-              onTap: _createEvent,
-              child: Image.asset(
-                'assets/image/save.png',
-                width: 20,
-                height: 20,
-                fit: BoxFit.contain,
+              child: const Center(
+                child: Icon(
+                  Icons.arrow_back,
+                  color: Colors.black,
+                  size: 20,
+                ),
               ),
             ),
           ),
+          const Expanded(
+            child: Text(
+              'Create Event',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 40),
         ],
       ),
     );
@@ -317,48 +303,55 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   Widget _buildForm() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 51),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: ShapeDecoration(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(width: 2, color: Color(0xFFFFE100)),
+          borderRadius: BorderRadius.circular(15),
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInputField(
-            label: 'Name',
-            controller: _nameController,
-            hintText: 'Event name',
+          _buildTextField(
+            'Event Name',
+            'Enter event name',
+            _nameController,
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 20),
           _buildDateField(),
-          const SizedBox(height: 15),
-          _buildInputField(
-            label: 'Location',
-            controller: _locationController,
-            hintText: 'Event location',
+          const SizedBox(height: 20),
+          _buildTextField(
+            'Event Location',
+            'Enter event location',
+            _locationController,
           ),
-          const SizedBox(height: 15),
-          _buildInputField(
-            label: 'Description',
-            controller: _descriptionController,
-            hintText: 'Event description',
-            maxLines: 3,
+          const SizedBox(height: 20),
+          _buildTextField(
+            'Description',
+            'Add a description',
+            _descriptionController,
+            maxLines: 4,
           ),
-          const SizedBox(height: 15),
-          _buildInputField(
-            label: 'Collaborator',
-            controller: _collaboratorController,
-            hintText: 'Add collaborator email (optional)',
+          const SizedBox(height: 20),
+          _buildTextField(
+            'Collaborators',
+            'Add collaborators (email/username, separated by comma)',
+            _collaboratorController,
+            maxLines: 2,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInputField({
-    required String label,
-    required TextEditingController controller,
-    required String hintText,
-    int maxLines = 1,
-  }) {
+  Widget _buildTextField(
+      String label,
+      String hintText,
+      TextEditingController controller, {
+        int maxLines = 1,
+      }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -374,10 +367,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         const SizedBox(height: 9),
         Container(
           width: double.infinity,
-          constraints: BoxConstraints(
-            minHeight: maxLines > 1 ? 80 : 48,
-          ),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: ShapeDecoration(
             shape: RoundedRectangleBorder(
               side: const BorderSide(width: 2, color: Colors.black),
@@ -396,7 +386,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
-                color: const Color(0xFF1D1D1D).withOpacity(0.6),
+                color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
                 fontSize: 13,
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
@@ -447,7 +437,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     style: TextStyle(
                       color: _selectedDate != null
                           ? const Color(0xFF1D1D1D)
-                          : const Color(0xFF1D1D1D).withOpacity(0.6),
+                          : const Color(0xFF1D1D1D).withValues(alpha: 0.6),
                       fontSize: 13,
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
@@ -464,40 +454,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildBottomSection() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(31),
-      decoration: const ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(40),
-            topRight: Radius.circular(40),
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Status',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 14,
-              fontFamily: 'SF Pro',
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 7),
-          _buildStatusSelector(),
-          const SizedBox(height: 25),
-          _buildCreateButton(),
-        ],
-      ),
     );
   }
 
@@ -619,12 +575,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Error'),
         content: Text(message),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('OK'),
           ),
         ],

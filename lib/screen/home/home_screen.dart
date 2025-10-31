@@ -7,7 +7,7 @@ import '../../widget/ProfileMenu.dart';
 import '../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
-import 'task/TaskPageScreen.dart';
+import 'task/task_page_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 1;
 
   // Carousel and Event State
-  PageController _carouselController = PageController();
+  final _carouselController = PageController();
   int _currentCarouselIndex = 0;
   List<Map<String, dynamic>> _userEvents = [];
   bool _isLoadingEvents = true;
@@ -307,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
       } catch (e) {
-        print('Error loading user data: $e');
+        debugPrint('Error loading user data: $e');
       }
     }
   }
@@ -358,9 +358,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Sisanya sama seperti kode asli...
-  // (Saya tidak menyertakan semua widget builder untuk menghemat ruang,
-  // tapi gunakan yang dari kode asli Anda)
 
   Widget _buildTaskSection() {
     return Container(
@@ -398,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'View all',
                       style: TextStyle(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 0.6),
                         fontSize: 14,
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w500,
@@ -408,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(
                       Icons.arrow_forward_ios,
                       size: 14,
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
                 ),
@@ -434,7 +431,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final cardHeight = 189.0;
 
     if (_isLoadingEvents) {
-      return Container(
+      return SizedBox(
         width: cardWidth,
         height: cardHeight,
         child: Center(
@@ -451,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Column(
       children: [
-        Container(
+        SizedBox(
           height: cardHeight,
           child: PageView.builder(
             controller: _carouselController,
@@ -504,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   color: _currentCarouselIndex == index
                       ? Color(0xFFFFE100)
-                      : Colors.grey.withOpacity(0.3),
+                      : Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -522,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: Offset(0, 4),
           ),
@@ -606,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
               right: 16,
               top: 16,
               bottom: 16,
-              child: Container(
+              child: SizedBox(
                 width: cardWidth * 0.70,
                 child: _buildIllustration(),
               ),
@@ -632,7 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: Offset(0, 4),
           ),
@@ -727,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
               right: 16,
               top: 16,
               bottom: 16,
-              child: Container(
+              child: SizedBox(
                 width: cardWidth * 0.70,
                 child: _buildIllustration(),
               ),
@@ -942,7 +939,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 4,
                   offset: Offset(0, 2),
                 ),

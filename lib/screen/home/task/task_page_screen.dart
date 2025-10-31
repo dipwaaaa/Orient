@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'AddTaskScreen.dart';
+import 'add_task_screen.dart';
 import '../../../widget/ProfileMenu.dart';
 import '../../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,7 +18,6 @@ class TaskScreen extends StatefulWidget {
 }
 
 class _TaskScreenState extends State<TaskScreen> {
-  int _currentIndex = 0;
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -28,8 +27,8 @@ class _TaskScreenState extends State<TaskScreen> {
   bool _isWeekView = true;
   DateTime _selectedDate = DateTime.now();
   DateTime _currentMonth = DateTime.now();
-  PageController _weekPageController = PageController(initialPage: 1000);
-  int _currentWeekPage = 1000;
+  final PageController _weekPageController = PageController(initialPage: 1000);
+
 
   @override
   void initState() {
@@ -63,7 +62,7 @@ class _TaskScreenState extends State<TaskScreen> {
         });
       }
     } catch (e) {
-      print('Error loading event name: $e');
+      debugPrint('Error loading event name: $e');
     }
   }
 
@@ -89,7 +88,7 @@ class _TaskScreenState extends State<TaskScreen> {
           });
         }
       } catch (e) {
-        print('Error loading user data: $e');
+        debugPrint('Error loading user data: $e');
       }
     }
   }
@@ -103,7 +102,6 @@ class _TaskScreenState extends State<TaskScreen> {
 
   List<DateTime> _getMonthDates() {
     final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
-    final lastDay = DateTime(_currentMonth.year, _currentMonth.month + 1, 0);
     final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
 
     List<DateTime> dates = [];
@@ -119,7 +117,7 @@ class _TaskScreenState extends State<TaskScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
+
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -347,13 +345,12 @@ class _TaskScreenState extends State<TaskScreen> {
   Widget _buildWeekView() {
     final today = DateTime.now();
 
-    return Container(
+    return SizedBox(
       height: 70,
       child: PageView.builder(
         controller: _weekPageController,
         onPageChanged: (page) {
           setState(() {
-            _currentWeekPage = page;
           });
         },
         itemBuilder: (context, pageIndex) {

@@ -4,9 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'firebase_options.dart';
 import 'screen/login_signup_screen.dart';
-import 'screen/landing_page/WelcomeScreen.dart';
+import 'screen/landing_page/welcome_screen.dart';
 import 'screen/onboarding/onboarding_chatbot_screen.dart';
-import 'screen/home/HomeScreen.dart';
+import 'screen/home/home_screen.dart';
 import 'service/auth_service.dart';
 import 'widget/Animated_Gradient_Background.dart';
 

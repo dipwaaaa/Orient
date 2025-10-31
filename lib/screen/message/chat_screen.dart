@@ -7,7 +7,7 @@ import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/encryption_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
 import 'package:untitled/widget/ProfileMenu.dart';
-import 'RoomChatScreen.dart';
+import 'room_chat_screen.dart';
 import '../login_signup_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -178,7 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
           });
         }
       } catch (e) {
-        print('Error loading user data: $e');
+        debugPrint('Error loading user data: $e');
       }
     }
   }
@@ -339,6 +339,7 @@ class _ChatScreenState extends State<ChatScreen> {
       }
 
       // Hide loading
+      if (!mounted) return;
       Navigator.pop(context);
 
       if (userQuery.docs.isEmpty) {
@@ -355,6 +356,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final receiverUserId = userQuery.docs.first.id;
       final receiverUsername = userData['username'] ?? 'Unknown';
 
+      if (!mounted) return;
       if (receiverUserId == _authService.currentUser?.uid) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -382,7 +384,7 @@ class _ChatScreenState extends State<ChatScreen> {
         Navigator.pop(context);
       }
 
-      print('Error finding user: $e');
+      debugPrint('Error finding user: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error finding user: ${e.toString()}'),
@@ -400,6 +402,7 @@ class _ChatScreenState extends State<ChatScreen> {
           .limit(1)
           .get();
 
+      if (!mounted) return;
       if (userQuery.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('User not found')),
@@ -421,7 +424,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     } catch (e) {
-      print('Error navigating to chat: $e');
+      debugPrint('Error navigating to chat: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error opening chat')),
       );
@@ -495,7 +498,7 @@ class _ChatScreenState extends State<ChatScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: screenWidth * 0.022,
               offset: Offset(0, screenHeight * 0.005),
             ),
@@ -609,7 +612,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       fontSize: screenWidth * 0.027,
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w300,
@@ -687,7 +690,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
-                    print('Profile avatar tapped');
+                    debugPrint('Profile avatar tapped');
                     if (_authService.currentUser == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Please login first')),
@@ -741,7 +744,7 @@ class _ChatScreenState extends State<ChatScreen> {
           SizedBox(width: screenWidth * 0.033),
           Icon(
             Icons.search,
-            color: Colors.black.withOpacity(0.6),
+            color: Colors.black.withValues(alpha: 0.6),
             size: screenWidth * 0.058,
           ),
           SizedBox(width: screenWidth * 0.022),
@@ -751,7 +754,7 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: InputDecoration(
                 hintText: 'Search chats...',
                 hintStyle: TextStyle(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   fontSize: screenWidth * 0.041,
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w500,

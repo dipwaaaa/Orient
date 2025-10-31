@@ -420,7 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 fit: BoxFit.cover,
                               ),
                             ),
-                         ),
+                          ),
                           // Edit button (bottom right)
                           if (_isEditMode)
                             Positioned(

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:untitled/service/auth_service.dart';
-import 'landing_page/WelcomeScreen.dart';
-import 'home/HomeScreen.dart';
+import 'landing_page/welcome_screen.dart';
+import 'home/home_screen.dart';
 
 void main() {
   runApp(

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../../widget/Animated_Gradient_Background.dart';
-import '../home/HomeScreen.dart';
+import '../home/home_screen.dart';
 
 class OnboardingChatbotScreen extends StatefulWidget {
   const OnboardingChatbotScreen({super.key});
@@ -17,7 +17,7 @@ class _OnboardingChatbotScreenState extends State<OnboardingChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  List<ChatMessage> _messages = [];
+  final List<ChatMessage> _messages = [];
   bool _isSending = false;
   int _currentStep = 0;
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../model/task_model.dart';
-import '../screen/home/task/IndividualTaskScreen.dart';
+import '../screen/home/task/individual_task_screen.dart';
 
 class TaskListWidget extends StatelessWidget {
   final String? eventId;

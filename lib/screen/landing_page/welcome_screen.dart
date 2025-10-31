@@ -205,7 +205,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             height: imageSize,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(screenWidth * 0.03),
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
             ),
             clipBehavior: Clip.antiAlias,
             child: _buildImageWidget(pageData, screenWidth),
@@ -279,13 +279,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            pageData.iconColor.withOpacity(0.3),
-            pageData.iconColor.withOpacity(0.1),
+            pageData.iconColor.withValues(alpha: 0.3),
+            pageData.iconColor.withValues(alpha: 0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(screenWidth * 0.03),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: Colors.white.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -295,7 +295,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           Container(
             padding: EdgeInsets.all(screenWidth * 0.05),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -334,7 +334,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             decoration: BoxDecoration(
               color: isActive
                   ? const Color(0xFFD9D9D9)
-                  : const Color(0xFF9B9B9B).withOpacity(0.6),
+                  : const Color(0xFF9B9B9B).withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(indicatorSize / 2),
             ),
           );

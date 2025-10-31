@@ -78,7 +78,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         _isInitialized = true;
       });
     } catch (e) {
-      print('Error initializing chat: $e');
+      debugPrint('Error initializing chat: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -144,7 +144,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
       _scrollToBottom();
     } catch (e) {
-      print('Error sending message: $e');
+      debugPrint('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to send message'),
@@ -226,7 +226,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         width: 50,
         height: 50,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: 24),
@@ -250,7 +250,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         await _uploadFile(File(image.path), 'image');
       }
     } catch (e) {
-      print('Error picking image: $e');
+      debugPrint('Error picking image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick image')),
       );
@@ -264,7 +264,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         await _uploadFile(File(image.path), 'image');
       }
     } catch (e) {
-      print('Error taking photo: $e');
+      debugPrint('Error taking photo: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to take photo')),
       );
@@ -278,7 +278,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         await _uploadFile(File(result.files.single.path!), 'document');
       }
     } catch (e) {
-      print('Error picking document: $e');
+      debugPrint('Error picking document: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick document')),
       );
@@ -305,7 +305,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         fileType: fileType,
       );
     } catch (e) {
-      print('Error uploading file: $e');
+      debugPrint('Error uploading file: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to upload file')),
       );
@@ -550,7 +550,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
           // Bubble pengirim: #FFF6D2A7, penerima: kuning pastel
-          color: isMe ? Color(0xFFFFF6D2A7) : Color(0xFFFFF9C4),
+          color: isMe ? Color(0xFFF6D2A7) : Color(0xFFFFF9C4),
           borderRadius: BorderRadius.circular(10),
         ),
         child: IntrinsicWidth(
@@ -564,7 +564,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   child: Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -615,7 +615,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   Text(
                     time,
                     style: TextStyle(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       fontSize: 10,
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w500,
@@ -627,7 +627,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     Icon(
                       isRead ? Icons.done_all : Icons.done,
                       size: 12,
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
                 ],

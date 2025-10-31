@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
 import 'package:untitled/widget/ProfileMenu.dart';
-import 'package:untitled/screen/Event/EventDetailScreen.dart';
-import 'AddEventScreen.dart';
+import 'package:untitled/screen/Event/event_detail_screen.dart';
+import 'create_event_screen.dart';
 
 class EventListScreen extends StatefulWidget {
   const EventListScreen({super.key});
@@ -339,7 +339,7 @@ class _EventListScreenState extends State<EventListScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha:  0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -380,7 +380,7 @@ class _EventListScreenState extends State<EventListScreen> {
                           decoration: BoxDecoration(
                             color: isOwner
                                 ? Colors.black
-                                : Colors.black.withOpacity(0.7),
+                                : Colors.black.withValues(alpha:  0.7),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -477,7 +477,7 @@ class _EventListScreenState extends State<EventListScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6A00).withOpacity(0.4),
+            color: const Color(0xFFFF6A00).withValues(alpha:  0.4),
             offset: const Offset(0, 4),
           ),
         ],

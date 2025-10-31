@@ -254,11 +254,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
 
           // Main Content
-          SafeArea(
-            child: Column(
-              children: [
-                // Top Section with Image
-                Container(
+          Column(
+            children: [
+              // Top Section with Image dan SafeArea
+              SafeArea(
+                bottom: false,
+                child: SizedBox(
                   height: 280,
                   child: Stack(
                     children: [
@@ -268,7 +269,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         left: 16,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -284,7 +285,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           right: 16,
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -313,17 +314,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ],
                   ),
                 ),
+              ),
 
-                // White Content Section
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(40),
-                      topRight: Radius.circular(40),
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      color: Colors.white,
+              // White Content Section
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(40),
+                    topRight: Radius.circular(40),
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    color: Colors.white,
+                    child: SafeArea(
+                      top: false, // Hanya padding bawah
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(45, 43, 45, 32),
                         child: Column(
@@ -465,6 +469,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
                             const SizedBox(height: 12),
 
+                            // Save Button (only when editing)
                             if (_isEditing) ...[
                               const SizedBox(height: 32),
                               SizedBox(
@@ -496,8 +501,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -549,7 +554,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               contentPadding: EdgeInsets.zero,
               hintText: placeholder,
               hintStyle: TextStyle(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 fontSize: 14,
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
@@ -652,7 +657,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   value: status,
                   child: Row(
                     children: [
-                      Container(
+                      SizedBox(
                         width: 12,
                         height: 12,
                       ),
@@ -668,7 +673,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
-                Container(
+                SizedBox(
                   width: 12,
                   height: 12,
                 ),

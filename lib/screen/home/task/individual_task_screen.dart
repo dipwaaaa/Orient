@@ -45,7 +45,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
         });
       }
     } catch (e) {
-      print('Error loading task: $e');
+      debugPrint('Error loading task: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -85,7 +85,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
         _loadTask();
       }
     } catch (e) {
-      print('Error updating task: $e');
+      debugPrint('Error updating task: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -128,7 +128,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
           );
         }
       } catch (e) {
-        print('Error deleting task: $e');
+        debugPrint('Error deleting task: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -191,7 +191,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
           child: Column(
           children: [
           // Top Section with Cat Image
-          Container(
+          SizedBox(
           height: 280,
           child: Stack(
           children: [
@@ -430,7 +430,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
               contentPadding: EdgeInsets.zero,
               hintText: placeholder,
               hintStyle: TextStyle(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 fontSize: 14,
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,

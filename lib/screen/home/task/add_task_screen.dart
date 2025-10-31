@@ -67,7 +67,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         });
       }
     } catch (e) {
-      print('Error loading event name: $e');
+      debugPrint('Error loading event name: $e');
     }
   }
 
@@ -96,12 +96,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
             _selectedEventName = eventData['eventName'] ?? 'Active Event';
           });
 
-          print('Event found: ${events.first.id} - $_selectedEventName');
+          debugPrint('Event found: ${events.first.id} - $_selectedEventName');
         } else {
-          print('No events found for user: ${user.uid}');
+          debugPrint('No events found for user: ${user.uid}');
         }
       } catch (e) {
-        print('Error fetching event: $e');
+        debugPrint('Error fetching event: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -123,7 +123,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: Color(0xFFFFE100),
               onPrimary: Colors.black,
               surface: Colors.white,
@@ -146,21 +146,21 @@ class _AddTaskPageState extends State<AddTaskPage> {
   Future<void> _createTask() async {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter task name')),
+        const SnackBar(content: Text('Please enter task name')),
       );
       return;
     }
 
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a date')),
+        const SnackBar(content: Text('Please select a date')),
       );
       return;
     }
 
     if (_selectedEventId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No event found. Please create an event first.')),
+        const SnackBar(content: Text('No event found. Please create an event first.')),
       );
       return;
     }
@@ -190,7 +190,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         dueDate: _selectedDate!,
         status: _selectedStatus,
         note: _noteController.text.isNotEmpty ? _noteController.text.trim() : null,
-        budget: budgetValue, // TAMBAHKAN budget
+        budget: budgetValue,
         imageUrls: null,
         createdBy: user.uid,
         createdAt: now,
@@ -201,12 +201,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Task created successfully!')),
+          const SnackBar(content: Text('Task created successfully!')),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
-      print('Error creating task: $e');
+      debugPrint('Error creating task: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to create task: $e')),
@@ -241,9 +241,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 bottom: false,
                 child: Column(
                   children: [
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     _buildHeader(),
-                    SizedBox(height: 25),
+                    const SizedBox(height: 25),
                   ],
                 ),
               ),
@@ -254,7 +254,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   child: Column(
                     children: [
                       _buildFormSection(),
-                      SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
                       // Category Section
                       ConstrainedBox(
@@ -263,87 +263,68 @@ class _AddTaskPageState extends State<AddTaskPage> {
                         ),
                         child: Container(
                           width: double.infinity,
-                          decoration: BoxDecoration(
+                          padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
+                          decoration: const ShapeDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(40),
-                              topRight: Radius.circular(40),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(40),
+                                topRight: Radius.circular(40),
+                              ),
                             ),
                           ),
                           child: SafeArea(
                             top: false,
-                            child: Padding(
-                              padding: EdgeInsets.all(31),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Category header
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Category',
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontSize: 14,
-                                          fontFamily: 'SF Pro',
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 20,
-                                        height: 20,
-                                        child: Icon(Icons.info_outline, size: 20),
-                                      ),
-                                    ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 14,
+                                    fontFamily: 'SF Pro',
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                  SizedBox(height: 9),
-
-                                  // Category chips
-                                  Wrap(
-                                    spacing: 7,
-                                    runSpacing: 7,
-                                    children: _categories.map((category) {
-                                      final isSelected = _selectedCategory == category;
-                                      return GestureDetector(
-                                        onTap: () {
-                                          setState(() {
-                                            _selectedCategory = category;
-                                          });
-                                        },
-                                        child: Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            color: isSelected ? Color(0xFFFFE100) : Colors.white,
-                                            border: Border.all(width: 1, color: Colors.black),
-                                            borderRadius: BorderRadius.circular(25),
-                                          ),
-                                          child: Text(
-                                            category,
-                                            style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 14,
-                                              fontFamily: 'SF Pro',
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                ),
+                                const SizedBox(height: 7),
+                                Wrap(
+                                  spacing: 7,
+                                  runSpacing: 7,
+                                  children: _categories.map((category) {
+                                    final isSelected = _selectedCategory == category;
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedCategory = category;
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? const Color(0xFFFFE100) : Colors.white,
+                                          border: Border.all(width: 1, color: Colors.black),
+                                          borderRadius: BorderRadius.circular(25),
+                                        ),
+                                        child: Text(
+                                          category,
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 14,
+                                            fontFamily: 'SF Pro',
+                                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                                           ),
                                         ),
-                                      );
-                                    }).toList(),
-                                  ),
-
-                                  SizedBox(height: 25),
-
-                                  // Status section
-                                  _buildStatusSection(),
-
-                                  SizedBox(height: 25),
-
-                                  // Create button
-                                  _buildCreateButton(),
-                                ],
-                              ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                                const SizedBox(height: 25),
+                                _buildStatusSection(),
+                                const SizedBox(height: 25),
+                                _buildCreateButton(),
+                              ],
                             ),
                           ),
                         ),
@@ -368,7 +349,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'Status',
                 style: TextStyle(
                   color: Colors.black,
@@ -377,7 +358,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              SizedBox(height: 7),
+              const SizedBox(height: 7),
               Wrap(
                 spacing: 7,
                 runSpacing: 7,
@@ -391,15 +372,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
                       });
                     },
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 50, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? Color(0xFFFFE100) : Colors.white,
+                        color: isSelected ? const Color(0xFFFFE100) : Colors.white,
                         border: Border.all(width: 1, color: Colors.black),
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: Text(
                         status,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.black,
                           fontSize: 14,
                           fontFamily: 'SF Pro',
@@ -413,7 +394,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             ],
           ),
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 10),
         Image.asset(
           'assets/image/AddTaskImageCat.png',
           height: 110,
@@ -430,16 +411,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _createTask,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _isLoading ? Colors.grey : Color(0xFFFFE100),
+          backgroundColor: _isLoading ? Colors.grey : const Color(0xFFFFE100),
           foregroundColor: Colors.black,
-          padding: EdgeInsets.symmetric(vertical: 15),
+          padding: const EdgeInsets.symmetric(vertical: 15),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),
           ),
           elevation: 0,
         ),
         child: _isLoading
-            ? SizedBox(
+            ? const SizedBox(
           width: 20,
           height: 20,
           child: CircularProgressIndicator(
@@ -447,7 +428,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
           ),
         )
-            : Text(
+            : const Text(
           'Create Task',
           style: TextStyle(
             fontSize: 17,
@@ -461,17 +442,17 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 51),
+      padding: const EdgeInsets.symmetric(horizontal: 51),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                icon: Icon(Icons.arrow_back, color: Colors.black),
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
                 onPressed: () => Navigator.pop(context),
               ),
-              Text(
+              const Text(
                 'Create a Task',
                 style: TextStyle(
                   color: Colors.black,
@@ -480,16 +461,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(width: 48),
+              const SizedBox(width: 48),
             ],
           ),
           if (_selectedEventName.isNotEmpty)
             Padding(
-              padding: EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 8),
               child: Text(
                 'for $_selectedEventName',
                 style: TextStyle(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   fontSize: 13,
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w500,
@@ -503,16 +484,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildFormSection() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 51),
+      padding: const EdgeInsets.symmetric(horizontal: 51),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildTextField('Name', _nameController, 'Type here'),
-          SizedBox(height: 15),
+          const SizedBox(height: 15),
           _buildDateField(),
-          SizedBox(height: 15),
+          const SizedBox(height: 15),
           _buildTextField('Budget', _budgetController, 'Type here', keyboardType: TextInputType.number),
-          SizedBox(height: 15),
+          const SizedBox(height: 15),
           _buildTextField('Note', _noteController, 'Type here', maxLines: 3),
         ],
       ),
@@ -525,16 +506,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.black,
             fontSize: 14,
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(height: 9),
+        const SizedBox(height: 9),
         Container(
-          padding: EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
             borderRadius: BorderRadius.circular(8),
@@ -546,7 +527,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(
-                color: Color(0xFF1D1D1D).withOpacity(0.6),
+                color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
                 fontSize: 13,
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
@@ -565,7 +546,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Date',
           style: TextStyle(
             color: Colors.black,
@@ -574,11 +555,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(height: 9),
+        const SizedBox(height: 9),
         GestureDetector(
           onTap: _selectDate,
           child: Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               border: Border.all(width: 2, color: Colors.black),
               borderRadius: BorderRadius.circular(8),
@@ -590,7 +571,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     _dateController.text.isEmpty ? 'Select date' : _dateController.text,
                     style: TextStyle(
                       color: _dateController.text.isEmpty
-                          ? Color(0xFF1D1D1D).withOpacity(0.6)
+                          ? const Color(0xFF1D1D1D).withValues(alpha: 0.6)
                           : Colors.black,
                       fontSize: 13,
                       fontFamily: 'SF Pro',
@@ -598,7 +579,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     ),
                   ),
                 ),
-                Icon(Icons.calendar_today, size: 18),
+                const Icon(Icons.calendar_today, size: 18),
               ],
             ),
           ),
@@ -607,174 +588,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
-  Widget _buildCategorySection() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-        ),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(31),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Category',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Container(
-                  width: 20,
-                  height: 20,
-                  child: Icon(Icons.info_outline, size: 20),
-                ),
-              ],
-            ),
-            SizedBox(height: 9),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: _categories.map((category) {
-                final isSelected = _selectedCategory == category;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedCategory = category;
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Color(0xFFFFE100) : Colors.white,
-                      border: Border.all(width: 1, color: Colors.black),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Text(
-                      category,
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 14,
-                        fontFamily: 'SF Pro',
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            SizedBox(height: 25),
-            // Status dan Gambar Kucing dalam Row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Status Section
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Status',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 7),
-                      Wrap(
-                        spacing: 7,
-                        runSpacing: 7,
-                        children: ['Completed', 'Pending'].map((status) {
-                          final statusValue = status.toLowerCase();
-                          final isSelected = _selectedStatus == statusValue;
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedStatus = statusValue;
-                              });
-                            },
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isSelected ? Color(0xFFFFE100) : Colors.white,
-                                border: Border.all(width: 1, color: Colors.black),
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                              child: Text(
-                                status,
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
-                                  fontFamily: 'SF Pro',
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 10),
-                // Gambar Kucing
-                Image.asset(
-                  'assets/image/AddTaskImageCat.png',
-                  height: 120,
-                  fit: BoxFit.contain,
-                ),
-              ],
-            ),
-            SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _createTask,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFFFFE100),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                ),
-                child: _isLoading
-                    ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                  ),
-                )
-                    : Text(
-                  'Create Task',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   @override
   void dispose() {
