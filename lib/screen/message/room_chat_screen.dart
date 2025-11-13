@@ -35,6 +35,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   String? _chatId;
   bool _isInitialized = false;
   bool _isUploading = false;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -52,9 +53,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     _chatId = _generateChatId(widget.currentUserId, widget.receiverUserId);
 
     try {
+      debugPrint('Initializing chat with ID: $_chatId');
       final chatDoc = await _firestore.collection('chats').doc(_chatId).get();
 
       if (!chatDoc.exists) {
+        debugPrint(' Creating new chat document...');
         await _firestore.collection('chats').doc(_chatId).set({
           'chatId': _chatId,
           'participants': [widget.currentUserId, widget.receiverUserId],
@@ -72,13 +75,18 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        debugPrint(' Chat document created successfully');
+      } else {
+        debugPrint(' Chat document already exists');
       }
 
-      setState(() {
-        _isInitialized = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
     } catch (e) {
-      debugPrint('Error initializing chat: $e');
+      debugPrint(' Error initializing chat: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -92,12 +100,30 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   }
 
   Future<void> _sendMessage({String? fileUrl, String? fileName, String? fileType}) async {
-    if ((_messageController.text.trim().isEmpty && fileUrl == null) || _chatId == null) return;
+    // Validasi
+    if ((_messageController.text.trim().isEmpty && fileUrl == null) || _chatId == null) {
+      debugPrint(' Cannot send: empty message and no file, or chatId is null');
+      return;
+    }
+
+    if (_isSending) {
+      debugPrint('Already sending a message, please wait...');
+      return;
+    }
 
     final messageText = _messageController.text.trim();
-    _messageController.clear();
 
     try {
+      setState(() {
+        _isSending = true;
+      });
+
+      debugPrint(' Starting to send message...');
+      debugPrint('   ChatID: $_chatId');
+      debugPrint('   Sender: ${widget.currentUserId}');
+      debugPrint('   Receiver: ${widget.receiverUserId}');
+      debugPrint('   Message length: ${messageText.length}');
+
       final messageRef = _firestore.collection('messages').doc();
       Map<String, dynamic> messageData = {
         'messageId': messageRef.id,
@@ -110,47 +136,86 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
       // Jika ada file attachment
       if (fileUrl != null) {
+        debugPrint('📎 Adding file attachment: $fileName ($fileType)');
         messageData['fileUrl'] = fileUrl;
         messageData['fileName'] = fileName ?? 'file';
         messageData['fileType'] = fileType ?? 'unknown';
 
         // Enkripsi caption jika ada
         if (messageText.isNotEmpty) {
-          final encryptedData = EncryptionService.encryptMessage(messageText, _chatId!);
-          messageData['encryptedMessage'] = encryptedData['encryptedMessage'];
-          messageData['iv'] = encryptedData['iv'];
+          try {
+            final encryptedData = EncryptionService.encryptMessage(messageText, _chatId!);
+            messageData['encryptedMessage'] = encryptedData['encryptedMessage'];
+            messageData['iv'] = encryptedData['iv'];
+            debugPrint(' Caption encrypted successfully');
+          } catch (e) {
+            debugPrint(' Error encrypting caption: $e');
+            throw Exception('Encryption error: $e');
+          }
         }
       } else {
         // Pesan text biasa
-        final encryptedData = EncryptionService.encryptMessage(messageText, _chatId!);
-        messageData['encryptedMessage'] = encryptedData['encryptedMessage'];
-        messageData['iv'] = encryptedData['iv'];
+        try {
+          debugPrint('Encrypting message...');
+          final encryptedData = EncryptionService.encryptMessage(messageText, _chatId!);
+          messageData['encryptedMessage'] = encryptedData['encryptedMessage'];
+          messageData['iv'] = encryptedData['iv'];
+          debugPrint(' Message encrypted successfully');
+        } catch (e) {
+          debugPrint(' Error encrypting message: $e');
+          throw Exception('Encryption error: $e');
+        }
       }
 
+      debugPrint(' Writing message to Firestore...');
       await messageRef.set(messageData);
+      debugPrint(' Message written to Firestore');
 
       // Update last message
       String lastMessagePreview = fileUrl != null
           ? '📎 ${fileName ?? 'File'}'
           : messageText;
-      final encryptedLastMessage = EncryptionService.encryptLastMessage(lastMessagePreview, _chatId!);
 
-      await _firestore.collection('chats').doc(_chatId).update({
-        'lastMessage': encryptedLastMessage,
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastMessageSender': widget.currentUserId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      try {
+        debugPrint('Encrypting last message preview...');
+        final encryptedLastMessage = EncryptionService.encryptLastMessage(lastMessagePreview, _chatId!);
 
+        debugPrint('Updating chat document with last message...');
+        await _firestore.collection('chats').doc(_chatId).update({
+          'lastMessage': encryptedLastMessage,
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'lastMessageSender': widget.currentUserId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint(' Chat document updated successfully');
+      } catch (e) {
+        debugPrint(' Error updating chat: $e');
+
+      }
+
+      _messageController.clear();
       _scrollToBottom();
+
+      debugPrint('Message sent successfully!');
     } catch (e) {
       debugPrint('Error sending message: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to send message'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint('   Stack trace: ${e.toString()}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
     }
   }
 
@@ -251,9 +316,11 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image')),
+        );
+      }
     }
   }
 
@@ -264,10 +331,12 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         await _uploadFile(File(image.path), 'image');
       }
     } catch (e) {
-      debugPrint('Error taking photo: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to take photo')),
-      );
+      debugPrint(' Error taking photo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to take photo')),
+        );
+      }
     }
   }
 
@@ -278,15 +347,20 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         await _uploadFile(File(result.files.single.path!), 'document');
       }
     } catch (e) {
-      debugPrint('Error picking document: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick document')),
-      );
+      debugPrint(' Error picking document: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick document')),
+        );
+      }
     }
   }
 
   Future<void> _uploadFile(File file, String fileType) async {
-    if (_chatId == null) return;
+    if (_chatId == null) {
+      debugPrint(' Cannot upload: chatId is null');
+      return;
+    }
 
     setState(() {
       _isUploading = true;
@@ -294,26 +368,39 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
     try {
       final fileName = file.path.split('/').last;
-      final storageRef = _storage.ref().child('chat_attachments/$_chatId/$fileName');
+      debugPrint(' Uploading file: $fileName ($fileType)');
 
+      final storageRef = _storage.ref().child('chat_attachments/$_chatId/$fileName');
       await storageRef.putFile(file);
       final fileUrl = await storageRef.getDownloadURL();
 
+      debugPrint(' File uploaded successfully');
       await _sendMessage(
         fileUrl: fileUrl,
         fileName: fileName,
         fileType: fileType,
       );
     } catch (e) {
-      debugPrint('Error uploading file: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to upload file')),
-      );
+      debugPrint(' Error uploading file: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload file: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -332,7 +419,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         ),
         title: Row(
           children: [
-            // Avatar TANPA background warna
             Container(
               width: 40,
               height: 40,
@@ -385,6 +471,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
+                  debugPrint(' Stream error: ${snapshot.error}');
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
 
@@ -425,11 +512,16 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     // Dekripsi pesan
                     String messageText = '';
                     if (messageData['encryptedMessage'] != null && messageData['iv'] != null) {
-                      messageText = EncryptionService.decryptMessage(
-                        messageData['encryptedMessage'],
-                        messageData['iv'],
-                        _chatId!,
-                      );
+                      try {
+                        messageText = EncryptionService.decryptMessage(
+                          messageData['encryptedMessage'],
+                          messageData['iv'],
+                          _chatId!,
+                        );
+                      } catch (e) {
+                        debugPrint(' Error decrypting message: $e');
+                        messageText = '[Failed to decrypt]';
+                      }
                     }
 
                     final fileUrl = messageData['fileUrl'];
@@ -549,7 +641,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         ),
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          // Bubble pengirim: #FFF6D2A7, penerima: kuning pastel
           color: isMe ? Color(0xFFF6D2A7) : Color(0xFFFFF9C4),
           borderRadius: BorderRadius.circular(10),
         ),
@@ -655,9 +746,12 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot open file')),
-      );
+      debugPrint(' Error opening file: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot open file')),
+        );
+      }
     }
   }
 
@@ -689,7 +783,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 color: Colors.grey[600],
                 size: 20,
               ),
-              onPressed: _isUploading ? null : _showAttachmentOptions,
+              onPressed: (_isUploading || _isSending) ? null : _showAttachmentOptions,
             ),
           ),
           SizedBox(width: 11),
@@ -697,7 +791,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border.all(width: 1, color: Colors.black), // Border HITAM
+                border: Border.all(width: 1, color: Colors.black),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: TextField(
@@ -705,7 +799,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                 textAlignVertical: TextAlignVertical.center,
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
-                enabled: !_isUploading,
+                enabled: !_isUploading && !_isSending,
                 decoration: InputDecoration(
                   hintText: 'Type a message...',
                   hintStyle: TextStyle(
@@ -720,18 +814,22 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                   ),
                   isDense: true,
                 ),
-                onSubmitted: (_) => _sendMessage(),
+                onSubmitted: (_) {
+                  if (!_isSending && !_isUploading) {
+                    _sendMessage();
+                  }
+                },
               ),
             ),
           ),
           SizedBox(width: 12),
           GestureDetector(
-            onTap: _isUploading ? null : () => _sendMessage(),
+            onTap: (_isUploading || _isSending) ? null : () => _sendMessage(),
             child: Container(
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: _isUploading ? Colors.grey : Colors.black, // Tombol HITAM
+                color: (_isUploading || _isSending) ? Colors.grey : Colors.black,
                 shape: BoxShape.circle,
               ),
               child: Icon(

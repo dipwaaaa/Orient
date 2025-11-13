@@ -25,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatItem> _chatList = [];
   List<ChatItem> _filteredChatList = [];
   StreamSubscription? _authSubscription;
+  StreamSubscription? _chatStreamSubscription;
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void dispose() {
     _searchController.dispose();
     _authSubscription?.cancel();
+    _chatStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -68,6 +70,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _cleanupAndNavigateToLogin() {
     // Cancel auth subscription
     _authSubscription?.cancel();
+    _chatStreamSubscription?.cancel();
 
     // Navigate to login and clear stack
     if (mounted) {
@@ -82,68 +85,78 @@ class _ChatScreenState extends State<ChatScreen> {
     final user = _authService.currentUser;
     if (user == null) return;
 
-    _authService.firestore
+    _chatStreamSubscription?.cancel();
+
+    _chatStreamSubscription = _authService.firestore
         .collection('chats')
         .where('participants', arrayContains: user.uid)
         .orderBy('updatedAt', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      if (!mounted) return;
+        .listen(
+          (snapshot) {
+        if (!mounted) return;
 
-      setState(() {
-        _chatList = snapshot.docs.map((doc) {
-          final data = doc.data();
-          final chatId = doc.id;
-          final participants = data['participants'] as List<dynamic>;
-          final participantDetails = data['participantDetails'] as Map<String, dynamic>;
+        debugPrint('📨 Chats loaded: ${snapshot.docs.length}');
 
-          // Cari username lawan bicara
-          final otherUserId = participants.firstWhere(
-                (id) => id != user.uid,
-            orElse: () => '',
-          );
+        setState(() {
+          _chatList = snapshot.docs.map((doc) {
+            final data = doc.data();
+            final chatId = doc.id;
+            final participants = data['participants'] as List<dynamic>;
+            final participantDetails = data['participantDetails'] as Map<String, dynamic>;
 
-          final otherUserData = participantDetails[otherUserId] as Map<String, dynamic>?;
-          final otherUsername = otherUserData?['username'] ?? 'Unknown';
-          final otherProfileImageUrl = otherUserData?['profileImageUrl'] as String?;
+            // Cari username lawan bicara
+            final otherUserId = participants.firstWhere(
+                  (id) => id != user.uid,
+              orElse: () => '',
+            );
 
-          // Dekripsi last message
-          String lastMessage = data['lastMessage'] ?? '';
-          if (lastMessage.isNotEmpty) {
-            try {
-              lastMessage = EncryptionService.decryptLastMessage(lastMessage, chatId);
-            } catch (e) {
-              lastMessage = '[Encrypted]';
+            final otherUserData = participantDetails[otherUserId] as Map<String, dynamic>?;
+            final otherUsername = otherUserData?['username'] ?? 'Unknown';
+            final otherProfileImageUrl = otherUserData?['profileImageUrl'] as String?;
+
+            // Dekripsi last message
+            String lastMessage = data['lastMessage'] ?? '';
+            if (lastMessage.isNotEmpty) {
+              try {
+                lastMessage = EncryptionService.decryptLastMessage(lastMessage, chatId);
+              } catch (e) {
+                debugPrint('Error decrypting last message: $e');
+                lastMessage = '[Encrypted]';
+              }
             }
-          }
 
-          // Format waktu
-          final lastMessageTime = data['lastMessageTime'] as Timestamp?;
-          String time = '';
-          if (lastMessageTime != null) {
-            final messageDate = lastMessageTime.toDate();
-            final now = DateTime.now();
+            // Format waktu
+            final lastMessageTime = data['lastMessageTime'] as Timestamp?;
+            String time = '';
+            if (lastMessageTime != null) {
+              final messageDate = lastMessageTime.toDate();
+              final now = DateTime.now();
 
-            if (messageDate.year == now.year &&
-                messageDate.month == now.month &&
-                messageDate.day == now.day) {
-              time = DateFormat('HH:mm').format(messageDate);
-            } else {
-              time = DateFormat('dd/MM/yy').format(messageDate);
+              if (messageDate.year == now.year &&
+                  messageDate.month == now.month &&
+                  messageDate.day == now.day) {
+                time = DateFormat('HH:mm').format(messageDate);
+              } else {
+                time = DateFormat('dd/MM/yy').format(messageDate);
+              }
             }
-          }
 
-          return ChatItem(
-            username: otherUsername,
-            lastMessage: lastMessage,
-            time: time,
-            chatId: chatId,
-            profileImageUrl: otherProfileImageUrl,
-          );
-        }).toList();
-        _filteredChatList = _chatList;
-      });
-    });
+            return ChatItem(
+              username: otherUsername,
+              lastMessage: lastMessage,
+              time: time,
+              chatId: chatId,
+              profileImageUrl: otherProfileImageUrl,
+            );
+          }).toList();
+          _filteredChatList = _chatList;
+        });
+      },
+      onError: (error) {
+        debugPrint(' Error loading chats: $error');
+      },
+    );
   }
 
   Future<void> _loadUserData() async {
@@ -178,7 +191,7 @@ class _ChatScreenState extends State<ChatScreen> {
           });
         }
       } catch (e) {
-        debugPrint('Error loading user data: $e');
+        debugPrint(' Error loading user data: $e');
       }
     }
   }
@@ -313,6 +326,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+
   Future<void> _findAndNavigateToUser(String usernameOrEmail) async {
     try {
       // Show loading
@@ -322,35 +336,64 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context) => Center(child: CircularProgressIndicator()),
       );
 
+      debugPrint('\n' + '='*60);
+      debugPrint(' USER SEARCH');
+      debugPrint('='*60);
+
+      final trimmedInput = usernameOrEmail.trim();
+      debugPrint(' Input: "$trimmedInput"');
+
       QuerySnapshot userQuery;
 
-      if (usernameOrEmail.contains('@')) {
+      if (trimmedInput.contains('@')) {
+        // EMAIL SEARCH - lowercase email
+        debugPrint(' Email search (lowercase): "${trimmedInput.toLowerCase()}"');
         userQuery = await _authService.firestore
             .collection('users')
-            .where('email', isEqualTo: usernameOrEmail)
+            .where('email', isEqualTo: trimmedInput.toLowerCase())
             .limit(1)
             .get();
       } else {
+        // USERNAME SEARCH - Try exact match FIRST
+        debugPrint('👤 Username search (exact): "$trimmedInput"');
         userQuery = await _authService.firestore
             .collection('users')
-            .where('username', isEqualTo: usernameOrEmail)
+            .where('username', isEqualTo: trimmedInput)
             .limit(1)
             .get();
+
+        // Jika tidak ada, try lowercase
+        if (userQuery.docs.isEmpty) {
+          debugPrint('👤 No exact match, trying lowercase: "${trimmedInput.toLowerCase()}"');
+          userQuery = await _authService.firestore
+              .collection('users')
+              .where('username', isEqualTo: trimmedInput.toLowerCase())
+              .limit(1)
+              .get();
+        }
       }
+
+      debugPrint('📊 Results: ${userQuery.docs.length} found');
 
       // Hide loading
       if (!mounted) return;
       Navigator.pop(context);
 
       if (userQuery.docs.isEmpty) {
+        debugPrint(' USER NOT FOUND');
+        debugPrint('='*60 + '\n');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('User not found'),
+            content: Text('User "$trimmedInput" not found'),
             backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
           ),
         );
         return;
       }
+
+      debugPrint('USER FOUND');
 
       final userData = userQuery.docs.first.data() as Map<String, dynamic>;
       final receiverUserId = userQuery.docs.first.id;
@@ -358,6 +401,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (!mounted) return;
       if (receiverUserId == _authService.currentUser?.uid) {
+        debugPrint('Cannot chat with self');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('You cannot chat with yourself'),
@@ -366,6 +410,9 @@ class _ChatScreenState extends State<ChatScreen> {
         );
         return;
       }
+
+      debugPrint(' Navigating to chat...');
+      debugPrint('='*60 + '\n');
 
       Navigator.push(
         context,
@@ -379,37 +426,56 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     } catch (e) {
-      // Hide loading if still showing
+      debugPrint('Error: $e');
+      debugPrint('='*60 + '\n');
+
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
 
-      debugPrint('Error finding user: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error finding user: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
+
   Future<void> _navigateToRoomChat(String username, String chatId) async {
     try {
-      final userQuery = await _authService.firestore
+      debugPrint('🔍 Looking up user: $username');
+
+      // Try exact match FIRST
+      var userQuery = await _authService.firestore
           .collection('users')
           .where('username', isEqualTo: username)
           .limit(1)
           .get();
 
+      // If not found, try lowercase
+      if (userQuery.docs.isEmpty) {
+        debugPrint('  No exact match, trying lowercase...');
+        userQuery = await _authService.firestore
+            .collection('users')
+            .where('username', isEqualTo: username.toLowerCase())
+            .limit(1)
+            .get();
+      }
+
       if (!mounted) return;
       if (userQuery.docs.isEmpty) {
+        debugPrint('❌ User lookup failed');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('User not found')),
         );
         return;
       }
 
+      debugPrint('✅ User found!');
       final receiverUserId = userQuery.docs.first.id;
 
       Navigator.push(
@@ -424,10 +490,12 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     } catch (e) {
-      debugPrint('Error navigating to chat: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening chat')),
-      );
+      debugPrint(' Error navigating to chat: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening chat')),
+        );
+      }
     }
   }
 
@@ -541,7 +609,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   chat.profileImageUrl!,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    // Fallback to initial if image fails
                     return Center(
                       child: Text(
                         chat.username.isNotEmpty

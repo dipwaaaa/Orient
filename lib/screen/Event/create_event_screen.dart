@@ -187,7 +187,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
           // Animated Gradient Background
@@ -305,13 +304,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(16),
-      decoration: ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(width: 2, color: Color(0xFFFFE100)),
-          borderRadius: BorderRadius.circular(15),
-        ),
-      ),
       child: Column(
         children: [
           _buildTextField(
