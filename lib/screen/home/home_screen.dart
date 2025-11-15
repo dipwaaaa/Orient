@@ -8,6 +8,7 @@ import '../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
 import 'task/task_page_screen.dart';
+import 'guest/GuestPageScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -887,10 +888,13 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildFeatureButton(
             imagePath: 'assets/image/ButtonGuest.png',
             label: 'Guest',
-            color: Color(0xFFFFE100),
+            color: const Color(0xFFFFE100),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Guest list coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GuestPageScreen(),
+                ),
               );
             },
           ),
