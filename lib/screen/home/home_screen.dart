@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/screen/home/budget/budget_screen.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
 import '../../widget/Animated_Gradient_Background.dart';
@@ -880,8 +881,14 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Budget',
             color: Color(0xFFFFE100),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Budget tracker coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BudgetScreen(
+                    eventId: _currentEventId,
+                    eventName: _currentEventName,
+                  ),
+                ),
               );
             },
           ),

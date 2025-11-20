@@ -91,7 +91,8 @@ class BudgetModel {
       imageUrls: map['imageUrls'] != null ? List<String>.from(map['imageUrls']) : null,
       payments: (map['payments'] as List?)
           ?.map((p) => PaymentRecord.fromMap(p))
-          .toList() ?? [],
+          .toList() ??
+          [],
       lastUpdated: (map['lastUpdated'] as Timestamp).toDate(),
       createdAt: (map['createdAt'] as Timestamp).toDate(),
     );

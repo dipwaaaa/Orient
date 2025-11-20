@@ -56,7 +56,6 @@ class AuthService {
     }
   }
 
-  // Cari email berdasarkan username
   Future<String?> _getEmailFromUsername(String username) async {
     try {
       final querySnapshot = await firestore
@@ -75,7 +74,6 @@ class AuthService {
     }
   }
 
-  // Validasi apakah input adalah email atau username
   bool _isEmail(String input) {
     return input.contains('@') && input.contains('.');
   }
@@ -374,7 +372,6 @@ class AuthService {
     }
   }
 
-  // ===== Helper Methods untuk Username =====
   Future<bool> isUsernameAvailable(String username) async {
     if (username.trim().isEmpty) return false;
     try {
