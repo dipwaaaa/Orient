@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
-import 'package:untitled/widget/ProfileMenu.dart';
+import 'package:untitled/widget/ProfileMenu.dart'; // ✓ ProfileMenu dengan sizing responsive
 import 'package:untitled/screen/Event/event_detail_screen.dart';
 import 'create_event_screen.dart';
 
@@ -80,6 +80,8 @@ class _EventListScreenState extends State<EventListScreen> {
   }
 
   Widget _buildHeader() {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -115,38 +117,38 @@ class _EventListScreenState extends State<EventListScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(screenWidth * 0.022),
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(screenWidth * 0.069),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 32.5,
-                  height: 32.5,
+                  width: screenWidth * 0.089,
+                  height: screenWidth * 0.089,
                   decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: 25,
+                    size: screenWidth * 0.069,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: screenWidth * 0.022),
                 GestureDetector(
                   onTap: () {
                     ProfileMenu.show(context, _authService, _username);
                   },
                   child: Container(
-                    width: 32,
-                    height: 32,
+                    width: screenWidth * 0.088,
+                    height: screenWidth * 0.088,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFDEF3FF),
+                      color: const Color(0xFFDEF3FF),
                     ),
                     child: ClipOval(
                       child: _authService.currentUser?.photoURL != null
@@ -168,8 +170,6 @@ class _EventListScreenState extends State<EventListScreen> {
       ),
     );
   }
-
-
 
   Widget _buildEventList() {
     final user = _authService.currentUser;
@@ -209,12 +209,12 @@ class _EventListScreenState extends State<EventListScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       Text('Error: ${ownerSnapshot.error}'),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => setState(() {}),
-                        child: Text('Retry'),
+                        child: const Text('Retry'),
                       ),
                     ],
                   ),
@@ -339,7 +339,7 @@ class _EventListScreenState extends State<EventListScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:  0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -380,7 +380,7 @@ class _EventListScreenState extends State<EventListScreen> {
                           decoration: BoxDecoration(
                             color: isOwner
                                 ? Colors.black
-                                : Colors.black.withValues(alpha:  0.7),
+                                : Colors.black.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -477,7 +477,7 @@ class _EventListScreenState extends State<EventListScreen> {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF6A00).withValues(alpha:  0.4),
+            color: const Color(0xFFFF6A00).withValues(alpha: 0.4),
             offset: const Offset(0, 4),
           ),
         ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/service/auth_service.dart';
-import 'package:untitled/service/EventService.dart';
+import 'package:untitled/service/event_service.dart';
 import 'package:intl/intl.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,9 +19,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   // Form controllers
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
   final TextEditingController _collaboratorController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
   // Form state
   DateTime? _selectedDate;
@@ -31,23 +31,20 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _locationController.dispose();
-    _descriptionController.dispose();
+    _budgetController.dispose();
     _collaboratorController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
-  // method untuk validasi collaborator
   Future<Map<String, dynamic>> _validateCollaborators(List<String> collaborators) async {
     List<String> validCollaboratorIds = [];
     List<String> invalidCollaborators = [];
 
     for (String identifier in collaborators) {
       try {
-        // Cek apakah identifier adalah email atau username
         QuerySnapshot userQuery;
 
-        // Cek berdasarkan email
         if (identifier.contains('@')) {
           userQuery = await _firestore
               .collection('users')
@@ -55,7 +52,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               .limit(1)
               .get();
         } else {
-          // Cek berdasarkan username
           userQuery = await _firestore
               .collection('users')
               .where('username', isEqualTo: identifier.trim())
@@ -64,10 +60,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         }
 
         if (userQuery.docs.isNotEmpty) {
-          // User ditemukan, ambil UID
           validCollaboratorIds.add(userQuery.docs.first.id);
         } else {
-          // User tidak ditemukan
           invalidCollaborators.add(identifier);
         }
       } catch (e) {
@@ -82,9 +76,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     };
   }
 
-// Modifikasi method _createEvent
   Future<void> _createEvent() async {
-    // Validation
     if (_nameController.text.trim().isEmpty) {
       _showErrorDialog('Please enter event name');
       return;
@@ -111,7 +103,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
 
     try {
-      // Prepare collaborators list
       List<String> collaboratorInputs = [];
       if (_collaboratorController.text.trim().isNotEmpty) {
         collaboratorInputs = _collaboratorController.text
@@ -121,14 +112,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             .toList();
       }
 
-      // Validate collaborators
       List<String> validCollaboratorIds = [];
       if (collaboratorInputs.isNotEmpty) {
         final validationResult = await _validateCollaborators(collaboratorInputs);
         validCollaboratorIds = validationResult['validIds'] as List<String>;
         List<String> invalidCollaborators = validationResult['invalid'] as List<String>;
 
-        // Jika ada collaborator yang tidak valid, tampilkan error
         if (invalidCollaborators.isNotEmpty) {
           if (mounted) {
             setState(() {
@@ -142,30 +131,33 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         }
       }
 
-      // Pastikan owner tidak termasuk dalam collaborators
       validCollaboratorIds.remove(user.uid);
+
+      // Parse budget dengan benar
+      double budgetValue = 0.0;
+      if (_budgetController.text.trim().isNotEmpty) {
+        budgetValue = double.tryParse(_budgetController.text.trim()) ?? 0.0;
+      }
 
       final result = await _eventService.createEvent(
         eventName: _nameController.text.trim(),
         eventDate: _selectedDate!,
         eventType: 'General',
         eventLocation: _locationController.text.trim(),
-        description: _descriptionController.text.trim(),
+        description: '',
         ownerId: user.uid,
         collaborators: validCollaboratorIds,
+        budget: budgetValue,
       );
 
       if (mounted) {
         if (result['success']) {
-          // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result['message']),
               backgroundColor: Colors.green,
             ),
           );
-
-          // Navigate back to EventListScreen
           Navigator.pop(context, true);
         } else {
           _showErrorDialog(result['error']);
@@ -191,60 +183,62 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         children: [
           // Animated Gradient Background
           Positioned.fill(
-            child: AnimatedGradientBackground(
-            ),
+            child: AnimatedGradientBackground(),
           ),
 
+          // Main Content (Header + Form in Column)
           Column(
             children: [
+              // Header dengan SafeArea
               SafeArea(
                 bottom: false,
-                child: _buildHeader(),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
+                child: Container(
+                  height: 100,
+                  padding: const EdgeInsets.symmetric(horizontal: 35),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const SizedBox(height: 30),
-                      _buildForm(),
-                      const SizedBox(height: 30),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height * 0.35,
-                        ),
+                      // Close Button
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
                         child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(31),
-                          decoration: const ShapeDecoration(
-                            color: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(40),
-                                topRight: Radius.circular(40),
-                              ),
-                            ),
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
                           ),
-                          child: SafeArea(
-                            top: false,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  'Status',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 14,
-                                    fontFamily: 'SF Pro',
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 7),
-                                _buildStatusSelector(),
-                                const SizedBox(height: 25),
-                                _buildCreateButton(),
-                              ],
-                            ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                      // Title
+                      const Text(
+                        'Create an Event',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 25,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      // Save Button
+                      GestureDetector(
+                        onTap: _isLoading ? null : _createEvent,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.save,
+                            color: Colors.white,
+                            size: 24,
                           ),
                         ),
                       ),
@@ -252,86 +246,108 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: const ShapeDecoration(
-                color: Color(0xFFFFE100),
-                shape: OvalBorder(),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.arrow_back,
-                  color: Colors.black,
-                  size: 20,
+              // Form Section (Scrollable)
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 35),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTextField(
+                          'Name',
+                          'Type here',
+                          _nameController,
+                        ),
+                        const SizedBox(height: 15),
+                        _buildDateField(),
+                        const SizedBox(height: 15),
+                        _buildTextField(
+                          'Budget',
+                          'Type here',
+                          _budgetController,
+                          keyboardType: TextInputType.number,
+                        ),
+                        const SizedBox(height: 15),
+                        _buildTextField(
+                          'Collaborator',
+                          'Type here',
+                          _collaboratorController,
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 15),
+                        _buildTextField(
+                          'Location',
+                          'Type here',
+                          _locationController,
+                        ),
+                        const SizedBox(height: 280), // Space untuk status section
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-          const Expanded(
-            child: Text(
-              'Create Event',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontFamily: 'SF Pro',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 40),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildForm() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _buildTextField(
-            'Event Name',
-            'Enter event name',
-            _nameController,
-          ),
-          const SizedBox(height: 20),
-          _buildDateField(),
-          const SizedBox(height: 20),
-          _buildTextField(
-            'Event Location',
-            'Enter event location',
-            _locationController,
-          ),
-          const SizedBox(height: 20),
-          _buildTextField(
-            'Description',
-            'Add a description',
-            _descriptionController,
-            maxLines: 4,
-          ),
-          const SizedBox(height: 20),
-          _buildTextField(
-            'Collaborators',
-            'Add collaborators (email/username, separated by comma)',
-            _collaboratorController,
-            maxLines: 2,
+          // Status Section (Draggable Bottom Sheet) - Positioned in Stack
+          DraggableScrollableSheet(
+            initialChildSize: 0.25,
+            minChildSize: 0.25,
+            maxChildSize: 0.9,
+            snap: true,
+            snapSizes: const [0.25, 0.5, 0.9],
+            builder: (context, scrollController) {
+              return Container(
+                width: double.infinity,
+                decoration: const ShapeDecoration(
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
+                    ),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Drag Handle
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(2.5),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Status',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        _buildStatusSelector(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -343,6 +359,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       String hintText,
       TextEditingController controller, {
         int maxLines = 1,
+        TextInputType keyboardType = TextInputType.text,
       }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,23 +375,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         ),
         const SizedBox(height: 9),
         Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: ShapeDecoration(
-            shape: RoundedRectangleBorder(
-              side: const BorderSide(width: 2, color: Colors.black),
-              borderRadius: BorderRadius.circular(8),
-            ),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(width: 2, color: Colors.black),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: TextField(
             controller: controller,
+            keyboardType: keyboardType,
             maxLines: maxLines,
-            style: const TextStyle(
-              color: Color(0xFF1D1D1D),
-              fontSize: 13,
-              fontFamily: 'SF Pro',
-              fontWeight: FontWeight.w600,
-            ),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
@@ -410,14 +419,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         GestureDetector(
           onTap: _selectDate,
           child: Container(
-            width: double.infinity,
-            height: 48,
             padding: const EdgeInsets.all(12),
-            decoration: ShapeDecoration(
-              shape: RoundedRectangleBorder(
-                side: const BorderSide(width: 2, color: Colors.black),
-                borderRadius: BorderRadius.circular(8),
-              ),
+            decoration: BoxDecoration(
+              border: Border.all(width: 2, color: Colors.black),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
@@ -425,10 +430,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   child: Text(
                     _selectedDate != null
                         ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
-                        : 'Select event date',
+                        : 'Type here',
                     style: TextStyle(
                       color: _selectedDate != null
-                          ? const Color(0xFF1D1D1D)
+                          ? Colors.black
                           : const Color(0xFF1D1D1D).withValues(alpha: 0.6),
                       fontSize: 13,
                       fontFamily: 'SF Pro',
@@ -436,11 +441,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.calendar_today,
-                  color: Color(0xFF1D1D1D),
-                  size: 16,
-                ),
+                const Icon(Icons.calendar_today, size: 18),
               ],
             ),
           ),
@@ -450,9 +451,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Widget _buildStatusSelector() {
-    final statuses = ['Pending', 'Completed'];
+    final statuses = ['Completed', 'Pending'];
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
@@ -468,13 +470,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 8),
-                    decoration: ShapeDecoration(
-                      color: isSelected ? const Color(0xFFFFE100) : Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        side: const BorderSide(width: 1, color: Colors.black),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFFFE100) : Colors.white,
+                      border: Border.all(width: 1, color: Colors.black),
+                      borderRadius: BorderRadius.circular(25),
                     ),
                     child: Text(
                       status,
@@ -498,41 +498,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           fit: BoxFit.contain,
         ),
       ],
-    );
-  }
-
-  Widget _buildCreateButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _createEvent,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFFFE100),
-          foregroundColor: Colors.black,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
-          elevation: 0,
-        ),
-        child: _isLoading
-            ? const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-          ),
-        )
-            : const Text(
-          'Create Event',
-          style: TextStyle(
-            fontSize: 17,
-            fontFamily: 'SF Pro',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
     );
   }
 

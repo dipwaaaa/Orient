@@ -13,6 +13,7 @@ class EventService {
     required String description,
     required String ownerId,
     List<String>? collaborators,
+    double? budget,
   }) async {
     try {
       final now = Timestamp.now();
@@ -29,6 +30,7 @@ class EventService {
         'description': description.trim(),
         'ownerId': ownerId,
         'collaborators': collaborators ?? [],
+        'budget': budget ?? 0.0,
         'eventStatus': 'Pending', // DEFAULT STATUS
         'createdAt': now,
         'updatedAt': now,
@@ -62,6 +64,7 @@ class EventService {
     String? description,
     String? eventStatus,
     List<String>? collaborators,
+    double? budget,
   }) async {
     try {
       final updateData = <String, dynamic>{
@@ -75,6 +78,7 @@ class EventService {
       if (description != null) updateData['description'] = description.trim();
       if (eventStatus != null) updateData['eventStatus'] = eventStatus;
       if (collaborators != null) updateData['collaborators'] = collaborators;
+      if (budget != null) updateData['budget'] = budget;
 
       await _firestore.collection('events').doc(eventId).update(updateData);
 

@@ -134,6 +134,8 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Container(
       margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -147,9 +149,12 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
             padding: EdgeInsets.all(20),
             child: Column(
               children: [
+                // Avatar dengan sizing yang sama seperti HomeScreen header
+                // HomeScreen: width: screenWidth * 0.088, height: screenWidth * 0.088
+                // Scaled up untuk Profile Menu
                 _isLoading
                     ? CircleAvatar(
-                  radius: 30,
+                  radius: screenWidth * 0.15, // Sama dengan HomeScreen tapi lebih besar untuk menu
                   backgroundColor: Color(0xFFDEF3FF),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
@@ -159,7 +164,7 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
                   ),
                 )
                     : CircleAvatar(
-                  radius: 30,
+                  radius: screenWidth * 0.15,
                   backgroundColor: Color(0xFFDEF3FF),
                   backgroundImage: _profileImageUrl != null
                       ? NetworkImage(_profileImageUrl!)
@@ -173,6 +178,7 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
+                    fontFamily: 'SF Pro',
                   ),
                 ),
                 SizedBox(height: 8),
@@ -181,6 +187,7 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
+                    fontFamily: 'SF Pro',
                   ),
                 ),
               ],
@@ -189,7 +196,10 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
           Divider(height: 1),
           ListTile(
             leading: Icon(Icons.settings, color: Color(0xFFFF6A00)),
-            title: Text('Profile Settings'),
+            title: Text(
+              'Profile Settings',
+              style: TextStyle(fontFamily: 'SF Pro'),
+            ),
             onTap: () {
               Navigator.pop(context);
               Navigator.push(
@@ -203,7 +213,10 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
           ),
           ListTile(
             leading: Icon(Icons.logout, color: Colors.red),
-            title: Text('Sign Out'),
+            title: Text(
+              'Sign Out',
+              style: TextStyle(fontFamily: 'SF Pro'),
+            ),
             onTap: () async {
               // Tutup bottom sheet
               Navigator.pop(context);
