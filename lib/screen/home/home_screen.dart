@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
 import 'task/task_page_screen.dart';
 import 'guest/GuestPageScreen.dart';
+import 'vendor/vendorPageScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -869,10 +870,16 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildFeatureButton(
             imagePath: 'assets/image/ButtonVendor.png',
             label: 'Vendor',
-            color: Color(0xFFFFE100),
+            color: const Color(0xFFFFE100),
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Vendor management coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VendorPageScreen(
+                    eventId: "your_event_id_here",  // Replace with actual event ID
+                    listName: "To Contact",         // Or "Shortlisted", "Booked", etc.
+                  ),
+                ),
               );
             },
           ),
