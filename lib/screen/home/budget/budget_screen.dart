@@ -7,6 +7,7 @@ import '../../../model/budget_model.dart';
 import '../../../widget/ProfileMenu.dart';
 import 'budget_detail_screen.dart';
 import 'create_budget_screen.dart';
+import 'payment_detail_screen.dart';
 
 class BudgetScreen extends StatefulWidget {
   final String? eventId;

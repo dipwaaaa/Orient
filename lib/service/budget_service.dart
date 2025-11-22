@@ -162,6 +162,66 @@ class BudgetService {
     }
   }
 
+  // Update payment by index
+  Future<Map<String, dynamic>> updatePaymentAtIndex({
+    required String budgetId,
+    required int paymentIndex,
+    required double amount,
+    required DateTime date,
+    String? note,
+  }) async {
+    try {
+      final budget = await getBudget(budgetId);
+      if (budget == null) {
+        return {
+          'success': false,
+          'error': 'Budget not found',
+        };
+      }
+
+      if (paymentIndex < 0 || paymentIndex >= budget.payments.length) {
+        return {
+          'success': false,
+          'error': 'Payment index out of bounds',
+        };
+      }
+
+      // Update the payment at specific index
+      final payments = List<PaymentRecord>.from(budget.payments);
+      final oldPayment = payments[paymentIndex];
+
+      final newPayment = PaymentRecord(
+        paymentId: oldPayment.paymentId,
+        amount: amount,
+        date: date,
+        note: note,
+      );
+
+      payments[paymentIndex] = newPayment;
+
+      // Recalculate amounts
+      final newPaidAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
+      final newUnpaidAmount = budget.totalCost - newPaidAmount;
+
+      await _firestore.collection('budgets').doc(budgetId).update({
+        'payments': payments.map((p) => p.toMap()).toList(),
+        'paidAmount': newPaidAmount,
+        'unpaidAmount': newUnpaidAmount,
+        'lastUpdated': Timestamp.fromDate(DateTime.now()),
+      });
+
+      return {
+        'success': true,
+        'message': 'Payment updated successfully',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Failed to update payment: $e',
+      };
+    }
+  }
+
   // Update payment
   Future<Map<String, dynamic>> updatePayment({
     required String budgetId,
