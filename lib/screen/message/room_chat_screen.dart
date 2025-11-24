@@ -85,6 +85,9 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           _isInitialized = true;
         });
       }
+
+      // Mark unread messages sebagai read
+      _markMessagesAsRead();
     } catch (e) {
       debugPrint(' Error initializing chat: $e');
       if (mounted) {
@@ -96,6 +99,32 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
           ),
         );
       }
+    }
+  }
+
+  // Fungsi untuk menandai pesan sebagai sudah dibaca
+  Future<void> _markMessagesAsRead() async {
+    if (_chatId == null) return;
+
+    try {
+      final unreadMessages = await _firestore
+          .collection('messages')
+          .where('chatId', isEqualTo: _chatId)
+          .where('receiverId', isEqualTo: widget.currentUserId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = _firestore.batch();
+
+      for (final doc in unreadMessages.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+
+      debugPrint('✅ ${unreadMessages.docs.length} messages marked as read');
+    } catch (e) {
+      debugPrint(' Error marking messages as read: $e');
     }
   }
 
@@ -190,7 +219,6 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         debugPrint(' Chat document updated successfully');
       } catch (e) {
         debugPrint(' Error updating chat: $e');
-
       }
 
       _messageController.clear();
@@ -310,15 +338,26 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
   Future<void> _pickImageFromGallery() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      debugPrint('\n📱 Picking image from gallery...');
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85, // Compress sedikit untuk performa
+      );
+
       if (image != null) {
+        debugPrint('✅ Image selected: ${image.name}');
         await _uploadFile(File(image.path), 'image');
+      } else {
+        debugPrint('❌ No image selected');
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
+      debugPrint('❌ Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image')),
+          SnackBar(
+            content: Text('Failed to pick image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -326,15 +365,26 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
   Future<void> _pickImageFromCamera() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
+      debugPrint('\n📷 Taking photo from camera...');
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85, // Compress sedikit untuk performa
+      );
+
       if (image != null) {
+        debugPrint('✅ Photo taken: ${image.name}');
         await _uploadFile(File(image.path), 'image');
+      } else {
+        debugPrint('❌ No photo taken');
       }
     } catch (e) {
-      debugPrint(' Error taking photo: $e');
+      debugPrint('❌ Error taking photo: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to take photo')),
+          SnackBar(
+            content: Text('Failed to take photo: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -342,23 +392,78 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
   Future<void> _pickDocument() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles();
-      if (result != null && result.files.single.path != null) {
-        await _uploadFile(File(result.files.single.path!), 'document');
+      debugPrint('\n📄 Picking document...');
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'png', 'jpg', 'jpeg'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = File(result.files.single.path!);
+        if (file.existsSync()) {
+          debugPrint('✅ Document selected: ${result.files.single.name}');
+          await _uploadFile(file, 'document');
+        } else {
+          debugPrint('❌ File path invalid: ${result.files.single.path}');
+          throw Exception('File not found');
+        }
+      } else {
+        debugPrint('❌ No document selected');
       }
     } catch (e) {
-      debugPrint(' Error picking document: $e');
+      debugPrint('❌ Error picking document: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick document')),
+          SnackBar(
+            content: Text('Failed to pick document: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
 
+  // Helper function untuk get MIME type
+  String _getMimeType(String fileType, String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+
+    final mimeTypes = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'heic': 'image/heic',
+      'heif': 'image/heif',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'txt': 'text/plain',
+    };
+
+    return mimeTypes[extension] ?? 'application/octet-stream';
+  }
+
   Future<void> _uploadFile(File file, String fileType) async {
     if (_chatId == null) {
       debugPrint(' Cannot upload: chatId is null');
+      return;
+    }
+
+    // Validate file exists
+    if (!file.existsSync()) {
+      debugPrint(' Error: File does not exist at ${file.path}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File not found'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       return;
     }
 
@@ -368,23 +473,66 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
     try {
       final fileName = file.path.split('/').last;
-      debugPrint(' Uploading file: $fileName ($fileType)');
+      final fileSize = await file.length();
 
-      final storageRef = _storage.ref().child('chat_attachments/$_chatId/$fileName');
-      await storageRef.putFile(file);
+      debugPrint('\n📤 Uploading file:');
+      debugPrint('   Name: $fileName');
+      debugPrint('   Type: $fileType');
+      debugPrint('   Size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
+      debugPrint('   ChatId: $_chatId');
+
+      // Validate file size (10MB max)
+      if (fileSize > 10 * 1024 * 1024) {
+        throw Exception('File size exceeds 10MB limit. Current: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
+      }
+
+      // Create unique filename dengan timestamp untuk menghindari conflict
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final uniqueFileName = '${timestamp}_$fileName';
+
+      final storageRef = _storage.ref().child('chat_attachments/$_chatId/$uniqueFileName');
+
+      debugPrint('   Upload path: chat_attachments/$_chatId/$uniqueFileName');
+
+      // Upload dengan metadata
+      final metadata = SettableMetadata(
+        contentType: _getMimeType(fileType, fileName),
+        customMetadata: {
+          'originalName': fileName,
+          'uploadTime': DateTime.now().toIso8601String(),
+        },
+      );
+
+      final uploadTask = storageRef.putFile(file, metadata);
+
+      // Listen to upload progress
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        final progress = (snapshot.bytesTransferred / snapshot.totalBytes * 100).toStringAsFixed(0);
+        debugPrint('   Upload progress: $progress%');
+      });
+
+      await uploadTask;
+      debugPrint(' Upload complete, getting URL...');
+
       final fileUrl = await storageRef.getDownloadURL();
+      debugPrint(' URL obtained: ${fileUrl.substring(0, 50)}...');
 
-      debugPrint(' File uploaded successfully');
       await _sendMessage(
         fileUrl: fileUrl,
         fileName: fileName,
         fileType: fileType,
       );
+
+      debugPrint('✅ File uploaded and message sent successfully!\n');
     } catch (e) {
-      debugPrint(' Error uploading file: $e');
+      debugPrint('❌ Error uploading file: $e\n');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload file: ${e.toString()}')),
+          SnackBar(
+            content: Text('Upload failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
         );
       }
     } finally {
@@ -718,7 +866,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
                     Icon(
                       isRead ? Icons.done_all : Icons.done,
                       size: 12,
-                      color: Colors.black.withValues(alpha: 0.6),
+                      color: isRead ? Colors.blue : Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
                 ],

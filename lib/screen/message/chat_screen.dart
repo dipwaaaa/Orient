@@ -26,6 +26,7 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatItem> _filteredChatList = [];
   StreamSubscription? _authSubscription;
   StreamSubscription? _chatStreamSubscription;
+  Map<String, int> _unreadCounts = {}; // Track unread messages per chat
 
   @override
   void initState() {
@@ -61,18 +62,15 @@ class _ChatScreenState extends State<ChatScreen> {
   void _setupAuthListener() {
     _authSubscription = _authService.auth.authStateChanges().listen((user) {
       if (user == null && mounted) {
-        // User signed out, navigate to login
         _cleanupAndNavigateToLogin();
       }
     });
   }
 
   void _cleanupAndNavigateToLogin() {
-    // Cancel auth subscription
     _authSubscription?.cancel();
     _chatStreamSubscription?.cancel();
 
-    // Navigate to login and clear stack
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -105,7 +103,6 @@ class _ChatScreenState extends State<ChatScreen> {
             final participants = data['participants'] as List<dynamic>;
             final participantDetails = data['participantDetails'] as Map<String, dynamic>;
 
-            // Cari username lawan bicara
             final otherUserId = participants.firstWhere(
                   (id) => id != user.uid,
               orElse: () => '',
@@ -115,7 +112,6 @@ class _ChatScreenState extends State<ChatScreen> {
             final otherUsername = otherUserData?['username'] ?? 'Unknown';
             final otherProfileImageUrl = otherUserData?['profileImageUrl'] as String?;
 
-            // Dekripsi last message
             String lastMessage = data['lastMessage'] ?? '';
             if (lastMessage.isNotEmpty) {
               try {
@@ -126,7 +122,6 @@ class _ChatScreenState extends State<ChatScreen> {
               }
             }
 
-            // Format waktu
             final lastMessageTime = data['lastMessageTime'] as Timestamp?;
             String time = '';
             if (lastMessageTime != null) {
@@ -152,11 +147,33 @@ class _ChatScreenState extends State<ChatScreen> {
           }).toList();
           _filteredChatList = _chatList;
         });
+
+        // Load unread counts untuk setiap chat
+        _loadUnreadCounts(user.uid);
       },
       onError: (error) {
         debugPrint(' Error loading chats: $error');
       },
     );
+  }
+
+  // Fungsi untuk load unread message counts
+  void _loadUnreadCounts(String currentUserId) {
+    for (final chat in _chatList) {
+      _authService.firestore
+          .collection('messages')
+          .where('chatId', isEqualTo: chat.chatId)
+          .where('receiverId', isEqualTo: currentUserId)
+          .where('isRead', isEqualTo: false)
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _unreadCounts[chat.chatId] = snapshot.docs.length;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -174,7 +191,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
           if (username.isEmpty) {
             username = _generateRandomUsername();
-            // Simpan username baru ke Firestore
             await _authService.firestore
                 .collection('users')
                 .doc(user.uid)
@@ -326,10 +342,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-
   Future<void> _findAndNavigateToUser(String usernameOrEmail) async {
     try {
-      // Show loading
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -346,7 +360,6 @@ class _ChatScreenState extends State<ChatScreen> {
       QuerySnapshot userQuery;
 
       if (trimmedInput.contains('@')) {
-        // EMAIL SEARCH - lowercase email
         debugPrint(' Email search (lowercase): "${trimmedInput.toLowerCase()}"');
         userQuery = await _authService.firestore
             .collection('users')
@@ -354,7 +367,6 @@ class _ChatScreenState extends State<ChatScreen> {
             .limit(1)
             .get();
       } else {
-        // USERNAME SEARCH - Try exact match FIRST
         debugPrint('👤 Username search (exact): "$trimmedInput"');
         userQuery = await _authService.firestore
             .collection('users')
@@ -362,7 +374,6 @@ class _ChatScreenState extends State<ChatScreen> {
             .limit(1)
             .get();
 
-        // Jika tidak ada, try lowercase
         if (userQuery.docs.isEmpty) {
           debugPrint('👤 No exact match, trying lowercase: "${trimmedInput.toLowerCase()}"');
           userQuery = await _authService.firestore
@@ -375,7 +386,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
       debugPrint('📊 Results: ${userQuery.docs.length} found');
 
-      // Hide loading
       if (!mounted) return;
       Navigator.pop(context);
 
@@ -444,19 +454,16 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-
   Future<void> _navigateToRoomChat(String username, String chatId) async {
     try {
       debugPrint('🔍 Looking up user: $username');
 
-      // Try exact match FIRST
       var userQuery = await _authService.firestore
           .collection('users')
           .where('username', isEqualTo: username)
           .limit(1)
           .get();
 
-      // If not found, try lowercase
       if (userQuery.docs.isEmpty) {
         debugPrint('  No exact match, trying lowercase...');
         userQuery = await _authService.firestore
@@ -488,7 +495,10 @@ class _ChatScreenState extends State<ChatScreen> {
             receiverUserId: receiverUserId,
           ),
         ),
-      );
+      ).then((_) {
+        // Refresh unread counts setelah kembali dari chat room
+        _loadUnreadCounts(_authService.currentUser!.uid);
+      });
     } catch (e) {
       debugPrint(' Error navigating to chat: $e');
       if (mounted) {
@@ -581,6 +591,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildChatListItem(ChatItem chat, double screenWidth, double screenHeight) {
+    final unreadCount = _unreadCounts[chat.chatId] ?? 0;
+    final hasUnread = unreadCount > 0;
+
     return GestureDetector(
       onTap: () => _navigateToRoomChat(chat.username, chat.chatId),
       child: Container(
@@ -596,20 +609,37 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: screenWidth * 0.11,
-              height: screenWidth * 0.11,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDEF3FF),
-                shape: BoxShape.circle,
-              ),
-              child: ClipOval(
-                child: chat.profileImageUrl != null && chat.profileImageUrl!.isNotEmpty
-                    ? Image.network(
-                  chat.profileImageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                Container(
+                  width: screenWidth * 0.11,
+                  height: screenWidth * 0.11,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDEF3FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: chat.profileImageUrl != null && chat.profileImageUrl!.isNotEmpty
+                        ? Image.network(
+                      chat.profileImageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Text(
+                            chat.username.isNotEmpty
+                                ? chat.username[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.049,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                        : Center(
                       child: Text(
                         chat.username.isNotEmpty
                             ? chat.username[0].toUpperCase()
@@ -620,22 +650,35 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: Colors.black,
                         ),
                       ),
-                    );
-                  },
-                )
-                    : Center(
-                  child: Text(
-                    chat.username.isNotEmpty
-                        ? chat.username[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.049,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
                     ),
                   ),
                 ),
-              ),
+                // Badge notification
+                if (hasUnread)
+                  Container(
+                    width: screenWidth * 0.065,
+                    height: screenWidth * 0.065,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFF9800), // Orange - sesuai theme app
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        unreadCount > 99 ? '99+' : unreadCount.toString(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: screenWidth * 0.024,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'SF Pro',
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             SizedBox(width: screenWidth * 0.022),
             Expanded(
@@ -652,7 +695,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             color: Colors.black,
                             fontSize: screenWidth * 0.036,
                             fontFamily: 'SF Pro',
-                            fontWeight: FontWeight.w600,
+                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
                             height: 1.69,
                           ),
                           overflow: TextOverflow.ellipsis,

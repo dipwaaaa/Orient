@@ -48,3 +48,4 @@ app.*.map.json
 /assets/image/bussines.png
 /assets/image/cash.png
 /assets/image/no-budget.png
+/lib/firebase_options.dart

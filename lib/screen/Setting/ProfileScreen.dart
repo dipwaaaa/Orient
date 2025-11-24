@@ -121,14 +121,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = widget.authService.currentUser;
       if (user == null) throw Exception('No user logged in');
 
+      debugPrint('\n📤 Uploading profile image:');
+      debugPrint('   File: ${image.name}');
+      debugPrint('   User: ${user.uid}');
+
       // Upload to Firebase Storage
+      // Path: profile_images/{userId}/{fileName}
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'profile_$timestamp.jpg';
+
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images')
-          .child('${user.uid}.jpg');
+          .child(user.uid)  // userId folder
+          .child(fileName);
 
-      await storageRef.putFile(File(image.path));
+      debugPrint('   Upload path: profile_images/${user.uid}/$fileName');
+
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+      );
+
+      await storageRef.putFile(File(image.path), metadata);
       final downloadUrl = await storageRef.getDownloadURL();
+
+      debugPrint('✅ Profile image uploaded successfully');
+      debugPrint('   Download URL: ${downloadUrl.substring(0, 50)}...\n');
 
       // Update Firestore
       await widget.authService.firestore
@@ -157,6 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
+      debugPrint('❌ Error uploading profile image: $e\n');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
