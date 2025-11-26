@@ -876,8 +876,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => VendorPageScreen(
-                    eventId: "your_event_id_here",  // Replace with actual event ID
-                    listName: "To Contact",         // Or "Shortlisted", "Booked", etc.
+                    eventId: _currentEventId,
+                    eventName: _currentEventName,
                   ),
                 ),
               );
