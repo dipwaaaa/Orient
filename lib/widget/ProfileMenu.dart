@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/screen/Setting/ProfileScreen.dart';
 import 'package:untitled/service/auth_service.dart';
+import 'package:untitled/service/notification_service.dart';
 import '../screen/login_signup_screen.dart';
-import '../screen/Setting/SettingScreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfileMenu {
@@ -78,11 +79,15 @@ class _ProfileMenuContent extends StatefulWidget {
 class _ProfileMenuContentState extends State<_ProfileMenuContent> {
   String? _profileImageUrl;
   bool _isLoading = true;
+  late NotificationService _notificationService;
+  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _notificationService = NotificationService();
     _loadProfileImage();
+    _loadUnreadNotificationsCount();
   }
 
   Future<void> _loadProfileImage() async {
@@ -132,6 +137,21 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
     }
   }
 
+  Future<void> _loadUnreadNotificationsCount() async {
+    final user = widget.authService.currentUser;
+    if (user != null) {
+      try {
+        final count = await _notificationService.getUnreadCount(user.uid);
+        setState(() {
+          _unreadNotificationsCount = count;
+        });
+        debugPrint('Unread notifications in menu: $count');
+      } catch (e) {
+        debugPrint('Error loading unread notifications count: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -149,12 +169,9 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
             padding: EdgeInsets.all(20),
             child: Column(
               children: [
-                // Avatar dengan sizing yang sama seperti HomeScreen header
-                // HomeScreen: width: screenWidth * 0.088, height: screenWidth * 0.088
-                // Scaled up untuk Profile Menu
                 _isLoading
                     ? CircleAvatar(
-                  radius: screenWidth * 0.15, // Sama dengan HomeScreen tapi lebih besar untuk menu
+                  radius: screenWidth * 0.15,
                   backgroundColor: Color(0xFFDEF3FF),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
@@ -194,6 +211,54 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
             ),
           ),
           Divider(height: 1),
+
+          // Notifications option with badge
+          Stack(
+            children: [
+              ListTile(
+                leading: Icon(Icons.notifications, color: Color(0xFFFF6A00)),
+                title: Text(
+                  'Notifications',
+                  style: TextStyle(fontFamily: 'SF Pro'),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationScreenPage(
+                        userId: widget.authService.currentUser?.uid ?? '',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Badge untuk unread notifications
+              if (_unreadNotificationsCount > 0)
+                Positioned(
+                  right: 16,
+                  top: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _unreadNotificationsCount > 99
+                          ? '99+'
+                          : '$_unreadNotificationsCount',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
           ListTile(
             leading: Icon(Icons.settings, color: Color(0xFFFF6A00)),
             title: Text(
@@ -206,7 +271,7 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      SettingScreen(authService: widget.authService),
+                      ProfileScreen(authService: widget.authService),
                 ),
               );
             },
@@ -242,5 +307,222 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
         ],
       ),
     );
+  }
+}
+
+// Import NotificationScreenPage dari ProfileScreen
+class NotificationScreenPage extends StatefulWidget {
+  final String userId;
+
+  const NotificationScreenPage({
+    Key? key,
+    required this.userId,
+  }) : super(key: key);
+
+  @override
+  State<NotificationScreenPage> createState() => _NotificationScreenPageState();
+}
+
+class _NotificationScreenPageState extends State<NotificationScreenPage> {
+  late NotificationService _notificationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationService = NotificationService();
+    _notificationService.markAllAsRead(widget.userId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Notifications',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: StreamBuilder(
+        stream: _notificationService.getUserNotifications(widget.userId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6A00)),
+              ),
+            );
+          }
+
+          if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_none,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No Notifications',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final notifications = snapshot.data as List;
+
+          return ListView.builder(
+            padding: EdgeInsets.all(16),
+            itemCount: notifications.length,
+            itemBuilder: (context, index) {
+              return _buildNotificationCard(notifications[index]);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard(dynamic notification) {
+    final title = notification.title ?? 'Notification';
+    final message = notification.message ?? '';
+    final type = notification.type ?? 'system';
+    final notificationId = notification.notificationId ?? '';
+
+    Color typeColor = _getTypeColor(type);
+    IconData typeIcon = _getTypeIcon(type);
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: typeColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      typeIcon,
+                      color: typeColor,
+                      size: 24,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                            height: 1.4,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  IconButton(
+                    icon: Icon(Icons.close, color: Colors.grey, size: 20),
+                    onPressed: () async {
+                      await _notificationService.deleteNotification(notificationId);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'chat':
+        return Color(0xFF4CAF50);
+      case 'event':
+        return Color(0xFF2196F3);
+      case 'task':
+        return Color(0xFFFFC107);
+      case 'vendor':
+        return Color(0xFFFF9800);
+      case 'system':
+        return Color(0xFF9C27B0);
+      default:
+        return Color(0xFF757575);
+    }
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'chat':
+        return Icons.chat;
+      case 'event':
+        return Icons.event;
+      case 'task':
+        return Icons.assignment;
+      case 'vendor':
+        return Icons.business;
+      case 'system':
+        return Icons.notifications;
+      default:
+        return Icons.notifications;
+    }
   }
 }

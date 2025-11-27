@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
-import 'package:untitled/widget/ProfileMenu.dart'; // ✓ ProfileMenu dengan sizing responsive
+import 'package:untitled/widget/ProfileMenu.dart' as profile_menu;
 import 'package:untitled/screen/Event/event_detail_screen.dart';
 import 'create_event_screen.dart';
 
@@ -81,9 +81,10 @@ class _EventListScreenState extends State<EventListScreen> {
 
   Widget _buildHeader() {
     final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(screenWidth * 0.044),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -94,20 +95,20 @@ class _EventListScreenState extends State<EventListScreen> {
               children: [
                 Text(
                   'Hi, $_username!',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.black,
-                    fontSize: 25,
+                    fontSize: screenWidth * 0.069,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w900,
                     height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 4),
-                const Text(
+                SizedBox(height: screenHeight * 0.005),
+                Text(
                   'What event are you planning today?',
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 13,
+                    fontSize: screenWidth * 0.036,
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w500,
                     height: 1.4,
@@ -141,7 +142,7 @@ class _EventListScreenState extends State<EventListScreen> {
                 SizedBox(width: screenWidth * 0.022),
                 GestureDetector(
                   onTap: () {
-                    ProfileMenu.show(context, _authService, _username);
+                    profile_menu.ProfileMenu.show(context, _authService, _username);
                   },
                   child: Container(
                     width: screenWidth * 0.088,

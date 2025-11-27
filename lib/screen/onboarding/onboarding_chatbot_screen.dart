@@ -206,7 +206,7 @@ class _OnboardingChatbotScreenState extends State<OnboardingChatbotScreen> {
         );
       }
     } catch (e) {
-      print('Error saving event: $e');
+      debugPrint('Error saving event: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -370,7 +370,7 @@ class _OnboardingChatbotScreenState extends State<OnboardingChatbotScreen> {
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
