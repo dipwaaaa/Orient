@@ -229,7 +229,7 @@ class _VendorScreenState extends State<VendorPageScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddVendorScreen(eventId: widget.eventId!),
+                    builder: (_) => AddVendorScreen(eventId: widget.eventId!, listName: '',),
                   ),
                 );
               }
