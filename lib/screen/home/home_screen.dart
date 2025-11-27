@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
-import '../../widget/ProfileMenu.dart' as profile_menu; // PENTING: gunakan alias
+import '../../widget/ProfileMenu.dart';
 import '../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
@@ -267,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Cancel semua listener
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
-    _authSubscription?.cancel();
+    _authSubscription?.cancel(); // Tambahkan ini
 
     // Navigate ke login
     if (mounted) {
@@ -425,6 +425,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  // Tambahkan semua method _build lainnya dari kode asli Anda
+  // (_buildCarousel, _buildEmptyCarousel, _buildEventCarousel, dll.)
 
   Widget _buildCarousel(double screenWidth) {
     final cardWidth = screenWidth * 0.85;
@@ -810,7 +813,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(width: screenWidth * 0.022),
                 GestureDetector(
                   onTap: () {
-                    profile_menu.ProfileMenu.show(context, _authService, _username);
+                    ProfileMenu.show(context, _authService, _username);
                   },
                   child: Container(
                     width: screenWidth * 0.088,
@@ -873,8 +876,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => VendorPageScreen(
-                    eventId: "your_event_id_here",
-                    listName: "To Contact",
+                    eventId: _currentEventId,
+                    eventName: _currentEventName,
                   ),
                 ),
               );
