@@ -29,7 +29,6 @@ class _TaskScreenState extends State<TaskScreen> {
   DateTime _currentMonth = DateTime.now();
   final PageController _weekPageController = PageController(initialPage: 1000);
 
-
   @override
   void initState() {
     super.initState();
@@ -47,6 +46,7 @@ class _TaskScreenState extends State<TaskScreen> {
     super.dispose();
   }
 
+  /// Load event name dari Firestore berdasarkan event ID
   Future<void> _loadEventName() async {
     if (_selectedEventId == null) return;
 
@@ -66,6 +66,7 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
+  /// Load user data (username) dari Firestore
   Future<void> _loadUserData() async {
     final user = _authService.currentUser;
     if (user != null) {
@@ -93,6 +94,7 @@ class _TaskScreenState extends State<TaskScreen> {
     }
   }
 
+  /// Generate list of dates untuk week view
   List<DateTime> _getWeekDates({int pageOffset = 0}) {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
@@ -100,6 +102,7 @@ class _TaskScreenState extends State<TaskScreen> {
     return List.generate(7, (index) => weekStart.add(Duration(days: index)));
   }
 
+  /// Generate list of dates untuk month view
   List<DateTime> _getMonthDates() {
     final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
     final startDate = firstDay.subtract(Duration(days: firstDay.weekday % 7));
@@ -117,59 +120,87 @@ class _TaskScreenState extends State<TaskScreen> {
 
   @override
   Widget build(BuildContext context) {
-
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // ============================================================
+            // HEADER WITH BACK BUTTON, TITLE & PROFILE AVATAR
+            // ============================================================
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(15),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Today's Tasks",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 25,
-                            fontFamily: 'SF Pro',
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          _selectedEventName.isNotEmpty
-                              ? 'For $_selectedEventName'
-                              : DateFormat('MMMM d, yyyy').format(DateTime.now()),
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 13,
-                            fontFamily: 'SF Pro',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                  // Back Button
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.transparent,
+                      ),
+                      child: Icon(
+                        Icons.chevron_left,
+                        color: Colors.black,
+                        size: 28,
+                      ),
                     ),
                   ),
+
+                  // Title Section
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 1),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Today's Tasks",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 25,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            DateFormat('For MMMM d, yyyy').format(DateTime.now()),
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 13,
+                              fontFamily: 'SF Pro',
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Notification + Avatar Section
                   Container(
-                    padding: EdgeInsets.all(8),
+                    padding: EdgeInsets.all(screenWidth * 0.022),
                     decoration: BoxDecoration(
                       color: Colors.black,
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(screenWidth * 0.069),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Notification Icon
                         Container(
-                          width: 32.5,
-                          height: 32.5,
+                          width: screenWidth * 0.089,
+                          height: screenWidth * 0.089,
                           decoration: BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
@@ -177,15 +208,28 @@ class _TaskScreenState extends State<TaskScreen> {
                           child: Icon(
                             Icons.notifications,
                             color: Colors.white,
-                            size: 25,
+                            size: screenWidth * 0.069,
                           ),
                         ),
-                        SizedBox(width: 8),
+                        SizedBox(width: screenWidth * 0.022),
+
+                        // Avatar - Tap to show ProfileMenu
                         GestureDetector(
-                          onTap: _showProfileMenu,
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            debugPrint('Profile avatar tapped');
+                            if (_authService.currentUser == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Please login first')),
+                              );
+                              return;
+                            }
+                            // Open ProfileMenu
+                            ProfileMenu.show(context, _authService, _username);
+                          },
                           child: Container(
-                            width: 32,
-                            height: 32,
+                            width: screenWidth * 0.088,
+                            height: screenWidth * 0.088,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Color(0xFFDEF3FF),
@@ -210,11 +254,14 @@ class _TaskScreenState extends State<TaskScreen> {
               ),
             ),
 
-            // Week/Month Toggle
+            // ============================================================
+            // WEEK/MONTH TOGGLE BUTTONS
+            // ============================================================
             Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Week Button
                   GestureDetector(
                     onTap: () {
                       setState(() {
@@ -224,6 +271,8 @@ class _TaskScreenState extends State<TaskScreen> {
                     child: _buildToggleButton('Week', _isWeekView),
                   ),
                   SizedBox(width: 7),
+
+                  // Month Button
                   GestureDetector(
                     onTap: () {
                       setState(() {
@@ -238,9 +287,14 @@ class _TaskScreenState extends State<TaskScreen> {
 
             SizedBox(height: 24),
 
-            // Calendar View
+            // ============================================================
+            // CALENDAR VIEW (Week or Month)
+            // ============================================================
             if (_isWeekView) _buildWeekView() else _buildMonthView(),
 
+            // ============================================================
+            // TO DO LIST SECTION
+            // ============================================================
             Expanded(
               child: Container(
                 decoration: _isWeekView
@@ -254,6 +308,7 @@ class _TaskScreenState extends State<TaskScreen> {
                 ),
                 child: Column(
                   children: [
+                    // To Do Header + Add Button
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       child: Row(
@@ -296,6 +351,8 @@ class _TaskScreenState extends State<TaskScreen> {
                         ],
                       ),
                     ),
+
+                    // Task List
                     Expanded(
                       child: TaskListWidget(
                         eventId: _selectedEventId,
@@ -313,10 +370,12 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
+  /// Show ProfileMenu (alternative method - sudah ada di GestureDetector)
   void _showProfileMenu() {
     ProfileMenu.show(context, _authService, _username);
   }
 
+  /// Build toggle button untuk Week/Month
   Widget _buildToggleButton(String label, bool isSelected) {
     return Container(
       width: 75,
@@ -342,6 +401,7 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
+  /// Build Week View Calendar
   Widget _buildWeekView() {
     final today = DateTime.now();
 
@@ -351,6 +411,7 @@ class _TaskScreenState extends State<TaskScreen> {
         controller: _weekPageController,
         onPageChanged: (page) {
           setState(() {
+            // Update UI ketika page berubah
           });
         },
         itemBuilder: (context, pageIndex) {
@@ -431,6 +492,7 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
+  /// Build Month View Calendar
   Widget _buildMonthView() {
     final monthDates = _getMonthDates();
     final today = DateTime.now();
@@ -440,9 +502,11 @@ class _TaskScreenState extends State<TaskScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
+          // Month Navigation
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Previous Month Button
               Container(
                 width: 36,
                 height: 36,
@@ -461,6 +525,8 @@ class _TaskScreenState extends State<TaskScreen> {
                   },
                 ),
               ),
+
+              // Month & Year Display
               Text(
                 DateFormat('MMMM yyyy').format(_currentMonth),
                 style: TextStyle(
@@ -470,6 +536,8 @@ class _TaskScreenState extends State<TaskScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+
+              // Next Month Button
               Container(
                 width: 36,
                 height: 36,
@@ -490,7 +558,10 @@ class _TaskScreenState extends State<TaskScreen> {
               ),
             ],
           ),
+
           SizedBox(height: 8),
+
+          // Week Days Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: weekDays
@@ -509,7 +580,10 @@ class _TaskScreenState extends State<TaskScreen> {
             ))
                 .toList(),
           ),
+
           SizedBox(height: 8),
+
+          // Calendar Grid
           GridView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),

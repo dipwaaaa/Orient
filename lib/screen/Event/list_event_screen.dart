@@ -60,7 +60,15 @@ class _EventListScreenState extends State<EventListScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            profile_menu.HeaderWithAvatar(
+              username: _username,
+              greeting: 'Hi, $_username!',
+              subtitle: 'Start a new conversation today!',
+              authService: _authService,
+              onNotificationTap: () {
+                debugPrint('Notification tapped');
+              },
+            ),
             Expanded(
               child: _buildEventList(),
             ),
@@ -79,98 +87,7 @@ class _EventListScreenState extends State<EventListScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
 
-    return Container(
-      padding: EdgeInsets.all(screenWidth * 0.044),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hi, $_username!',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: screenWidth * 0.069,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w900,
-                    height: 1.2,
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.005),
-                Text(
-                  'What event are you planning today?',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: screenWidth * 0.036,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.all(screenWidth * 0.022),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(screenWidth * 0.069),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: screenWidth * 0.089,
-                  height: screenWidth * 0.089,
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.notifications,
-                    color: Colors.white,
-                    size: screenWidth * 0.069,
-                  ),
-                ),
-                SizedBox(width: screenWidth * 0.022),
-                GestureDetector(
-                  onTap: () {
-                    profile_menu.ProfileMenu.show(context, _authService, _username);
-                  },
-                  child: Container(
-                    width: screenWidth * 0.088,
-                    height: screenWidth * 0.088,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFDEF3FF),
-                    ),
-                    child: ClipOval(
-                      child: _authService.currentUser?.photoURL != null
-                          ? Image.network(
-                        _authService.currentUser!.photoURL!,
-                        fit: BoxFit.cover,
-                      )
-                          : Image.asset(
-                        'assets/image/AvatarKimmy.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildEventList() {
     final user = _authService.currentUser;

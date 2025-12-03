@@ -519,9 +519,14 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Flexible(
-              flex: 0,
-              child: _buildHeader(screenWidth, screenHeight),
+            HeaderWithAvatar(
+              username: _username,
+              greeting: 'Hi, $_username!',
+              subtitle: 'Start a new conversation today!',
+              authService: _authService,
+              onNotificationTap: () {
+                debugPrint('Notification tapped');
+              },
             ),
             Flexible(
               flex: 0,
@@ -738,104 +743,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildHeader(double screenWidth, double screenHeight) {
-    return Padding(
-      padding: EdgeInsets.all(screenWidth * 0.044),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Hi, $_username!',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: screenWidth * 0.069,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w900,
-                    height: 1.2,
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.005),
-                Text(
-                  'What event are you planning today?',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: screenWidth * 0.036,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.all(screenWidth * 0.022),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(screenWidth * 0.069),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: screenWidth * 0.089,
-                  height: screenWidth * 0.089,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.notifications,
-                    color: Colors.white,
-                    size: screenWidth * 0.069,
-                  ),
-                ),
-                SizedBox(width: screenWidth * 0.022),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    debugPrint('Profile avatar tapped');
-                    if (_authService.currentUser == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please login first')),
-                      );
-                      return;
-                    }
-                    ProfileMenu.show(context, _authService, _username);
-                  },
-                  child: Container(
-                    width: screenWidth * 0.088,
-                    height: screenWidth * 0.088,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFDEF3FF),
-                    ),
-                    child: ClipOval(
-                      child: _authService.currentUser?.photoURL != null
-                          ? Image.network(
-                        _authService.currentUser!.photoURL!,
-                        fit: BoxFit.cover,
-                      )
-                          : Image.asset(
-                        'assets/image/AvatarKimmy.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSearchBar(double screenWidth, double screenHeight) {
     return Container(

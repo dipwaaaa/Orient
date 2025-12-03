@@ -1,11 +1,217 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:untitled/screen/Setting/ProfileScreen.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/notification_service.dart';
 import '../screen/login_signup_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utilty/app_responsive.dart';
+import '../provider/auth_provider.dart';
+
+
+/// Avatar Widget dengan Notification Icon
+class Profilemenu extends StatelessWidget {
+  final AuthService authService;
+  final String username;
+  final bool showNotificationIcon;
+  final VoidCallback? onNotificationTap;
+
+  const Profilemenu({
+    Key? key,
+    required this.authService,
+    required this.username,
+    this.showNotificationIcon = true,
+    this.onNotificationTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(AppResponsive.spacingSmall()),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(
+          AppResponsive.borderRadiusLarge(),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showNotificationIcon) ...[
+            Container(
+              width: AppResponsive.avatarRadius(),
+              height: AppResponsive.avatarRadius(),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onNotificationTap,
+                  customBorder: CircleBorder(),
+                  child: Icon(
+                    Icons.notifications,
+                    color: Colors.white,
+                    size: AppResponsive.notificationIconSize(),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: AppResponsive.spacingSmall()),
+          ],
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              ProfileMenu.show(context, authService, username);
+            },
+            child: Container(
+              width: AppResponsive.avatarRadius(),
+              height: AppResponsive.avatarRadius(),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFFDEF3FF),
+              ),
+              child: ClipOval(
+                child: authService.currentUser?.photoURL != null
+                    ? Image.network(
+                  authService.currentUser!.photoURL!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/image/AvatarKimmy.png',
+                      fit: BoxFit.cover,
+                    );
+                  },
+                )
+                    : Image.asset(
+                  'assets/image/AvatarKimmy.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact Avatar Widget (hanya avatar)
+class AvatarWidgetCompact extends StatelessWidget {
+  final AuthService authService;
+  final String username;
+
+  const AvatarWidgetCompact({
+    Key? key,
+    required this.authService,
+    required this.username,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        ProfileMenu.show(context, authService, username);
+      },
+      child: Container(
+        width: AppResponsive.avatarRadius(),
+        height: AppResponsive.avatarRadius(),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFFDEF3FF),
+        ),
+        child: ClipOval(
+          child: authService.currentUser?.photoURL != null
+              ? Image.network(
+            authService.currentUser!.photoURL!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset(
+                'assets/image/AvatarKimmy.png',
+                fit: BoxFit.cover,
+              );
+            },
+          )
+              : Image.asset(
+            'assets/image/AvatarKimmy.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Header Widget dengan Avatar - Kombinasi greeting + avatar
+class HeaderWithAvatar extends StatelessWidget {
+  final String username;
+  final String greeting;
+  final String subtitle;
+  final AuthService authService;
+  final VoidCallback? onNotificationTap;
+
+  const HeaderWithAvatar({
+    Key? key,
+    required this.username,
+    required this.greeting,
+    required this.subtitle,
+    required this.authService,
+    this.onNotificationTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(AppResponsive.responsivePadding()),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: AppResponsive.headerFontSize(),
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                  ),
+                ),
+                SizedBox(height: AppResponsive.spacingSmall()),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: AppResponsive.subtitleFontSize(),
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Profilemenu(
+            authService: authService,
+            username: username,
+            showNotificationIcon: true,
+            onNotificationTap: onNotificationTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class ProfileMenu {
+  /// Tampilkan profile menu dari mana saja
   static void show(
       BuildContext context,
       AuthService authService,
@@ -19,47 +225,6 @@ class ProfileMenu {
         username: username,
       ),
     );
-  }
-
-  static Future<void> _handleSignOut(
-      BuildContext context, AuthService authService) async {
-    try {
-      // Sign out dari Firebase
-      await authService.signOut();
-
-      // Tunggu sebentar untuk memastikan sign out selesai
-      await Future.delayed(Duration(milliseconds: 300));
-
-      // Tutup loading dialog jika masih terbuka
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      // Navigate ke login screen dan hapus semua route
-      if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-              (route) => false,
-        );
-      }
-    } catch (e) {
-      debugPrint('Sign out error: $e');
-
-      // Tutup loading dialog
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      // Tampilkan error
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to sign out. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 }
 
@@ -98,7 +263,6 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
     }
 
     try {
-      // Load profile image from Firestore
       final userDoc = await widget.authService.firestore
           .collection('users')
           .doc(user.uid)
@@ -109,19 +273,17 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
         final profileImg = data?['profileImageUrl'];
 
         setState(() {
-          // Priority: 1) Firestore profileImageUrl, 2) Google photoURL, 3) null (default Kimmy)
           if (profileImg != null && profileImg.isNotEmpty) {
             _profileImageUrl = profileImg;
           } else if (user.photoURL != null && user.photoURL!.isNotEmpty) {
             _profileImageUrl = user.photoURL;
           } else {
-            _profileImageUrl = null; // Will show default Kimmy avatar
+            _profileImageUrl = null;
           }
           _isLoading = false;
         });
       } else {
         setState(() {
-          // Use Google photoURL if available, otherwise null
           _profileImageUrl = (user.photoURL != null && user.photoURL!.isNotEmpty)
               ? user.photoURL
               : null;
@@ -145,7 +307,6 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
         setState(() {
           _unreadNotificationsCount = count;
         });
-        debugPrint('Unread notifications in menu: $count');
       } catch (e) {
         debugPrint('Error loading unread notifications count: $e');
       }
@@ -154,7 +315,7 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    AppResponsive.init(context);
 
     return Container(
       margin: EdgeInsets.all(16),
@@ -165,152 +326,164 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              children: [
-                _isLoading
-                    ? CircleAvatar(
-                  radius: screenWidth * 0.15,
-                  backgroundColor: Color(0xFFDEF3FF),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFFFF6A00),
-                    ),
-                  ),
-                )
-                    : CircleAvatar(
-                  radius: screenWidth * 0.15,
-                  backgroundColor: Color(0xFFDEF3FF),
-                  backgroundImage: _profileImageUrl != null
-                      ? NetworkImage(_profileImageUrl!)
-                      : AssetImage('assets/image/AvatarKimmy.png')
-                  as ImageProvider,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  widget.username,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                    fontFamily: 'SF Pro',
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  widget.authService.currentUser?.email ?? '',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontFamily: 'SF Pro',
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildProfileHeader(),
           Divider(height: 1),
-
-          // Notifications option with badge
-          Stack(
-            children: [
-              ListTile(
-                leading: Icon(Icons.notifications, color: Color(0xFFFF6A00)),
-                title: Text(
-                  'Notifications',
-                  style: TextStyle(fontFamily: 'SF Pro'),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => NotificationScreenPage(
-                        userId: widget.authService.currentUser?.uid ?? '',
-                      ),
-                    ),
-                  );
-                },
-              ),
-              // Badge untuk unread notifications
-              if (_unreadNotificationsCount > 0)
-                Positioned(
-                  right: 16,
-                  top: 12,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _unreadNotificationsCount > 99
-                          ? '99+'
-                          : '$_unreadNotificationsCount',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          ListTile(
-            leading: Icon(Icons.settings, color: Color(0xFFFF6A00)),
-            title: Text(
-              'Profile Settings',
-              style: TextStyle(fontFamily: 'SF Pro'),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      ProfileScreen(authService: widget.authService),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.logout, color: Colors.red),
-            title: Text(
-              'Sign Out',
-              style: TextStyle(fontFamily: 'SF Pro'),
-            ),
-            onTap: () async {
-              // Tutup bottom sheet
-              Navigator.pop(context);
-
-              // Tampilkan loading dialog
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFFFFE100),
-                    ),
-                  ),
-                ),
-              );
-
-              // Sign out
-              await ProfileMenu._handleSignOut(context, widget.authService);
-            },
-          ),
+          _buildNotificationTile(),
+          _buildSettingsTile(),
+          _buildLogoutTile(),
           SizedBox(height: 20),
         ],
       ),
     );
   }
+
+  Widget _buildProfileHeader() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        children: [
+          _isLoading
+              ? CircleAvatar(
+            radius: AppResponsive.screenWidth * 0.15,
+            backgroundColor: Color(0xFFDEF3FF),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Color(0xFFFF6A00),
+              ),
+            ),
+          )
+              : CircleAvatar(
+            radius: AppResponsive.screenWidth * 0.15,
+            backgroundColor: Color(0xFFDEF3FF),
+            backgroundImage: _profileImageUrl != null
+                ? NetworkImage(_profileImageUrl!)
+                : AssetImage('assets/image/AvatarKimmy.png')
+            as ImageProvider,
+          ),
+          SizedBox(height: 16),
+          Text(
+            widget.username,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+              fontFamily: 'SF Pro',
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            widget.authService.currentUser?.email ?? '',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontFamily: 'SF Pro',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationTile() {
+    return Stack(
+      children: [
+        ListTile(
+          leading: Icon(Icons.notifications, color: Color(0xFFFF6A00)),
+          title: Text(
+            'Notifications',
+            style: TextStyle(fontFamily: 'SF Pro'),
+          ),
+          onTap: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NotificationScreenPage(
+                  userId: widget.authService.currentUser?.uid ?? '',
+                ),
+              ),
+            );
+          },
+        ),
+        if (_unreadNotificationsCount > 0)
+          Positioned(
+            right: 16,
+            top: 12,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                _unreadNotificationsCount > 99
+                    ? '99+'
+                    : '$_unreadNotificationsCount',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSettingsTile() {
+    return ListTile(
+      leading: Icon(Icons.settings, color: Color(0xFFFF6A00)),
+      title: Text(
+        'Profile Settings',
+        style: TextStyle(fontFamily: 'SF Pro'),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ProfileScreen(authService: widget.authService),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLogoutTile() {
+    return ListTile(
+      leading: Icon(Icons.logout, color: Colors.red),
+      title: Text(
+        'Sign Out',
+        style: TextStyle(fontFamily: 'SF Pro'),
+      ),
+      onTap: () async {
+        Navigator.pop(context);
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Color(0xFFFFE100),
+              ),
+            ),
+          ),
+        );
+
+        if (mounted) {
+          await Provider.of<AuthStateProvider>(context, listen: false)
+              .logout(context);
+        }
+      },
+    );
+  }
 }
 
-// Import NotificationScreenPage dari ProfileScreen
+
 class NotificationScreenPage extends StatefulWidget {
   final String userId;
 
@@ -335,6 +508,8 @@ class _NotificationScreenPageState extends State<NotificationScreenPage> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -424,69 +599,66 @@ class _NotificationScreenPageState extends State<NotificationScreenPage> {
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      typeIcon,
-                      color: typeColor,
-                      size: 24,
-                    ),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: typeColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  child: Icon(
+                    typeIcon,
+                    color: typeColor,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
                         ),
-                        SizedBox(height: 4),
-                        Text(
-                          message,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                            height: 1.4,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        message,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          height: 1.4,
                         ),
-                      ],
-                    ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(Icons.close, color: Colors.grey, size: 20),
-                    onPressed: () async {
-                      await _notificationService.deleteNotification(notificationId);
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.close, color: Colors.grey, size: 20),
+                  onPressed: () async {
+                    await _notificationService.deleteNotification(notificationId);
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

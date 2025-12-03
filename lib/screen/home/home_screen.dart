@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:untitled/screen/home/budget/budget_screen.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
+import 'package:untitled/utilty/app_responsive.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
 import '../../widget/ProfileMenu.dart';
@@ -69,11 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-
   void _setupAuthListener() {
     _authSubscription = _authService.auth.authStateChanges().listen((user) {
       if (user == null && mounted) {
-        // User signed out, navigate to login
         _cleanupAndNavigateToLogin();
       }
     });
@@ -89,27 +88,23 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Set loading di awal
     if (_isLoadingEvents) {
       setState(() {
         _isLoadingEvents = true;
       });
     }
 
-    // Query untuk events dimana user adalah owner
     _eventSubscription = _firestore
         .collection('events')
         .where('ownerId', isEqualTo: user.uid)
         .snapshots()
         .listen((ownerSnapshot) async {
 
-      // Cek apakah user masih login
       if (_authService.currentUser == null) {
-        return; // Stop jika user sudah logout
+        return;
       }
 
       try {
-        // Query untuk events dimana user adalah collaborator
         final collaboratorSnapshot = await _firestore
             .collection('events')
             .where('collaborators', arrayContains: user.uid)
@@ -118,13 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
         if (!mounted || _authService.currentUser == null) return;
 
-        // Gabungan kedua hasil query
         final allEventDocs = [
           ...ownerSnapshot.docs,
           ...collaboratorSnapshot.docs,
         ];
 
-        // Remove duplicates berdasarkan eventId
         final uniqueEvents = <String, QueryDocumentSnapshot>{};
         for (var doc in allEventDocs) {
           uniqueEvents[doc.id] = doc;
@@ -144,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
 
-        // Sort events by date
         final events = uniqueEvents.values.toList();
         events.sort((a, b) {
           final dataA = a.data() as Map<String, dynamic>?;
@@ -160,7 +152,6 @@ class _HomeScreenState extends State<HomeScreen> {
           return dateA.compareTo(dateB);
         });
 
-        // Convert to list of maps
         final eventsList = events.map((doc) {
           final data = doc.data() as Map<String, dynamic>?;
 
@@ -264,12 +255,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _cleanupAndNavigateToLogin() {
-    // Cancel semua listener
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
-    _authSubscription?.cancel(); // Tambahkan ini
+    _authSubscription?.cancel();
 
-    // Navigate ke login
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -329,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    AppResponsive.init(context);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -337,9 +326,18 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              HeaderWithAvatar(
+                username: _username,
+                greeting: 'Hi, $_username!',
+                subtitle: 'What event are you planning today?',
+                authService: _authService,
+                onNotificationTap: () {
+                  debugPrint('Notification tapped');
+                },
+              ),
+
               SizedBox(height: 24),
-              _buildCarousel(screenWidth),
+              _buildCarousel(),
               SizedBox(height: 16),
               _buildFeatureButtons(),
               SizedBox(height: 24),
@@ -361,11 +359,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildTaskSection() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsivePadding(),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -426,11 +425,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Tambahkan semua method _build lainnya dari kode asli Anda
-  // (_buildCarousel, _buildEmptyCarousel, _buildEventCarousel, dll.)
-
-  Widget _buildCarousel(double screenWidth) {
-    final cardWidth = screenWidth * 0.85;
+  Widget _buildCarousel() {
+    final cardWidth = AppResponsive.screenWidth * 0.85;
     final cardHeight = 189.0;
 
     if (_isLoadingEvents) {
@@ -750,104 +746,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return Container(
-      padding: EdgeInsets.all(screenWidth * 0.044),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hi, $_username!',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: screenWidth * 0.069,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w900,
-                    height: 1.2,
-                  ),
-                ),
-                SizedBox(height: screenHeight * 0.005),
-                Text(
-                  'What event are you planning today?',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: screenWidth * 0.036,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.all(screenWidth * 0.022),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(screenWidth * 0.069),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: screenWidth * 0.089,
-                  height: screenWidth * 0.089,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.notifications,
-                    color: Colors.white,
-                    size: screenWidth * 0.069,
-                  ),
-                ),
-                SizedBox(width: screenWidth * 0.022),
-                GestureDetector(
-                  onTap: () {
-                    ProfileMenu.show(context, _authService, _username);
-                  },
-                  child: Container(
-                    width: screenWidth * 0.088,
-                    height: screenWidth * 0.088,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFDEF3FF),
-                    ),
-                    child: ClipOval(
-                      child: _authService.currentUser?.photoURL != null
-                          ? Image.network(
-                        _authService.currentUser!.photoURL!,
-                        fit: BoxFit.cover,
-                      )
-                          : Image.asset(
-                        'assets/image/AvatarKimmy.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   String? _pressedButton;
 
   Widget _buildFeatureButtons() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsivePadding()),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [

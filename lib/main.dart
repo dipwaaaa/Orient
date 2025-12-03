@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
@@ -8,11 +9,15 @@ import 'screen/landing_page/welcome_screen.dart';
 import 'screen/onboarding/onboarding_chatbot_screen.dart';
 import 'screen/home/home_screen.dart';
 import 'service/auth_service.dart';
+import 'provider/auth_provider.dart' as auth_notifier;
 import 'widget/Animated_Gradient_Background.dart';
+import 'utilty/app_responsive.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -20,24 +25,55 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
+/// 🎨 ROOT WIDGET WITH PROVIDER SETUP
+/// Wraps MaterialApp dengan MultiProvider untuk:
+/// - AuthService: Singleton service untuk Firebase auth
+/// - AuthStateProvider: ChangeNotifier untuk global logout management
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Orient',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+    return MultiProvider(
+      providers: [
+        // ✅ Provider 1: AuthService (no dependencies)
+        // Singleton instance untuk akses Firebase authentication
+        // Available di semua widgets via: context.read<AuthService>()
+        Provider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+
+        // ✅ Provider 2: AuthStateProvider (depends on AuthService)
+        // State management untuk logout dengan global access
+        // Available di semua widgets via: Provider.of<AuthStateProvider>(context)
+        // ⚠️ NOTE: Menggunakan auth_notifier.AuthStateProvider untuk avoid conflict
+        //          dengan Firebase's built-in AuthProvider
+        ChangeNotifierProvider(
+          create: (context) => auth_notifier.AuthStateProvider(
+            // Get AuthService instance yang sudah dibuat di atas
+            Provider.of<AuthService>(context, listen: false),
+          ),
+        ),
+      ],
+      // Root MaterialApp - wrapped dengan Provider untuk global access
+      child: MaterialApp(
+        title: 'Orient',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.orange,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          useMaterial3: true,
+        ),
+        // SplashScreen: Entry point setelah app launch
+        home: const SplashScreen(),
       ),
-      home: const SplashScreen(), // UBAH: Mulai dari SplashScreen
     );
   }
 }
 
-// ============== SPLASH SCREEN ==============
+// ============================================================
+// SPLASH SCREEN - App Launch & Auth Check
+// ============================================================
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -48,8 +84,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
 
-
-  // Auth service
+  // Auth service untuk check login status
   final AuthService _authService = AuthService();
 
   // Animation controller untuk fade in logo
@@ -60,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Setup animation
+    // Setup fade animation untuk logo
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -77,62 +112,84 @@ class _SplashScreenState extends State<SplashScreen>
     // Start animation
     _animationController.forward();
 
-    // Check auth and navigate after 3 seconds
+    // Check auth status dan navigate setelah 5 detik
     _checkAuthAndNavigate();
   }
 
+  /// Check user auth status dan navigate ke screen yang sesuai
+  /// Flow:
+  /// 1. User logged in + onboarding incomplete → OnboardingChatbot
+  /// 2. User logged in + onboarding complete + new user → WelcomeScreen
+  /// 3. User logged in + onboarding complete + returning user → HomeScreen
+  /// 4. User not logged in → LoginScreen
   Future<void> _checkAuthAndNavigate() async {
-    // Tunggu minimal 3 detik untuk splash screen
+    // Minimal splash screen duration: 5 seconds
     await Future.delayed(const Duration(seconds: 5));
 
     if (!mounted) return;
 
     try {
-      // Cek apakah user sudah login
+      // Check apakah user sudah login
       final user = _authService.currentUser;
 
       if (user != null) {
-        // User sudah login, cek onboarding status
+        // User sudah login, check onboarding status
         final hasCompletedOnboarding = await _authService.hasCompletedOnboarding();
 
         if (!hasCompletedOnboarding) {
-          // Belum complete onboarding → OnboardingChatbot
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const OnboardingChatbotScreen()),
-          );
+          // ❌ Belum complete onboarding → OnboardingChatbot
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const OnboardingChatbotScreen(),
+              ),
+            );
+          }
         } else {
-          // Sudah onboarding, cek welcome screen
+          // ✅ Sudah onboarding, check welcome screen status
           final shouldShowWelcome = await _authService.shouldShowWelcomeScreen();
 
-          if (shouldShowWelcome) {
-            // User baru → WelcomeScreen
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-            );
-          } else {
-            // User lama → HomeScreen
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
+          if (mounted) {
+            if (shouldShowWelcome) {
+              // 🆕 User baru → WelcomeScreen
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WelcomeScreen(),
+                ),
+              );
+            } else {
+              // 👤 User returning → HomeScreen
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HomeScreen(),
+                ),
+              );
+            }
           }
         }
       } else {
-        // User belum login → LoginScreen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
+        // ❌ User belum login → LoginScreen
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => LoginScreen(),
+            ),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Error checking auth: $e');
-      // Jika error, arahkan ke LoginScreen
+      debugPrint('❌ Error checking auth: $e');
+      // Fallback: redirect ke LoginScreen
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
+          MaterialPageRoute(
+            builder: (context) => LoginScreen(),
+          ),
         );
       }
     }
@@ -146,6 +203,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Initialize responsive values (untuk consistency di semua screen)
+    AppResponsive.init(context);
+
     return Scaffold(
       body: AnimatedGradientBackground(
         duration: const Duration(seconds: 3),
@@ -168,12 +228,12 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-
-
-
 }
 
-
+// ============================================================
+// AUTH WRAPPER - Alternative Auth Flow Management
+// (Optional: Jika ingin StreamBuilder untuk real-time auth updates)
+// ============================================================
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -187,19 +247,22 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
+      // Real-time listen to Firebase auth state changes
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+        // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildLoadingScreen();
         }
 
+        // Error state
         if (snapshot.hasError) {
           return _buildErrorScreen(snapshot.error.toString());
         }
 
-        // Jika sudah login
+        // User logged in
         if (snapshot.hasData && snapshot.data != null) {
-          // CEK ONBOARDING STATUS DULU
+          // Check onboarding status
           return FutureBuilder<bool>(
             future: _authService.hasCompletedOnboarding(),
             builder: (context, onboardingSnapshot) {
@@ -211,12 +274,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 return _buildErrorScreen(onboardingSnapshot.error.toString());
               }
 
-              // Jika belum complete onboarding, tampilkan chatbot
+              // Belum onboarding
               if (onboardingSnapshot.data == false) {
                 return const OnboardingChatbotScreen();
               }
 
-              // Jika sudah onboarding, cek welcome screen
+              // Check welcome screen
               return FutureBuilder<bool>(
                 future: _authService.shouldShowWelcomeScreen(),
                 builder: (context, welcomeSnapshot) {
@@ -235,12 +298,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
           );
         }
 
-        // Belum login
+        // User not logged in
         return LoginScreen();
       },
     );
   }
 
+  /// Loading screen widget
   Widget _buildLoadingScreen() {
     return const Scaffold(
       body: DecoratedBox(
@@ -275,6 +339,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     );
   }
 
+  /// Error screen widget
   Widget _buildErrorScreen(String error) {
     return Scaffold(
       body: DecoratedBox(
@@ -291,7 +356,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 60),
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.white,
+                  size: 60,
+                ),
                 const SizedBox(height: 20),
                 const Text(
                   'Something went wrong',
@@ -313,13 +382,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 const SizedBox(height: 30),
                 ElevatedButton(
                   onPressed: () {
-                    // Retry by rebuilding
-                    // setState(() {});
+                    setState(() {});
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFFFF6A00),
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.all(Radius.circular(25)),
                     ),

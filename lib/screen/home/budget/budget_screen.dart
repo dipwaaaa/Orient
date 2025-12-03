@@ -233,35 +233,44 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(screenWidth * 0.022),
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(screenWidth * 0.069),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(
+                  width: screenWidth * 0.089,
+                  height: screenWidth * 0.089,
+                  decoration: BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: 16,
+                    size: screenWidth * 0.069,
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: screenWidth * 0.022),
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
+                    debugPrint('Profile avatar tapped');
+                    if (_authService.currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please login first')),
+                      );
+                      return;
+                    }
                     ProfileMenu.show(context, _authService, _username);
                   },
                   child: Container(
-                    width: 32.5,
-                    height: 32.5,
-                    decoration: const BoxDecoration(
+                    width: screenWidth * 0.088,
+                    height: screenWidth * 0.088,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Color(0xFFDEF3FF),
                     ),
