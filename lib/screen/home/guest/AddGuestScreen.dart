@@ -117,52 +117,37 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
                           color: Colors.black,
-                          borderRadius: BorderRadius.circular(8),
+                          shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close, color: Colors.white),
+                        child: const Icon(Icons.close, color: Colors.white, size: 24),
                       ),
                     ),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        "Add a New Guest",
+                        'Add a New Guest',
                         style: TextStyle(
-                          fontFamily: 'SF Pro',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
                           color: Colors.black,
+                          fontSize: 25,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
                     GestureDetector(
                       onTap: _isSaving ? null : _saveGuest,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _isSaving ? Colors.grey : Colors.black,
-                          borderRadius: BorderRadius.circular(8),
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          color: Colors.black,
+                          shape: BoxShape.circle,
                         ),
-                        child: _isSaving
-                            ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                            : const Text(
-                          "B",
-                          style: TextStyle(
-                            color: Colors.yellow,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
+                        child: const Icon(Icons.save, color: Colors.white, size: 24),
                       ),
                     ),
                   ],
