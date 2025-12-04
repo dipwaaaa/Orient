@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:untitled/screen/home/budget/budget_screen.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
+import 'package:untitled/service/budget_service.dart';
 import 'package:untitled/utilty/app_responsive.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
@@ -22,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
+  final BudgetService _budgetService = BudgetService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String _username = 'User';
@@ -38,9 +41,17 @@ class _HomeScreenState extends State<HomeScreen> {
   String _currentEventName = 'No Active Event';
   String? _currentEventId;
 
+  // Budget State
+  Map<String, double> _budgetSummary = {
+    'totalPaid': 0,
+    'totalUnpaid': 0,
+    'remainingBalance': 0,
+  };
+
   Timer? _countdownTimer;
   StreamSubscription<QuerySnapshot>? _eventSubscription;
   StreamSubscription? _authSubscription;
+  StreamSubscription? _budgetSubscription;
 
   final ValueNotifier<Map<String, int>> _countdownNotifier =
   ValueNotifier({'days': 0, 'hours': 0});
@@ -134,6 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
           _countdownNotifier.value = {'days': 0, 'hours': 0};
+          _listenToBudgetSummary(null);
           return;
         }
 
@@ -224,6 +236,48 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _listenToBudgetSummary(String? eventId) {
+    _budgetSubscription?.cancel();
+
+    if (eventId == null) {
+      setState(() {
+        _budgetSummary = {
+          'totalPaid': 0,
+          'totalUnpaid': 0,
+          'remainingBalance': 0,
+        };
+      });
+      return;
+    }
+
+    _budgetSubscription = _firestore
+        .collection('budgets')
+        .where('eventId', isEqualTo: eventId)
+        .snapshots()
+        .listen((snapshot) {
+      double totalBudget = 0;
+      double totalPaid = 0;
+      double totalUnpaid = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        totalBudget += (data['totalCost'] ?? 0).toDouble();
+        totalPaid += (data['paidAmount'] ?? 0).toDouble();
+        totalUnpaid += (data['unpaidAmount'] ?? 0).toDouble();
+      }
+
+      if (mounted) {
+        setState(() {
+          _budgetSummary = {
+            'totalPaid': totalPaid,
+            'totalUnpaid': totalUnpaid,
+            'remainingBalance': totalBudget - totalPaid,
+          };
+        });
+      }
+    });
+  }
+
   void _updateCurrentEvent(int index) {
     if (_userEvents.isEmpty) {
       setState(() {
@@ -232,6 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentEventId = null;
       });
       _countdownNotifier.value = {'days': 0, 'hours': 0};
+      _listenToBudgetSummary(null);
       return;
     }
 
@@ -252,12 +307,15 @@ class _HomeScreenState extends State<HomeScreen> {
       'days': difference.inDays.clamp(0, 999),
       'hours': (difference.inHours % 24).clamp(0, 23),
     };
+
+    _listenToBudgetSummary(eventId);
   }
 
   void _cleanupAndNavigateToLogin() {
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
     _authSubscription?.cancel();
+    _budgetSubscription?.cancel();
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -272,6 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _countdownTimer?.cancel();
     _eventSubscription?.cancel();
     _authSubscription?.cancel();
+    _budgetSubscription?.cancel();
     _countdownNotifier.dispose();
     _carouselController.dispose();
     super.dispose();
@@ -316,6 +375,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return username;
   }
 
+  String _formatCurrency(double amount) {
+    return 'Rp${NumberFormat('#,###', 'id_ID').format(amount)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     AppResponsive.init(context);
@@ -344,6 +407,9 @@ class _HomeScreenState extends State<HomeScreen> {
               if (_currentEventId != null)
                 _buildTaskSection(),
               SizedBox(height: 24),
+              if (_currentEventId != null)
+                _buildBudgetSection(),
+              SizedBox(height: 24),
             ],
           ),
         ),
@@ -356,6 +422,158 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
       ),
+    );
+  }
+
+  // ============================================================
+  // BUDGET SECTION
+  // ============================================================
+  Widget _buildBudgetSection() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsivePadding(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Budget',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BudgetScreen(
+                        eventId: _currentEventId,
+                        eventName: _currentEventName,
+                      ),
+                    ),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'View all',
+                      style: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        fontSize: 14,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.black.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          _buildBudgetSummaryCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBudgetSummaryCard() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildBudgetRow(
+            icon: '●',
+            label: 'Balance',
+            amount: _formatCurrency(_budgetSummary['remainingBalance'] ?? 0),
+            color: Color(0xFFFFE100),
+          ),
+          SizedBox(height: 12),
+          _buildBudgetRow(
+            icon: '●',
+            label: 'Paid',
+            amount: _formatCurrency(_budgetSummary['totalPaid'] ?? 0),
+            color: Color(0xFF51FF00),
+          ),
+          SizedBox(height: 12),
+          _buildBudgetRow(
+            icon: '●',
+            label: 'Unpaid',
+            amount: _formatCurrency(_budgetSummary['totalUnpaid'] ?? 0),
+            color: Color(0xFFFF6B00),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBudgetRow({
+    required String icon,
+    required String label,
+    required String amount,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Text(
+          icon,
+          style: TextStyle(
+            color: color,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 14,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          amount,
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 

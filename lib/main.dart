@@ -25,10 +25,6 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-/// 🎨 ROOT WIDGET WITH PROVIDER SETUP
-/// Wraps MaterialApp dengan MultiProvider untuk:
-/// - AuthService: Singleton service untuk Firebase auth
-/// - AuthStateProvider: ChangeNotifier untuk global logout management
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
