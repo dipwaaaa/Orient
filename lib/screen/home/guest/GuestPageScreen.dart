@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:untitled/service/auth_service.dart';
 import '../../../model/guest_model.dart';
 import 'AddGuestScreen.dart';
+import '../../../widget/ProfileMenu.dart';
 
 class GuestPageScreen extends StatefulWidget {
-  const GuestPageScreen({super.key});
+  final String? eventId;
+  final String? eventName;
+
+  const GuestPageScreen({
+    super.key,
+    this.eventId,
+    this.eventName,
+  });
 
   @override
   State<GuestPageScreen> createState() => _GuestPageScreenState();
@@ -15,103 +24,69 @@ class _GuestPageScreenState extends State<GuestPageScreen> {
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  String _username = 'User';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await _authService.firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        String username = userDoc.data()?['username'] ?? user.displayName ?? 'User';
+        username = username.replaceAll(' ', '');
+        if (username.isEmpty) username = 'User';
+
+        setState(() => _username = username);
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text("Please log in")),
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Text(
+            "Please log in",
+            style: TextStyle(
+              color: Colors.black.withOpacity(0.5),
+              fontSize: 16,
+              fontFamily: 'SF Pro',
+            ),
+          ),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Your Guest",
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          _buildIconButton(Icons.notifications_outlined),
-          const SizedBox(width: 8),
-          _buildProfileAvatar("https://i.pravatar.cc/30?img=1"),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Date
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Text(
-              "September 1st, 2025",
-              style: TextStyle(
-                color: Colors.black.withOpacity(0.6),
-                fontSize: 14,
-              ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(screenWidth),
+            Expanded(
+              child: _buildGuestList(user.uid),
             ),
-          ),
-
-          // Guest List
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('guests')
-                  .where('createdBy', isEqualTo: user.uid)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading guests"));
-                }
-
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "No guests yet",
-                      style: TextStyle(color: Colors.black54, fontSize: 16),
-                    ),
-                  );
-                }
-
-                // Convert to GuestModel and sort by name
-                final guests = docs
-                    .map((doc) => GuestModel.fromMap(
-                    doc.data() as Map<String, dynamic>))
-                    .toList()
-                  ..sort((a, b) => a.name.compareTo(b.name));
-
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: guests.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final guest = guests[index];
-                    return _buildGuestTile(guest);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-
-      // Floating Action Button
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
@@ -119,36 +94,184 @@ class _GuestPageScreenState extends State<GuestPageScreen> {
             MaterialPageRoute(builder: (_) => const AddGuestScreen()),
           );
         },
-        backgroundColor: const Color(0xFFFFD600),
+        backgroundColor: const Color(0xFFFFE100),
         elevation: 6,
-        child: const Icon(Icons.add, color: Colors.black, size: 32),
+        child: const Icon(Icons.add, color: Colors.black, size: 28),
       ),
     );
   }
 
-  Widget _buildIconButton(IconData icon) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(12),
+  /// Header matching TaskScreen style
+  Widget _buildHeader(double screenWidth) {
+    return Padding(
+      padding: EdgeInsets.all(15),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Back Button
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(context);
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.transparent,
+              ),
+              child: Icon(
+                Icons.chevron_left,
+                color: Colors.black,
+                size: 28,
+              ),
+            ),
+          ),
+
+          // Title Section
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(left: 1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Guest List",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 25,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    DateFormat('For MMMM d, yyyy').format(DateTime.now()),
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 13,
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Notification + Avatar Section
+          Container(
+            padding: EdgeInsets.all(screenWidth * 0.022),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(screenWidth * 0.069),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Notification Icon
+                Container(
+                  width: screenWidth * 0.089,
+                  height: screenWidth * 0.089,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.notifications,
+                    color: Colors.white,
+                    size: screenWidth * 0.069,
+                  ),
+                ),
+                SizedBox(width: screenWidth * 0.022),
+
+                // Avatar - Tap to show ProfileMenu
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    debugPrint('Profile avatar tapped');
+                    if (_authService.currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please login first')),
+                      );
+                      return;
+                    }
+                    // Open ProfileMenu
+                    ProfileMenu.show(context, _authService, _username);
+                  },
+                  child: AvatarWidgetCompact(
+                    authService: _authService,
+                    username: _username,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      child: Icon(icon, color: Colors.white, size: 20),
     );
   }
 
-  Widget _buildProfileAvatar(String imageUrl) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
-        ),
-        border: Border.all(color: Colors.black, width: 1.5),
+  Widget _buildGuestList(String userId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('guests')
+          .where('createdBy', isEqualTo: userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        if (docs.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        // Convert to GuestModel and sort by name
+        final guests = docs
+            .map((doc) =>
+            GuestModel.fromMap(doc.data() as Map<String, dynamic>))
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
+
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          itemCount: guests.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final guest = guests[index];
+            return _buildGuestTile(guest);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'There are no guests',
+            style: TextStyle(
+              color: Colors.black.withOpacity(0.3),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'SF Pro',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -159,11 +282,11 @@ class _GuestPageScreenState extends State<GuestPageScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
+            blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
@@ -193,21 +316,26 @@ class _GuestPageScreenState extends State<GuestPageScreen> {
                 Text(
                   guest.name,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Colors.black87,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: Colors.black,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   "No event added",
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: Colors.black.withOpacity(0.5),
                   ),
                 ),
               ],
             ),
           ),
+
+          // Arrow Icon
+          Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
         ],
       ),
     );

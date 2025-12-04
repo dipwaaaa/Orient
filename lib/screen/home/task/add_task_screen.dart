@@ -229,8 +229,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
         children: [
           // Animated Gradient Background
           Positioned.fill(
-            child: AnimatedGradientBackground(
-            ),
+            child: AnimatedGradientBackground(),
           ),
 
           // Content
@@ -322,8 +321,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
                                 ),
                                 const SizedBox(height: 25),
                                 _buildStatusSection(),
-                                const SizedBox(height: 25),
-                                _buildCreateButton(),
                               ],
                             ),
                           ),
@@ -340,7 +337,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
-// Method untuk status section
+  // Method untuk status section
   Widget _buildStatusSection() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,54 +401,29 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
-// Method untuk create button
-  Widget _buildCreateButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _createTask,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _isLoading ? Colors.grey : const Color(0xFFFFE100),
-          foregroundColor: Colors.black,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
-          elevation: 0,
-        ),
-        child: _isLoading
-            ? const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-          ),
-        )
-            : const Text(
-          'Create Task',
-          style: TextStyle(
-            fontSize: 17,
-            fontFamily: 'SF Pro',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 51),
+      padding: const EdgeInsets.symmetric(horizontal: 31),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
+              // Close button (black circle)
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 24),
+                ),
               ),
+
+              // Title
               const Text(
                 'Create a Task',
                 style: TextStyle(
@@ -461,7 +433,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(width: 48),
+
+              // Save button (black circle)
+              GestureDetector(
+                onTap: _isLoading ? null : _createTask,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.save, color: Colors.white, size: 24),
+                ),
+              ),
             ],
           ),
           if (_selectedEventName.isNotEmpty)
@@ -484,7 +469,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildFormSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 51),
+      padding: const EdgeInsets.symmetric(horizontal: 31),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -500,7 +485,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {TextInputType? keyboardType, int maxLines = 1}) {
+  Widget _buildTextField(
+      String label,
+      TextEditingController controller,
+      String hint, {
+        TextInputType? keyboardType,
+        int maxLines = 1,
+      }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -587,8 +578,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ],
     );
   }
-
-
 
   @override
   void dispose() {

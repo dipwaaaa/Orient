@@ -236,9 +236,6 @@ class _TaskScreenState extends State<TaskScreen> {
               ),
             ),
 
-            // ============================================================
-            // WEEK/MONTH TOGGLE BUTTONS
-            // ============================================================
             Center(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
