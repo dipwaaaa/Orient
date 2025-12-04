@@ -128,9 +128,6 @@ class _TaskScreenState extends State<TaskScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ============================================================
-            // HEADER WITH BACK BUTTON, TITLE & PROFILE AVATAR
-            // ============================================================
             Padding(
               padding: EdgeInsets.all(15),
               child: Row(
@@ -227,24 +224,9 @@ class _TaskScreenState extends State<TaskScreen> {
                             // Open ProfileMenu
                             ProfileMenu.show(context, _authService, _username);
                           },
-                          child: Container(
-                            width: screenWidth * 0.088,
-                            height: screenWidth * 0.088,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Color(0xFFDEF3FF),
-                            ),
-                            child: ClipOval(
-                              child: _authService.currentUser?.photoURL != null
-                                  ? Image.network(
-                                _authService.currentUser!.photoURL!,
-                                fit: BoxFit.cover,
-                              )
-                                  : Image.asset(
-                                'assets/image/AvatarKimmy.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                          child: AvatarWidgetCompact(
+                            authService: _authService,
+                            username: _username,
                           ),
                         ),
                       ],
@@ -370,7 +352,7 @@ class _TaskScreenState extends State<TaskScreen> {
     );
   }
 
-  /// Show ProfileMenu (alternative method - sudah ada di GestureDetector)
+  /// Show ProfileMenu (alternative method)
   void _showProfileMenu() {
     ProfileMenu.show(context, _authService, _username);
   }

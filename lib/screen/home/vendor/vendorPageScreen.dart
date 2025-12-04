@@ -204,24 +204,9 @@ class _VendorScreenState extends State<VendorPageScreen> {
                     }
                     ProfileMenu.show(context, _authService, _username);
                   },
-                  child: Container(
-                    width: screenWidth * 0.088,
-                    height: screenWidth * 0.088,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFDEF3FF),
-                    ),
-                    child: ClipOval(
-                      child: _authService.currentUser?.photoURL != null
-                          ? Image.network(
-                        _authService.currentUser!.photoURL!,
-                        fit: BoxFit.cover,
-                      )
-                          : Image.asset(
-                        'assets/image/AvatarKimmy.png',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
+                  child: AvatarWidgetCompact(
+                    authService: _authService,
+                    username: _username,
                   ),
                 ),
               ],
