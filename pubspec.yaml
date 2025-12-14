@@ -53,6 +53,8 @@ dependencies:
   url_launcher: ^6.3.2
   uuid: ^4.5.1
   provider: ^6.1.5+1
+  firebase_functions: ^0.0.1-dev
+  cloud_functions: ^6.0.4
 
 dev_dependencies:
   flutter_test:

@@ -370,7 +370,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext dialogContext) {
         return DeleteAccountDialog(
           authService: widget.authService,
-          hasPassword: _hasPassword,
           userEmail: _emailController.text,
           onDeleteSuccess: _handleDeleteSuccess,
         );
@@ -943,9 +942,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ============================================
-// Notification Screen Page
-// ============================================
 
 class NotificationScreenPage extends StatefulWidget {
   final String userId;
