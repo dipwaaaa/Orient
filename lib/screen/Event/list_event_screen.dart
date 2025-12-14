@@ -63,7 +63,7 @@ class _EventListScreenState extends State<EventListScreen> {
             profile_menu.HeaderWithAvatar(
               username: _username,
               greeting: 'Hi, $_username!',
-              subtitle: 'Start a new conversation today!',
+              subtitle: 'What event are you planning today?',
               authService: _authService,
               onNotificationTap: () {
                 debugPrint('Notification tapped');

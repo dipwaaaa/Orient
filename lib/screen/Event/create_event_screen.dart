@@ -20,20 +20,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   // Form controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
-  final TextEditingController _collaboratorController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _collaboratorController = TextEditingController();
 
   // Form state
   DateTime? _selectedDate;
   String _selectedStatus = 'Pending';
   bool _isLoading = false;
+  List<String> _collaborators = []; // List of collaborator identifiers
 
   @override
   void dispose() {
     _nameController.dispose();
     _budgetController.dispose();
-    _collaboratorController.dispose();
     _locationController.dispose();
+    _collaboratorController.dispose();
     super.dispose();
   }
 
@@ -76,6 +77,35 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     };
   }
 
+  void _addCollaborator() {
+    final collaborator = _collaboratorController.text.trim();
+
+    if (collaborator.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email or username')),
+      );
+      return;
+    }
+
+    if (_collaborators.contains(collaborator)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Collaborator already added')),
+      );
+      return;
+    }
+
+    setState(() {
+      _collaborators.add(collaborator);
+      _collaboratorController.clear();
+    });
+  }
+
+  void _removeCollaborator(int index) {
+    setState(() {
+      _collaborators.removeAt(index);
+    });
+  }
+
   Future<void> _createEvent() async {
     if (_nameController.text.trim().isEmpty) {
       _showErrorDialog('Please enter event name');
@@ -103,18 +133,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
 
     try {
-      List<String> collaboratorInputs = [];
-      if (_collaboratorController.text.trim().isNotEmpty) {
-        collaboratorInputs = _collaboratorController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-      }
-
       List<String> validCollaboratorIds = [];
-      if (collaboratorInputs.isNotEmpty) {
-        final validationResult = await _validateCollaborators(collaboratorInputs);
+
+      if (_collaborators.isNotEmpty) {
+        final validationResult = await _validateCollaborators(_collaborators);
         validCollaboratorIds = validationResult['validIds'] as List<String>;
         List<String> invalidCollaborators = validationResult['invalid'] as List<String>;
 
@@ -124,7 +146,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               _isLoading = false;
             });
             _showErrorDialog(
-                'The following collaborators were not found:\n${invalidCollaborators.join(', ')}\n\nPlease check the username/email and try again.'
+              'The following collaborators were not found:\n${invalidCollaborators.join(', ')}\n\nPlease check the username/email and try again.',
             );
           }
           return;
@@ -271,17 +293,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         ),
                         const SizedBox(height: 15),
                         _buildTextField(
-                          'Collaborator',
-                          'Type here',
-                          _collaboratorController,
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 15),
-                        _buildTextField(
                           'Location',
                           'Type here',
                           _locationController,
                         ),
+                        const SizedBox(height: 20),
+
+                        // Collaborators Section
+                        _buildCollaboratorsSection(),
+
                         const SizedBox(height: 280), // Space untuk status section
                       ],
                     ),
@@ -351,6 +371,146 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCollaboratorsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Collaborators',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 9),
+
+        // Field container yang memanjang dengan collaborators di dalam
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(width: 2, color: Colors.black),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row: Collaborators chips + buttons (atas)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Collaborators chips (left side)
+                  Expanded(
+                    child: _collaborators.isEmpty
+                        ? const SizedBox.shrink()
+                        : Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: List.generate(
+                        _collaborators.length,
+                            (index) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFE100),
+                              border: Border.all(
+                                width: 1,
+                                color: Colors.black,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _collaborators[index],
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                    fontFamily: 'SF Pro',
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => _removeCollaborator(index),
+                                  child: Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.black.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // Buttons on the right (atas)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Row(
+                      children: [
+                        // Remove button (-)
+                        if (_collaborators.isNotEmpty)
+                          GestureDetector(
+                            onTap: () =>
+                                _removeCollaborator(_collaborators.length - 1),
+                            child: Icon(
+                              Icons.remove_circle,
+                              color: Colors.red[600],
+                              size: 20,
+                            ),
+                          ),
+                        if (_collaborators.isNotEmpty)
+                          const SizedBox(width: 4),
+                        // Add button (+)
+                        GestureDetector(
+                          onTap: _addCollaborator,
+                          child: const Icon(
+                            Icons.add_circle,
+                            color: Color(0xFFFFE100),
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // Spacing
+              if (_collaborators.isNotEmpty) const SizedBox(height: 8),
+
+              // Input field (bawah)
+              TextField(
+                controller: _collaboratorController,
+                decoration: InputDecoration(
+                  hintText: 'Email or username',
+                  hintStyle: TextStyle(
+                    color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
+                    fontSize: 13,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w600,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

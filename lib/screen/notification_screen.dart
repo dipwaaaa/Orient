@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model/notification_model.dart';
 import '../service/notification_service.dart';
-import '../widget/Animated_Gradient_Background.dart'; // Sesuaikan import path
+import '../widget/Animated_Gradient_Background.dart';
 
 class NotificationScreen extends StatefulWidget {
   final String userId;
@@ -18,13 +18,43 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   late NotificationService _notificationService;
+  bool _markingAsRead = false;
 
   @override
   void initState() {
     super.initState();
     _notificationService = NotificationService();
-    // Mark all as read ketika membuka screen
-    _notificationService.markAllAsRead(widget.userId);
+
+    debugPrint('🔔 NotificationScreen initialized for user: ${widget.userId}');
+
+    // Mark all as read when entering screen
+    _markAllAsReadOnEntry();
+
+    // Verify notifications exist (for debugging)
+    _verifyNotifications();
+  }
+
+  // Mark all as read when screen opens
+  Future<void> _markAllAsReadOnEntry() async {
+    if (_markingAsRead) return;
+
+    setState(() => _markingAsRead = true);
+
+    try {
+      await _notificationService.markAllAsRead(widget.userId);
+      debugPrint('✅ All notifications marked as read on screen entry');
+    } catch (e) {
+      debugPrint('❌ Error marking as read: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _markingAsRead = false);
+      }
+    }
+  }
+
+  // Verify notifications exist in Firestore
+  Future<void> _verifyNotifications() async {
+    await _notificationService.verifyNotificationsExist(widget.userId);
   }
 
   @override
@@ -49,58 +79,140 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ),
           centerTitle: true,
         ),
-        body: StreamBuilder<List<NotificationModel>>(
-          stream: _notificationService.getUserNotifications(widget.userId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6A00)),
-                ),
-              );
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 80,
-                      color: Colors.grey[400],
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'No Notifications',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            final notifications = snapshot.data!;
-
-            return ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: notifications.length,
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _buildNotificationCard(notification);
-              },
-            );
-          },
-        ),
+        body: _buildNotificationsList(),
       ),
     );
   }
 
-  Widget _buildNotificationCard(NotificationModel notification) {
+  Widget _buildNotificationsList() {
+    return StreamBuilder<List<NotificationModel>>(
+      stream: _notificationService.getUserNotifications(widget.userId),
+      builder: (context, snapshot) {
+        debugPrint('🔄 Stream state: ${snapshot.connectionState}');
+
+        // Loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          debugPrint('⏳ Loading notifications...');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6A00)),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Loading notifications...',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Error state
+        if (snapshot.hasError) {
+          debugPrint('❌ Stream error: ${snapshot.error}');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red[400],
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Error loading notifications',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.red[400],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  snapshot.error.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {});
+                  },
+                  child: Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // No data state
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          debugPrint('📭 No notifications found');
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.notifications_none,
+                  size: 80,
+                  color: Colors.grey[400],
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'No Notifications',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'When something happens, you\'ll see it here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {});
+                    _verifyNotifications();
+                  },
+                  child: Text('Refresh'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final notifications = snapshot.data!;
+        debugPrint('✅ Loaded ${notifications.length} notifications');
+
+        return ListView.builder(
+          padding: EdgeInsets.all(16),
+          itemCount: notifications.length,
+          itemBuilder: (context, index) {
+            final notification = notifications[index];
+            return _buildNotificationCard(notification, index);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationCard(NotificationModel notification, int index) {
     Color typeColor = _getTypeColor(notification.type);
     IconData typeIcon = _getTypeIcon(notification.type);
 
@@ -122,7 +234,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            // Handle notification tap (navigate ke related resource)
+            debugPrint('📌 Notification tapped: ${notification.title}');
             _handleNotificationTap(notification);
           },
           child: Padding(
@@ -174,6 +286,26 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          SizedBox(height: 4),
+                          // Type badge
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: typeColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              notification.type.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: typeColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -182,20 +314,48 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     IconButton(
                       icon: Icon(Icons.close, color: Colors.grey, size: 20),
                       onPressed: () async {
-                        await _notificationService
-                            .deleteNotification(notification.notificationId);
+                        debugPrint('🗑️ Deleting notification: ${notification.notificationId}');
+                        try {
+                          await _notificationService.deleteNotification(
+                            notification.notificationId,
+                          );
+                          debugPrint('✅ Notification deleted successfully');
+                        } catch (e) {
+                          debugPrint('❌ Error deleting notification: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error deleting notification'),
+                                backgroundColor: Colors.red[600],
+                              ),
+                            );
+                          }
+                        }
                       },
                     ),
                   ],
                 ),
                 SizedBox(height: 8),
                 // Timestamp
-                Text(
-                  _formatTime(notification.createdAt),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatTime(notification.createdAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    // Debug info
+                    Text(
+                      'ID: ${notification.notificationId.substring(0, 8)}...',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[400],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -240,22 +400,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   void _handleNotificationTap(NotificationModel notification) {
+    debugPrint('📍 Handling tap for type: ${notification.type}');
     // Navigate ke related resource based on type
     switch (notification.type) {
       case 'chat':
-      // Navigate ke chat screen dengan chatId
-      // Navigator.push(...);
+        debugPrint('   → Would navigate to chat: ${notification.relatedId}');
+        // Navigator.push(...);
         break;
       case 'event':
-      // Navigate ke event detail screen dengan eventId
+        debugPrint('   → Would navigate to event: ${notification.relatedId}');
+        // Navigator.push(...);
         break;
       case 'task':
-      // Navigate ke task detail screen
+        debugPrint('   → Would navigate to task: ${notification.relatedId}');
+        // Navigator.push(...);
         break;
       case 'vendor':
-      // Navigate ke vendor screen
+        debugPrint('   → Would navigate to vendor: ${notification.relatedId}');
+        // Navigator.push(...);
         break;
       default:
+        debugPrint('   → Unknown type, no navigation');
         break;
     }
   }

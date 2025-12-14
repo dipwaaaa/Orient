@@ -46,7 +46,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     super.initState();
     _selectedEventId = widget.eventId;
     if (_selectedEventId != null) {
-      _loadEventName(); // Load nama event jika eventId sudah ada
+      _loadEventName();
     } else {
       _fetchUserEvent();
     }
@@ -75,7 +75,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final user = _authService.currentUser;
     if (user != null) {
       try {
-        // Ambil semua events milik user tanpa orderBy untuk menghindari masalah index
         final snapshot = await _firestore
             .collection('events')
             .where('ownerId', isEqualTo: user.uid)

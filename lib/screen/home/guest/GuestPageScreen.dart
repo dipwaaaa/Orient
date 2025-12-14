@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:untitled/service/auth_service.dart';
 import '../../../model/guest_model.dart';
@@ -20,16 +21,37 @@ class GuestPageScreen extends StatefulWidget {
   State<GuestPageScreen> createState() => _GuestPageScreenState();
 }
 
-class _GuestPageScreenState extends State<GuestPageScreen> {
+class _GuestPageScreenState extends State<GuestPageScreen>
+    with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String _username = 'User';
+  late AnimationController _fabAnimationController;
+  late Animation<double> _fabScaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+
+    // Setup FAB Animation
+    _fabAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _fabScaleAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _fabAnimationController, curve: Curves.elasticOut),
+    );
+
+    _fabAnimationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fabAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -87,16 +109,61 @@ class _GuestPageScreenState extends State<GuestPageScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddGuestScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFFFFE100),
-        elevation: 6,
-        child: const Icon(Icons.add, color: Colors.black, size: 28),
+      floatingActionButton: _buildTwitterStyleFAB(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  /// Add Guest Button
+  Widget _buildTwitterStyleFAB() {
+    return ScaleTransition(
+      scale: _fabScaleAnimation,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 70, right: 16),
+        child: GestureDetector(
+          onTap: () {
+            // Add haptic feedback
+            HapticFeedback.mediumImpact();
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddGuestScreen()),
+            ).then((_) {
+              // Restart animation when returning
+              _fabAnimationController.reset();
+              _fabAnimationController.forward();
+            });
+          },
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFFFE100),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: null, // Handled by GestureDetector above
+                borderRadius: BorderRadius.circular(28),
+                child: Center(
+                  child: Icon(
+                    Icons.add,
+                    color: Colors.black,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

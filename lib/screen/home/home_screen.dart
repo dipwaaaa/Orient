@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:untitled/screen/home/budget/budget_screen.dart';
 import 'dart:async';
 import 'package:untitled/service/auth_service.dart';
+import 'package:untitled/service/event_service.dart';
 import 'package:untitled/service/budget_service.dart';
 import 'package:untitled/utilty/app_responsive.dart';
 import '../../widget/Animated_Gradient_Background.dart';
@@ -24,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
+  final EventService _eventService = EventService();
   final BudgetService _budgetService = BudgetService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -48,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
     'remainingBalance': 0,
   };
 
+  // Auto-delete state
+  bool _isAutoDeleting = false;
+
   Timer? _countdownTimer;
   StreamSubscription<QuerySnapshot>? _eventSubscription;
   StreamSubscription? _authSubscription;
@@ -61,6 +66,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _setupAuthListener();
     _loadUserData();
+
+    // Trigger auto-delete when app starts
+    _triggerAutoDeletePastEvents();
+
     _listenToEvents();
 
     _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
@@ -79,6 +88,54 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     });
+  }
+
+  /// Trigger auto-delete for past events
+  Future<void> _triggerAutoDeletePastEvents() async {
+    try {
+      final user = _authService.currentUser;
+      if (user == null) {
+        debugPrint('❌ No user logged in, skipping auto-delete');
+        return;
+      }
+
+      if (_isAutoDeleting) {
+        debugPrint('⏳ Auto-delete already in progress, skipping');
+        return;
+      }
+
+      setState(() => _isAutoDeleting = true);
+
+      debugPrint('🗑️ Starting auto-delete for past events...');
+
+      // Call auto-delete service
+      final deletedCount = await _eventService.autoDeletePastEvents(user.uid);
+
+      if (mounted) {
+        setState(() => _isAutoDeleting = false);
+
+        if (deletedCount > 0) {
+          debugPrint('✅ Auto-deleted $deletedCount past events');
+
+          // Show snackbar notification
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$deletedCount event${deletedCount > 1 ? 's' : ''} archived'),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.green[600],
+            ),
+          );
+
+          // Refresh events list
+          _listenToEvents();
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error in auto-delete: $e');
+      if (mounted) {
+        setState(() => _isAutoDeleting = false);
+      }
+    }
   }
 
   void _setupAuthListener() {
@@ -385,34 +442,67 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: SafeArea(
-          child: Column(
-            children: [
-              HeaderWithAvatar(
-                username: _username,
-                greeting: 'Hi, $_username!',
-                subtitle: 'What event are you planning today?',
-                authService: _authService,
-                onNotificationTap: () {
-                  debugPrint('Notification tapped');
-                },
-              ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  HeaderWithAvatar(
+                    username: _username,
+                    greeting: 'Hi, $_username!',
+                    subtitle: 'What event are you planning today?',
+                    authService: _authService,
+                    onNotificationTap: () {
+                      debugPrint('Notification tapped');
+                    },
+                  ),
 
-              SizedBox(height: 24),
-              _buildCarousel(),
-              SizedBox(height: 16),
-              _buildFeatureButtons(),
-              SizedBox(height: 24),
-              if (_currentEventId != null)
-                _buildTaskSection(),
-              SizedBox(height: 24),
-              if (_currentEventId != null)
-                _buildBudgetSection(),
-              SizedBox(height: 24),
-            ],
+                  SizedBox(height: 24),
+                  _buildCarousel(),
+                  SizedBox(height: 16),
+                  _buildFeatureButtons(),
+                  SizedBox(height: 24),
+                  if (_currentEventId != null)
+                    _buildTaskSection(),
+                  SizedBox(height: 24),
+                  if (_currentEventId != null)
+                    _buildBudgetSection(),
+                  SizedBox(height: 24),
+                ],
+              ),
+            ),
           ),
-        ),
+
+          // Auto-delete loading overlay
+          if (_isAutoDeleting)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.2),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFFFFE100),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Checking for past events...',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       bottomNavigationBar: CustomBottomNavigationBar(
         currentIndex: _currentIndex,

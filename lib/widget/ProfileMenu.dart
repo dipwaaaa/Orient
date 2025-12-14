@@ -5,16 +5,17 @@ import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/notification_service.dart';
 import '../screen/login_signup_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../screen/notification_screen.dart';
 import '../utilty/app_responsive.dart';
 import '../provider/auth_provider.dart';
 
-
-/// Avatar Widget dengan Notification Icon
-class Profilemenu extends StatelessWidget {
+/// Avatar Widget dengan Notification Icon + Badge (FIXED)
+class Profilemenu extends StatefulWidget {
   final AuthService authService;
   final String username;
   final bool showNotificationIcon;
   final VoidCallback? onNotificationTap;
+  final BuildContext parentContext;
 
   const Profilemenu({
     Key? key,
@@ -22,7 +23,22 @@ class Profilemenu extends StatelessWidget {
     required this.username,
     this.showNotificationIcon = true,
     this.onNotificationTap,
+    required this.parentContext,
   }) : super(key: key);
+
+  @override
+  State<Profilemenu> createState() => _ProfilemenuState();
+}
+
+class _ProfilemenuState extends State<Profilemenu> {
+  late NotificationService _notificationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationService = NotificationService();
+    debugPrint('🔔 Profilemenu initialized');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,61 +53,147 @@ class Profilemenu extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showNotificationIcon) ...[
-            Container(
-              width: AppResponsive.avatarRadius(),
-              height: AppResponsive.avatarRadius(),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                shape: BoxShape.circle,
+          if (widget.showNotificationIcon) ...[
+            _buildNotificationIcon(),
+            SizedBox(width: AppResponsive.spacingSmall()),
+          ],
+          _buildAvatarButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationIcon() {
+    final user = widget.authService.currentUser;
+
+    if (user == null) {
+      return _buildNotificationIconWithBadge(0);
+    }
+
+    // Use Stream for real-time badge updates
+    return StreamBuilder<int>(
+      stream: _notificationService.getUnreadCountStream(user.uid),
+      builder: (context, snapshot) {
+        int unreadCount = snapshot.data ?? 0;
+
+        if (snapshot.hasError) {
+          debugPrint('❌ Badge stream error: ${snapshot.error}');
+        }
+
+        return _buildNotificationIconWithBadge(unreadCount);
+      },
+    );
+  }
+
+  Widget _buildNotificationIconWithBadge(int unreadCount) {
+    return Container(
+      width: AppResponsive.avatarRadius(),
+      height: AppResponsive.avatarRadius(),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        shape: BoxShape.circle,
+      ),
+      child: Stack(
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                final user = widget.authService.currentUser;
+                if (user != null) {
+                  debugPrint('🔔 Navigating to notification screen for user: ${user.uid}');
+                  Navigator.push(
+                    widget.parentContext,
+                    MaterialPageRoute(
+                      builder: (context) => NotificationScreen(userId: user.uid),
+                    ),
+                  ).then((_) {
+                    // When returning from NotificationScreen, rebuild to update badge
+                    debugPrint('🔄 Returned from NotificationScreen, rebuilding');
+                    setState(() {});
+                  });
+                }
+                widget.onNotificationTap?.call();
+              },
+              customBorder: CircleBorder(),
+              child: Icon(
+                Icons.notifications,
+                color: Colors.white,
+                size: AppResponsive.notificationIconSize(),
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onNotificationTap,
-                  customBorder: CircleBorder(),
-                  child: Icon(
-                    Icons.notifications,
-                    color: Colors.white,
-                    size: AppResponsive.notificationIconSize(),
+            ),
+          ),
+          // Notification Badge (only show if unread > 0)
+          if (unreadCount > 0)
+            Positioned(
+              top: -4,
+              right: -4,
+              child: AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Color(0xFFFF6A00),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                constraints: BoxConstraints(
+                  minWidth: 24,
+                  minHeight: 24,
+                ),
+                child: Center(
+                  child: Text(
+                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'SF Pro',
+                    ),
                   ),
                 ),
               ),
             ),
-            SizedBox(width: AppResponsive.spacingSmall()),
-          ],
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              ProfileMenu.show(context, authService, username);
-            },
-            child: Container(
-              width: AppResponsive.avatarRadius(),
-              height: AppResponsive.avatarRadius(),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(0xFFDEF3FF),
-              ),
-              child: ClipOval(
-                child: authService.currentUser?.photoURL != null
-                    ? Image.network(
-                  authService.currentUser!.photoURL!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      'assets/image/AvatarKimmy.png',
-                      fit: BoxFit.cover,
-                    );
-                  },
-                )
-                    : Image.asset(
-                  'assets/image/AvatarKimmy.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarButton() {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        ProfileMenu.show(context, widget.authService, widget.username);
+      },
+      child: Container(
+        width: AppResponsive.avatarRadius(),
+        height: AppResponsive.avatarRadius(),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFFDEF3FF),
+        ),
+        child: ClipOval(
+          child: widget.authService.currentUser?.photoURL != null
+              ? Image.network(
+            widget.authService.currentUser!.photoURL!,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset(
+                'assets/image/AvatarKimmy.png',
+                fit: BoxFit.cover,
+              );
+            },
+          )
+              : Image.asset(
+            'assets/image/AvatarKimmy.png',
+            fit: BoxFit.cover,
+          ),
+        ),
       ),
     );
   }
@@ -144,7 +246,7 @@ class AvatarWidgetCompact extends StatelessWidget {
   }
 }
 
-/// Header Widget dengan Avatar - Kombinasi greeting + avatar
+/// Header Widget dengan Avatar
 class HeaderWithAvatar extends StatelessWidget {
   final String username;
   final String greeting;
@@ -202,13 +304,13 @@ class HeaderWithAvatar extends StatelessWidget {
             username: username,
             showNotificationIcon: true,
             onNotificationTap: onNotificationTap,
+            parentContext: context,
           ),
         ],
       ),
     );
   }
 }
-
 
 class ProfileMenu {
   /// Tampilkan profile menu dari mana saja
@@ -328,7 +430,6 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
         children: [
           _buildProfileHeader(),
           Divider(height: 1),
-          _buildNotificationTile(),
           _buildSettingsTile(),
           _buildLogoutTile(),
           SizedBox(height: 20),
@@ -385,53 +486,6 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
     );
   }
 
-  Widget _buildNotificationTile() {
-    return Stack(
-      children: [
-        ListTile(
-          leading: Icon(Icons.notifications, color: Color(0xFFFF6A00)),
-          title: Text(
-            'Notifications',
-            style: TextStyle(fontFamily: 'SF Pro'),
-          ),
-          onTap: () {
-            Navigator.pop(context);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => NotificationScreenPage(
-                  userId: widget.authService.currentUser?.uid ?? '',
-                ),
-              ),
-            );
-          },
-        ),
-        if (_unreadNotificationsCount > 0)
-          Positioned(
-            right: 16,
-            top: 12,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _unreadNotificationsCount > 99
-                    ? '99+'
-                    : '$_unreadNotificationsCount',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _buildSettingsTile() {
     return ListTile(
       leading: Icon(Icons.settings, color: Color(0xFFFF6A00)),
@@ -480,221 +534,5 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
         }
       },
     );
-  }
-}
-
-
-class NotificationScreenPage extends StatefulWidget {
-  final String userId;
-
-  const NotificationScreenPage({
-    Key? key,
-    required this.userId,
-  }) : super(key: key);
-
-  @override
-  State<NotificationScreenPage> createState() => _NotificationScreenPageState();
-}
-
-class _NotificationScreenPageState extends State<NotificationScreenPage> {
-  late NotificationService _notificationService;
-
-  @override
-  void initState() {
-    super.initState();
-    _notificationService = NotificationService();
-    _notificationService.markAllAsRead(widget.userId);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    AppResponsive.init(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Notifications',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: StreamBuilder(
-        stream: _notificationService.getUserNotifications(widget.userId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6A00)),
-              ),
-            );
-          }
-
-          if (!snapshot.hasData || (snapshot.data as List).isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_none,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No Notifications',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final notifications = snapshot.data as List;
-
-          return ListView.builder(
-            padding: EdgeInsets.all(16),
-            itemCount: notifications.length,
-            itemBuilder: (context, index) {
-              return _buildNotificationCard(notifications[index]);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard(dynamic notification) {
-    final title = notification.title ?? 'Notification';
-    final message = notification.message ?? '';
-    final type = notification.type ?? 'system';
-    final notificationId = notification.notificationId ?? '';
-
-    Color typeColor = _getTypeColor(type);
-    IconData typeIcon = _getTypeIcon(type);
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    typeIcon,
-                    color: typeColor,
-                    size: 24,
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        message,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          height: 1.4,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.close, color: Colors.grey, size: 20),
-                  onPressed: () async {
-                    await _notificationService.deleteNotification(notificationId);
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Color _getTypeColor(String type) {
-    switch (type) {
-      case 'chat':
-        return Color(0xFF4CAF50);
-      case 'event':
-        return Color(0xFF2196F3);
-      case 'task':
-        return Color(0xFFFFC107);
-      case 'vendor':
-        return Color(0xFFFF9800);
-      case 'system':
-        return Color(0xFF9C27B0);
-      default:
-        return Color(0xFF757575);
-    }
-  }
-
-  IconData _getTypeIcon(String type) {
-    switch (type) {
-      case 'chat':
-        return Icons.chat;
-      case 'event':
-        return Icons.event;
-      case 'task':
-        return Icons.assignment;
-      case 'vendor':
-        return Icons.business;
-      case 'system':
-        return Icons.notifications;
-      default:
-        return Icons.notifications;
-    }
   }
 }

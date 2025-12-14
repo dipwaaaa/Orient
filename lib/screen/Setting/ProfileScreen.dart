@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../widget/delete_acc_dialog.dart';
+import '../login_signup_screen.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -360,6 +362,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Show delete account confirmation dialog
+  void _showDeleteAccountDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return DeleteAccountDialog(
+          authService: widget.authService,
+          hasPassword: _hasPassword,
+          userEmail: _emailController.text,
+          onDeleteSuccess: _handleDeleteSuccess,
+        );
+      },
+    );
+  }
+
+  /// Handle successful account deletion
+  Future<void> _handleDeleteSuccess() async {
+    if (!mounted) return;
+
+    // Clear all navigation stack and go to login
+    if (context.mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+      );
+    }
+  }
+
+  /// Build delete account button
+  Widget _buildDeleteAccountButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _showDeleteAccountDialog,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          disabledBackgroundColor: Colors.grey,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          ),
+        ),
+        child: Text(
+          'Delete Account',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _updateNameInChats(String userId, String newName) async {
     try {
       final chatsQuery = await widget.authService.firestore
@@ -481,10 +538,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-
               SingleChildScrollView(
                 child: Column(
                   children: [
+                    // Profile Avatar
                     Padding(
                       padding: const EdgeInsets.only(top: 16, bottom: 24),
                       child: GestureDetector(
@@ -539,10 +596,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
 
+                    // Profile Form Fields
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 37),
                       child: Column(
                         children: [
+                          // Name Field
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -592,6 +651,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 24),
 
+                          // Email Field
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -642,6 +702,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 24),
 
+                          // Password Field
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -733,6 +794,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 32),
 
+                          // Notification Toggle (visible when not editing)
                           if (!_isEditMode)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -761,10 +823,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
 
+                          SizedBox(height: 24),
+
+                          // Delete Account Button (visible when not editing)
+                          if (!_isEditMode)
+                            _buildDeleteAccountButton(),
+
+                          // Edit Mode Buttons
                           if (_isEditMode)
                             Column(
                               children: [
                                 SizedBox(height: 24),
+                                // Save Changes Button
                                 SizedBox(
                                   width: double.infinity,
                                   height: 50,
@@ -797,6 +867,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 SizedBox(height: 12),
+                                // Cancel Button
                                 SizedBox(
                                   width: double.infinity,
                                   height: 50,
@@ -872,7 +943,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+// ============================================
 // Notification Screen Page
+// ============================================
+
 class NotificationScreenPage extends StatefulWidget {
   final String userId;
 

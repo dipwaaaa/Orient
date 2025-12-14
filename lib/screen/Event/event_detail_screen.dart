@@ -19,12 +19,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final TextEditingController _typeController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _collaboratorController = TextEditingController();
 
   Map<String, dynamic>? _event;
-  String? _collaboratorsText;
+  List<String> _collaborators = []; // List of collaborator identifiers
+  List<String> _collaboratorNames = []; // List of collaborator names
   String _selectedStatus = 'Pending';
   bool _isLoading = true;
   bool _isEditing = false;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -38,12 +41,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
       if (doc.exists && mounted) {
         final eventData = doc.data()!;
+        final collaboratorIds = List<String>.from(eventData['collaborators'] as List<dynamic>? ?? []);
 
         // Load collaborators names
-        await _loadCollaborators(eventData['collaborators'] as List<dynamic>?);
+        await _loadCollaborators(collaboratorIds);
 
         setState(() {
           _event = eventData;
+          _collaborators = collaboratorIds;
           _nameController.text = eventData['eventName'] ?? '';
           _typeController.text = eventData['eventType'] ?? '';
           _descriptionController.text = eventData['description'] ?? '';
@@ -62,10 +67,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
-  Future<void> _loadCollaborators(List<dynamic>? collaboratorIds) async {
-    if (collaboratorIds == null || collaboratorIds.isEmpty) {
+  Future<void> _loadCollaborators(List<String> collaboratorIds) async {
+    if (collaboratorIds.isEmpty) {
       setState(() {
-        _collaboratorsText = '-';
+        _collaboratorNames = [];
       });
       return;
     }
@@ -80,26 +85,118 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
 
       setState(() {
-        _collaboratorsText = names.isNotEmpty ? names.join(', ') : '-';
+        _collaboratorNames = names;
       });
     } catch (e) {
       debugPrint('Error loading collaborators: $e');
       setState(() {
-        _collaboratorsText = '-';
+        _collaboratorNames = List.filled(collaboratorIds.length, 'Unknown');
       });
     }
+  }
+
+  Future<Map<String, dynamic>> _validateCollaborators(List<String> collaborators) async {
+    List<String> validCollaboratorIds = [];
+    List<String> invalidCollaborators = [];
+
+    for (String identifier in collaborators) {
+      try {
+        QuerySnapshot userQuery;
+
+        if (identifier.contains('@')) {
+          userQuery = await _firestore
+              .collection('users')
+              .where('email', isEqualTo: identifier.trim().toLowerCase())
+              .limit(1)
+              .get();
+        } else {
+          userQuery = await _firestore
+              .collection('users')
+              .where('username', isEqualTo: identifier.trim())
+              .limit(1)
+              .get();
+        }
+
+        if (userQuery.docs.isNotEmpty) {
+          validCollaboratorIds.add(userQuery.docs.first.id);
+        } else {
+          invalidCollaborators.add(identifier);
+        }
+      } catch (e) {
+        debugPrint('Error validating collaborator $identifier: $e');
+        invalidCollaborators.add(identifier);
+      }
+    }
+
+    return {
+      'validIds': validCollaboratorIds,
+      'invalid': invalidCollaborators,
+    };
+  }
+
+  void _addCollaborator() {
+    final collaborator = _collaboratorController.text.trim();
+
+    if (collaborator.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email or username')),
+      );
+      return;
+    }
+
+    if (_collaborators.contains(collaborator)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Collaborator already added')),
+      );
+      return;
+    }
+
+    setState(() {
+      _collaborators.add(collaborator);
+      _collaboratorController.clear();
+    });
+  }
+
+  void _removeCollaborator(int index) {
+    setState(() {
+      _collaborators.removeAt(index);
+    });
   }
 
   Future<void> _updateEvent() async {
     if (_event == null) return;
 
     try {
+      // Validate collaborators
+      List<String> validCollaboratorIds = [];
+
+      if (_collaborators.isNotEmpty) {
+        final validationResult = await _validateCollaborators(_collaborators);
+        validCollaboratorIds = validationResult['validIds'] as List<String>;
+        List<String> invalidCollaborators = validationResult['invalid'] as List<String>;
+
+        if (invalidCollaborators.isNotEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'The following collaborators were not found:\n${invalidCollaborators.join(', ')}\n\nPlease check the username/email and try again.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       await _firestore.collection('events').doc(widget.eventId).update({
         'eventName': _nameController.text.trim(),
         'eventType': _typeController.text.trim(),
         'description': _descriptionController.text.trim(),
         'eventLocation': _locationController.text.trim(),
         'eventStatus': _selectedStatus,
+        'collaborators': validCollaboratorIds,
         'updatedAt': Timestamp.now(),
       });
 
@@ -146,13 +243,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
 
     if (confirm == true) {
+      setState(() => _isDeleting = true);
+
       try {
+        debugPrint('🗑️ Starting event deletion for: ${widget.eventId}');
+
         // Delete related tasks
         final tasksSnapshot = await _firestore
             .collection('tasks')
             .where('eventId', isEqualTo: widget.eventId)
             .get();
 
+        debugPrint('📋 Found ${tasksSnapshot.docs.length} tasks to delete');
         for (var doc in tasksSnapshot.docs) {
           await doc.reference.delete();
         }
@@ -163,6 +265,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             .where('eventId', isEqualTo: widget.eventId)
             .get();
 
+        debugPrint('💰 Found ${budgetsSnapshot.docs.length} budgets to delete');
         for (var doc in budgetsSnapshot.docs) {
           await doc.reference.delete();
         }
@@ -173,25 +276,56 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             .where('eventId', isEqualTo: widget.eventId)
             .get();
 
+        debugPrint('🏪 Found ${vendorsSnapshot.docs.length} vendors to delete');
         for (var doc in vendorsSnapshot.docs) {
           await doc.reference.delete();
         }
 
+        // Delete related guests
+        final guestsSnapshot = await _firestore
+            .collection('guests')
+            .where('eventId', isEqualTo: widget.eventId)
+            .get();
+
+        debugPrint('👥 Found ${guestsSnapshot.docs.length} guests to delete');
+        for (var doc in guestsSnapshot.docs) {
+          await doc.reference.delete();
+        }
+
         // Delete the event
+        debugPrint('📅 Deleting event: ${widget.eventId}');
         await _firestore.collection('events').doc(widget.eventId).delete();
 
+        debugPrint('✅ Event deleted successfully');
+
         if (mounted) {
+          setState(() => _isDeleting = false);
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Event deleted successfully')),
+            const SnackBar(
+              content: Text('Event deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } on FirebaseException catch (e) {
+        debugPrint('❌ Firebase Error: ${e.code} - ${e.message}');
+        if (mounted) {
+          setState(() => _isDeleting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Permission denied: ${e.message}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       } catch (e) {
-        debugPrint('Error deleting event: $e');
+        debugPrint('❌ Error deleting event: $e');
         if (mounted) {
+          setState(() => _isDeleting = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to delete event'),
+            SnackBar(
+              content: Text('Failed to delete event: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -199,8 +333,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       }
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -238,273 +370,318 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
     final eventDate = (_event!['eventDate'] as Timestamp?)?.toDate();
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Animated Gradient Background
-          Positioned.fill(
-            child: AnimatedGradientBackground(
-              duration: const Duration(seconds: 5),
-              radius: 2.22,
-              colors: const [
-                Color(0xFFFF6A00),
-                Color(0xFFFFE100),
-              ],
+    return WillPopScope(
+      onWillPop: () async {
+        if (_isDeleting) return false;
+        return true;
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // Animated Gradient Background
+            Positioned.fill(
+              child: AnimatedGradientBackground(
+                duration: const Duration(seconds: 5),
+                radius: 2.22,
+                colors: const [
+                  Color(0xFFFF6A00),
+                  Color(0xFFFFE100),
+                ],
+              ),
             ),
-          ),
 
-          // Main Content
-          Column(
-            children: [
-              // Top Section with Image dan SafeArea
-              SafeArea(
-                bottom: false,
-                child: SizedBox(
-                  height: 280,
-                  child: Stack(
-                    children: [
-                      // Back Button
-                      Positioned(
-                        top: 16,
-                        left: 16,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.black),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-                      ),
-                      // Delete Button
-                      if (!_isEditing)
+            // Main Content
+            Column(
+              children: [
+                // Top Section with Image dan SafeArea
+                SafeArea(
+                  bottom: false,
+                  child: SizedBox(
+                    height: 280,
+                    child: Stack(
+                      children: [
+                        // Back Button
                         Positioned(
                           top: 16,
-                          right: 16,
+                          left: 16,
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.9),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: _deleteEvent,
+                              icon: const Icon(Icons.arrow_back, color: Colors.black),
+                              onPressed: _isDeleting ? null : () => Navigator.pop(context),
                             ),
                           ),
                         ),
-                      // Event Image
-                      Positioned.fill(
-                        child: Center(
-                          child: Image.asset(
-                            'assets/image/TaskDetailImage.png',
-                            height: 180,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.event,
-                                size: 100,
-                                color: Colors.white,
-                              );
-                            },
+                        // Delete Button
+                        if (!_isEditing && !_isDeleting)
+                          Positioned(
+                            top: 16,
+                            right: 16,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red),
+                                onPressed: _deleteEvent,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // White Content Section
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(40),
-                    topRight: Radius.circular(40),
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    color: Colors.white,
-                    child: SafeArea(
-                      top: false, // Hanya padding bawah
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(45, 43, 45, 32),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Title and Edit Button
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _event!['eventName'] ?? 'Unnamed Event',
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                          fontSize: 25,
-                                          fontFamily: 'SF Pro',
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        eventDate != null
-                                            ? 'On ${DateFormat('MMMM d, yyyy').format(eventDate)}'
-                                            : 'No date set',
-                                        style: const TextStyle(
-                                          color: Colors.black,
-                                          fontSize: 13,
-                                          fontFamily: 'SF Pro',
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  width: 31,
-                                  height: 31,
-                                  decoration: BoxDecoration(
-                                    color: _isEditing ? Colors.grey[200] : Colors.transparent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: IconButton(
-                                    padding: EdgeInsets.zero,
-                                    icon: Icon(
-                                      _isEditing ? Icons.close : Icons.edit,
-                                      color: Colors.black,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _isEditing = !_isEditing;
-                                        if (!_isEditing) {
-                                          _loadEvent();
-                                        }
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 28),
-
-                            // Event Name Field
-                            _buildField(
-                              label: 'Event Name',
-                              controller: _nameController,
-                              enabled: _isEditing,
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Event Type Field
-                            _buildField(
-                              label: 'Event Type',
-                              controller: _typeController,
-                              enabled: _isEditing,
-                              placeholder: 'e.g., Wedding, Birthday, Conference',
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Date Field (Read-only)
-                            _buildReadOnlyField(
-                              label: 'Event Date',
-                              value: eventDate != null
-                                  ? DateFormat('EEEE, MMMM d, yyyy').format(eventDate)
-                                  : 'No date set',
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Location Field
-                            _buildField(
-                              label: 'Location',
-                              controller: _locationController,
-                              enabled: _isEditing,
-                              placeholder: 'Event location',
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Description Field
-                            _buildField(
-                              label: 'Description',
-                              controller: _descriptionController,
-                              enabled: _isEditing,
-                              placeholder: 'Event description',
-                              maxLines: 3,
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Event Status Dropdown
-                            _buildStatusDropdown(
-                              label: 'Event Status',
-                              value: _selectedStatus,
-                              enabled: _isEditing,
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _selectedStatus = newValue;
-                                  });
-                                }
-                              },
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Collaborators Field (Read-only)
-                            _buildReadOnlyField(
-                              label: 'Collaborators',
-                              value: _collaboratorsText ?? 'Loading...',
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // Save Button (only when editing)
-                            if (_isEditing) ...[
-                              const SizedBox(height: 32),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  onPressed: _updateEvent,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFFE100),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Save Changes',
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 16,
-                                      fontFamily: 'SF Pro',
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                        // Loading indicator during deletion
+                        if (_isDeleting)
+                          Positioned(
+                            top: 16,
+                            right: 16,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.red[600]!),
                                   ),
                                 ),
                               ),
+                            ),
+                          ),
+                        // Event Image
+                        Positioned.fill(
+                          child: Center(
+                            child: Image.asset(
+                              'assets/image/TaskDetailImage.png',
+                              height: 180,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.event,
+                                  size: 100,
+                                  color: Colors.white,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // White Content Section
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      color: Colors.white,
+                      child: SafeArea(
+                        top: false,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(45, 43, 45, 32),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Title and Edit Button
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _event!['eventName'] ?? 'Unnamed Event',
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 25,
+                                            fontFamily: 'SF Pro',
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          eventDate != null
+                                              ? 'On ${DateFormat('MMMM d, yyyy').format(eventDate)}'
+                                              : 'No date set',
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 13,
+                                            fontFamily: 'SF Pro',
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 31,
+                                    height: 31,
+                                    decoration: BoxDecoration(
+                                      color: _isEditing ? Colors.grey[200] : Colors.transparent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      padding: EdgeInsets.zero,
+                                      icon: Icon(
+                                        _isEditing ? Icons.close : Icons.edit,
+                                        color: Colors.black,
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _isEditing = !_isEditing;
+                                          if (!_isEditing) {
+                                            _loadEvent();
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // Event Name Field
+                              _buildField(
+                                label: 'Event Name',
+                                controller: _nameController,
+                                enabled: _isEditing,
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Event Type Field
+                              _buildField(
+                                label: 'Event Type',
+                                controller: _typeController,
+                                enabled: _isEditing,
+                                placeholder: 'e.g., Wedding, Birthday, Conference',
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Date Field (Read-only)
+                              _buildReadOnlyField(
+                                label: 'Event Date',
+                                value: eventDate != null
+                                    ? DateFormat('EEEE, MMMM d, yyyy').format(eventDate)
+                                    : 'No date set',
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Location Field
+                              _buildField(
+                                label: 'Location',
+                                controller: _locationController,
+                                enabled: _isEditing,
+                                placeholder: 'Event location',
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Event Status Dropdown
+                              _buildStatusDropdown(
+                                label: 'Event Status',
+                                value: _selectedStatus,
+                                enabled: _isEditing,
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _selectedStatus = newValue;
+                                    });
+                                  }
+                                },
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Collaborators Field (Editable)
+                              _buildCollaboratorsField(
+                                label: 'Collaborators',
+                                enabled: _isEditing,
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              // Save Button (only when editing)
+                              if (_isEditing) ...[
+                                const SizedBox(height: 32),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: _updateEvent,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFFE100),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(25),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Save Changes',
+                                      style: TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                        fontFamily: 'SF Pro',
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
+              ],
+            ),
+
+            // Deletion overlay
+            if (_isDeleting)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Deleting event...',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -607,15 +784,202 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
+  Widget _buildCollaboratorsField({
+    required String label,
+    required bool enabled,
+  }) {
+    if (!enabled) {
+      // Read-only mode
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF616161),
+              fontSize: 14,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(
+                width: 2,
+                color: const Color(0xFFFFE100),
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _collaboratorNames.isEmpty
+                  ? '-'
+                  : _collaboratorNames.join(', '),
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Editable mode
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF616161),
+            fontSize: 14,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(width: 2, color: const Color(0xFFFFE100)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top row: Collaborators chips + buttons
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Collaborators chips (left side)
+                  Expanded(
+                    child: _collaborators.isEmpty
+                        ? const SizedBox.shrink()
+                        : Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: List.generate(
+                        _collaborators.length,
+                            (index) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFE100),
+                              border: Border.all(
+                                width: 1,
+                                color: Colors.black,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _collaborators[index],
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                    fontFamily: 'SF Pro',
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => _removeCollaborator(index),
+                                  child: Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.black.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                  // Buttons on the right (top)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Row(
+                      children: [
+                        // Remove button (-)
+                        if (_collaborators.isNotEmpty)
+                          GestureDetector(
+                            onTap: () =>
+                                _removeCollaborator(_collaborators.length - 1),
+                            child: Icon(
+                              Icons.remove_circle,
+                              color: Colors.red[600],
+                              size: 20,
+                            ),
+                          ),
+                        if (_collaborators.isNotEmpty)
+                          const SizedBox(width: 4),
+                        // Add button (+)
+                        GestureDetector(
+                          onTap: _addCollaborator,
+                          child: const Icon(
+                            Icons.add_circle,
+                            color: Color(0xFFFFE100),
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              // Spacing
+              if (_collaborators.isNotEmpty) const SizedBox(height: 8),
+
+              // Input field (bottom)
+              TextField(
+                controller: _collaboratorController,
+                decoration: InputDecoration(
+                  hintText: 'Email or username',
+                  hintStyle: TextStyle(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    fontSize: 13,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w600,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 13,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatusDropdown({
     required String label,
     required String value,
     required bool enabled,
     required ValueChanged<String?> onChanged,
   }) {
-    final statusOptions = ['Pending','Completed'];
-
-
+    final statusOptions = ['Pending', 'Completed'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,7 +1021,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   value: status,
                   child: Row(
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 12,
                         height: 12,
                       ),
@@ -673,7 +1037,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 12,
                   height: 12,
                 ),
@@ -701,6 +1065,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     _typeController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _collaboratorController.dispose();
     super.dispose();
   }
 }

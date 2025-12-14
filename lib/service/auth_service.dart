@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -432,6 +433,220 @@ class AuthService {
     } catch (e) {
       debugPrint('Error checking welcome screen status: $e');
       return false;
+    }
+  }
+
+
+  /// Delete account with comprehensive cleanup
+  Future<Map<String, dynamic>> deleteAccount({
+    required String password,
+    String? googleAccessToken,
+  }) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        return {'success': false, 'error': 'No user logged in'};
+      }
+
+      debugPrint('🗑️ Starting account deletion process for user: ${user.uid}');
+
+      // Step 1: Validate user authentication
+      final hasPassword = user.providerData.any((info) => info.providerId == 'password');
+      final hasGoogle = user.providerData.any((info) => info.providerId == 'google.com');
+
+      if (!hasPassword && !hasGoogle) {
+        return {'success': false, 'error': 'No authentication method found'};
+      }
+
+      // Step 2: Re-authenticate the user
+      try {
+        if (hasPassword) {
+          if (password.isEmpty) {
+            return {'success': false, 'error': 'Password required for account deletion'};
+          }
+          final credential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: password,
+          );
+          await user.reauthenticateWithCredential(credential);
+          debugPrint('✅ Re-authenticated with email/password');
+        } else if (hasGoogle) {
+          // For Google accounts, we could optionally require re-authentication
+          // but Firebase handles this differently for OAuth providers
+          debugPrint('✅ Google account detected - proceeding with deletion');
+        }
+      } catch (e) {
+        debugPrint('❌ Re-authentication failed: $e');
+        return {'success': false, 'error': 'Authentication failed. Please check your credentials.'};
+      }
+
+      // Step 3: Delete user data from Firestore
+      await _deleteUserData(user.uid);
+
+      // Step 4: Delete user authentication account
+      await user.delete();
+      debugPrint('✅ Firebase user account deleted');
+
+      // Step 5: Sign out
+      await signOut();
+
+      return {
+        'success': true,
+        'message': 'Account deleted successfully',
+      };
+    } on FirebaseAuthException catch (e) {
+      debugPrint('❌ Firebase Auth Error: ${e.code} - ${e.message}');
+      return {
+        'success': false,
+        'error': _handleDeleteAccountError(e),
+      };
+    } catch (e) {
+      debugPrint('❌ Unexpected error during account deletion: $e');
+      return {
+        'success': false,
+        'error': 'An unexpected error occurred. Please try again.',
+      };
+    }
+  }
+
+  /// Delete all user-related data from Firestore
+  Future<void> _deleteUserData(String userId) async {
+    try {
+      debugPrint('🗑️ Deleting user data for: $userId');
+
+      // Get user document reference
+      final userDocRef = firestore.collection('users').doc(userId);
+
+      // Start a transaction to ensure data consistency
+      await firestore.runTransaction((transaction) async {
+        // Delete notifications
+        await _deleteCollectionInTransaction(
+          transaction,
+          firestore.collection('notifications').where('userId', isEqualTo: userId),
+          'notifications',
+          userId,
+        );
+
+        // Delete chats where user is a participant
+        final chatsSnapshot = await firestore
+            .collection('chats')
+            .where('participants', arrayContains: userId)
+            .get();
+
+        for (var chatDoc in chatsSnapshot.docs) {
+          transaction.delete(chatDoc.reference);
+          debugPrint('  ✓ Deleted chat: ${chatDoc.id}');
+        }
+
+        // Delete messages
+        final messagesSnapshot = await firestore
+            .collection('messages')
+            .where('senderId', isEqualTo: userId)
+            .get();
+
+        for (var messageDoc in messagesSnapshot.docs) {
+          transaction.delete(messageDoc.reference);
+        }
+
+        // Delete events created by user
+        final eventsSnapshot = await firestore
+            .collection('events')
+            .where('createdBy', isEqualTo: userId)
+            .get();
+
+        for (var eventDoc in eventsSnapshot.docs) {
+          // Delete event subcollections
+          await _deleteEventSubcollections(eventDoc.reference);
+          transaction.delete(eventDoc.reference);
+          debugPrint('  ✓ Deleted event: ${eventDoc.id}');
+        }
+
+        // Delete user profile image from storage
+        await _deleteProfileImage(userId);
+
+        // Delete user document
+        transaction.delete(userDocRef);
+        debugPrint('  ✓ Deleted user document: $userId');
+      });
+
+      debugPrint('✅ All user data deleted successfully');
+    } catch (e) {
+      debugPrint('❌ Error deleting user data: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete event subcollections (vendors, tasks, budgets, guests)
+  Future<void> _deleteEventSubcollections(DocumentReference eventRef) async {
+    try {
+      final subcollections = ['vendors', 'tasks', 'budgets', 'guests'];
+
+      for (var subcollection in subcollections) {
+        final snapshot = await eventRef.collection(subcollection).get();
+        for (var doc in snapshot.docs) {
+          await doc.reference.delete();
+        }
+        debugPrint('  ✓ Deleted $subcollection subcollection');
+      }
+    } catch (e) {
+      debugPrint('Error deleting event subcollections: $e');
+    }
+  }
+
+  /// Delete profile image from Firebase Storage
+  Future<void> _deleteProfileImage(String userId) async {
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child(userId);
+
+      // List all profile images for this user
+      final listResult = await storageRef.listAll();
+
+      for (var file in listResult.items) {
+        await file.delete();
+        debugPrint('  ✓ Deleted profile image: ${file.name}');
+      }
+    } catch (e) {
+      // It's okay if the profile image doesn't exist
+      debugPrint('Note: Could not delete profile images: $e');
+    }
+  }
+
+  /// Delete a collection with transaction support (helper for cleanup)
+  Future<void> _deleteCollectionInTransaction(
+      Transaction transaction,
+      Query query,
+      String collectionName,
+      String userId,
+      ) async {
+    try {
+      final snapshot = await query.get();
+      for (var doc in snapshot.docs) {
+        transaction.delete(doc.reference);
+      }
+      debugPrint('  ✓ Deleted $collectionName');
+    } catch (e) {
+      debugPrint('Error deleting $collectionName: $e');
+    }
+  }
+
+  /// Handle specific delete account errors
+  String _handleDeleteAccountError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'requires-recent-login':
+        return 'Please sign out and sign in again before deleting your account.';
+      case 'user-mismatch':
+        return 'The credentials do not match the current user.';
+      case 'invalid-credential':
+        return 'Invalid password. Please check and try again.';
+      case 'operation-not-allowed':
+        return 'Account deletion is not enabled for this account type.';
+      case 'user-token-expired':
+        return 'Your session has expired. Please sign in again.';
+      default:
+        return e.message ?? 'Failed to delete account. Please try again.';
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 class EventService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -132,6 +133,17 @@ class EventService {
         await doc.reference.delete();
       }
       debugPrint('Deleted ${vendorsSnapshot.docs.length} vendors');
+
+      // Delete related guests
+      final guestsSnapshot = await _firestore
+          .collection('guests')
+          .where('eventId', isEqualTo: eventId)
+          .get();
+
+      for (var doc in guestsSnapshot.docs) {
+        await doc.reference.delete();
+      }
+      debugPrint('Deleted ${guestsSnapshot.docs.length} guests');
 
       // Delete the event
       await _firestore.collection('events').doc(eventId).delete();
@@ -300,6 +312,125 @@ class EventService {
         'Completed': 0,
         'Cancelled': 0,
       };
+    }
+  }
+
+  /// Auto-delete past events for a user
+  /// Call this periodically (e.g., when app starts, when user opens event list)
+  Future<int> autoDeletePastEvents(String userId) async {
+    try {
+      debugPrint('🗑️ Starting auto-delete past events for user: $userId');
+
+      final now = DateTime.now();
+      final pastThreshold = Timestamp.fromDate(now);
+
+      // Get all past events owned by this user
+      final ownerSnapshot = await _firestore
+          .collection('events')
+          .where('ownerId', isEqualTo: userId)
+          .where('eventDate', isLessThan: pastThreshold)
+          .get();
+
+      int deletedCount = 0;
+
+      for (var doc in ownerSnapshot.docs) {
+        final eventData = doc.data();
+        final eventName = eventData['eventName'] ?? 'Unknown Event';
+        final collaborators = List<String>.from(eventData['collaborators'] as List<dynamic>? ?? []);
+
+        // Send notification to owner
+        await _sendEventDeletedNotification(
+          userId: userId,
+          eventName: eventName,
+          eventId: doc.id,
+        );
+
+        // Send notification to all collaborators
+        for (String collaboratorId in collaborators) {
+          await _sendEventDeletedNotification(
+            userId: collaboratorId,
+            eventName: eventName,
+            eventId: doc.id,
+            isCollaborator: true,
+          );
+        }
+
+        // Delete the event (cascade delete)
+        await deleteEvent(doc.id);
+        deletedCount++;
+
+        debugPrint('✅ Auto-deleted past event: ${doc.id} ($eventName)');
+      }
+
+      if (deletedCount > 0) {
+        debugPrint('🎉 Auto-deleted $deletedCount past events');
+      }
+
+      return deletedCount;
+    } catch (e) {
+      debugPrint('❌ Error auto-deleting past events: $e');
+      return 0;
+    }
+  }
+
+  /// Send notification when event is auto-deleted
+  Future<void> _sendEventDeletedNotification({
+    required String userId,
+    required String eventName,
+    required String eventId,
+    bool isCollaborator = false,
+  }) async {
+    try {
+      final notificationId = _firestore.collection('notifications').doc().id;
+
+      await _firestore.collection('notifications').doc(notificationId).set({
+        'notificationId': notificationId,
+        'userId': userId,
+        'title': 'Event Ended',
+        'message': isCollaborator
+            ? '✓ "$eventName" has ended and been archived.'
+            : '✓ Your event "$eventName" has ended and been archived.',
+        'type': 'event',
+        'relatedId': eventId,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isAutoDeleted': true,
+      });
+
+      debugPrint('📧 Notification sent to $userId for deleted event: $eventName');
+    } catch (e) {
+      debugPrint('Error sending notification: $e');
+    }
+  }
+
+  /// Get list of auto-deleted events (for notification history)
+  Stream<QuerySnapshot> getAutoDeletedEventNotifications(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .where('type', isEqualTo: 'event')
+        .where('isAutoDeleted', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  /// Format time remaining until event
+  String formatTimeRemaining(DateTime eventDate) {
+    final now = DateTime.now();
+    final difference = eventDate.difference(now);
+
+    if (difference.isNegative) {
+      return '⏰ Event has ended';
+    }
+
+    if (difference.inDays > 0) {
+      return '⏰ In ${difference.inDays} day${difference.inDays > 1 ? 's' : ''}';
+    } else if (difference.inHours > 0) {
+      return '⏰ In ${difference.inHours} hour${difference.inHours > 1 ? 's' : ''}';
+    } else if (difference.inMinutes > 0) {
+      return '⏰ In ${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''}';
+    } else {
+      return '⏰ Starting now!';
     }
   }
 }
