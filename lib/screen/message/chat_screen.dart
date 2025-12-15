@@ -94,7 +94,7 @@ class _ChatScreenState extends State<ChatScreen> {
           (snapshot) {
         if (!mounted) return;
 
-        debugPrint('📨 Chats loaded: ${snapshot.docs.length}');
+        debugPrint(' Chats loaded: ${snapshot.docs.length}');
 
         setState(() {
           _chatList = snapshot.docs.map((doc) {
@@ -384,7 +384,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
 
-      debugPrint('📊 Results: ${userQuery.docs.length} found');
+      debugPrint(' Results: ${userQuery.docs.length} found');
 
       if (!mounted) return;
       Navigator.pop(context);
@@ -456,7 +456,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _navigateToRoomChat(String username, String chatId) async {
     try {
-      debugPrint('🔍 Looking up user: $username');
+      debugPrint(' Looking up user: $username');
 
       var userQuery = await _authService.firestore
           .collection('users')
@@ -475,14 +475,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (!mounted) return;
       if (userQuery.docs.isEmpty) {
-        debugPrint('❌ User lookup failed');
+        debugPrint(' User lookup failed');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('User not found')),
         );
         return;
       }
 
-      debugPrint('✅ User found!');
+      debugPrint(' User found!');
       final receiverUserId = userQuery.docs.first.id;
 
       Navigator.push(
@@ -664,7 +664,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     width: screenWidth * 0.065,
                     height: screenWidth * 0.065,
                     decoration: BoxDecoration(
-                      color: Color(0xFFFF9800), // Orange - sesuai theme app
+                      color: Color(0xFFFF9800),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: Colors.white,
@@ -777,7 +777,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   fontWeight: FontWeight.w500,
                 ),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.only(bottom: screenHeight * 0.017),
+                contentPadding: EdgeInsets.only(bottom: screenHeight * 0.01),
               ),
             ),
           ),

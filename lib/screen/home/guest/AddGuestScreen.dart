@@ -6,7 +6,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../model/guest_model.dart';
 
 class AddGuestScreen extends StatefulWidget {
-  const AddGuestScreen({super.key});
+  final String? guestId;
+  final GuestModel? existingGuest;
+  final String? eventId;
+
+  const AddGuestScreen({
+    super.key,
+    this.guestId,
+    this.existingGuest,
+    this.eventId,
+  });
 
   @override
   State<AddGuestScreen> createState() => _AddGuestScreenState();
@@ -25,8 +34,32 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
 
   String _selectedGender = 'Male';
   String _selectedAgeStatus = 'Adult';
+  String _selectedGuestStatus = 'Pending'; // ✨ NEW: Guest status
 
   bool _isSaving = false;
+  bool _isEditMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingGuest != null) {
+      _loadExistingGuest();
+      _isEditMode = true;
+    }
+  }
+
+  void _loadExistingGuest() {
+    final guest = widget.existingGuest!;
+    _nameController.text = guest.name;
+    _groupController.text = guest.group;
+    _phoneNumberController.text = guest.phoneNumber ?? '';
+    _emailController.text = guest.email ?? '';
+    _addressController.text = guest.address ?? '';
+    _noteController.text = guest.note ?? '';
+    _selectedGender = guest.gender;
+    _selectedAgeStatus = guest.ageStatus[0].toUpperCase() + guest.ageStatus.substring(1);
+    _selectedGuestStatus = guest.status ?? 'Pending'; // ✨ Load status
+  }
 
   @override
   void dispose() {
@@ -53,43 +86,82 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
       final user = _authService.currentUser;
       if (user == null) throw "User not logged in";
 
-      final guestId = _firestore.collection('guests').doc().id;
+      if (_isEditMode && widget.guestId != null) {
+        // ✨ UPDATE existing guest
+        await _firestore
+            .collection('guests')
+            .doc(widget.guestId)
+            .update({
+          'name': _nameController.text.trim(),
+          'gender': _selectedGender,
+          'ageStatus': _selectedAgeStatus.toLowerCase(),
+          'group': _groupController.text.trim().isEmpty
+              ? "General"
+              : _groupController.text.trim(),
+          'phoneNumber': _phoneNumberController.text.trim().isEmpty
+              ? null
+              : _phoneNumberController.text.trim(),
+          'email': _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          'address': _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
+          'note': _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+          'status': _selectedGuestStatus, // ✨ Update status
+          'updatedAt': DateTime.now(),
+        });
 
-      final guest = GuestModel(
-        guestId: guestId,
-        name: _nameController.text.trim(),
-        gender: _selectedGender,
-        ageStatus: _selectedAgeStatus.toLowerCase(),
-        group: _groupController.text.trim().isEmpty
-            ? "General"
-            : _groupController.text.trim(),
-        phoneNumber: _phoneNumberController.text.trim().isEmpty
-            ? null
-            : _phoneNumberController.text.trim(),
-        email: _emailController.text.trim().isEmpty
-            ? null
-            : _emailController.text.trim(),
-        address: _addressController.text.trim().isEmpty
-            ? null
-            : _addressController.text.trim(),
-        note: _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-        createdBy: user.uid,
-        createdAt: DateTime.now(),
-        eventInvitations: [],
-      );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Guest updated successfully!")),
+          );
+          Navigator.pop(context, true); // Return true to indicate update
+        }
+      } else {
+        // ✨ CREATE new guest
+        final guestId = _firestore.collection('guests').doc().id;
 
-      await _firestore
-          .collection('guests')
-          .doc(guestId)
-          .set(guest.toMap());
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Guest added successfully!")),
+        final guest = GuestModel(
+          guestId: guestId,
+          name: _nameController.text.trim(),
+          gender: _selectedGender,
+          ageStatus: _selectedAgeStatus.toLowerCase(),
+          group: _groupController.text.trim().isEmpty
+              ? "General"
+              : _groupController.text.trim(),
+          phoneNumber: _phoneNumberController.text.trim().isEmpty
+              ? null
+              : _phoneNumberController.text.trim(),
+          email: _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          address: _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
+          note: _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+          status: _selectedGuestStatus,
+          createdBy: user.uid,
+          createdAt: DateTime.now(),
+          eventId: widget.eventId ?? '',
+          eventInvitations: [],
         );
-        Navigator.pop(context);
+
+        await _firestore
+            .collection('guests')
+            .doc(guestId)
+            .set(guest.toMap());
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Guest added successfully!")),
+          );
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -105,57 +177,68 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedGradientBackground(
-        child: SafeArea(
-          child: Column(
+      body: Stack(
+        children: [
+          // Gradient Background
+          AnimatedGradientBackground(),
+
+          Column(
             children: [
               // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 24),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Add a New Guest',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 25,
-                          fontFamily: 'SF Pro',
-                          fontWeight: FontWeight.w900,
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 24),
                         ),
                       ),
-                    ),
-                    GestureDetector(
-                      onTap: _isSaving ? null : _saveGuest,
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _isEditMode ? 'Edit Guest' : 'Add a New Guest',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 25,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                        child: const Icon(Icons.save, color: Colors.white, size: 24),
                       ),
-                    ),
-                  ],
+                      GestureDetector(
+                        onTap: _isSaving ? null : _saveGuest,
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _isSaving ? Icons.hourglass_empty : Icons.save,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
-              // Form Content
+              // Form Content (Gradient Background)
               Expanded(
+                flex: 2,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
@@ -193,14 +276,95 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                       _buildSectionTitle("Note"),
                       _buildTextField(_noteController, "Type here", maxLines: 3),
 
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 30),
                     ],
+                  ),
+                ),
+              ),
+
+              // Status Section (White Card - like CreateBudgetScreen)
+              Expanded(
+                flex: 1,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
+                  decoration: const ShapeDecoration(
+                    color: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(40),
+                        topRight: Radius.circular(40),
+                      ),
+                    ),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ✨ Status Section Label
+                        const Text(
+                          'Guest Status',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontFamily: 'SF Pro',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        //  Status Buttons
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: ['Not Sent', 'Pending', 'Accepted', 'Rejected']
+                              .map((status) {
+                            final isSelected = _selectedGuestStatus == status;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedGuestStatus = status;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? Colors.black
+                                      : Colors.white,
+                                  border: Border.all(
+                                    width: 1.5,
+                                    color: Colors.black,
+                                  ),
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontSize: 13,
+                                    fontFamily: 'SF Pro',
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -219,8 +383,11 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint,
-      {int maxLines = 1}) {
+  Widget _buildTextField(
+      TextEditingController controller,
+      String hint, {
+        int maxLines = 1,
+      }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -244,7 +411,10 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
   }
 
   Widget _buildToggleButtons(
-      List<String> options, String selected, Function(String) onSelect) {
+      List<String> options,
+      String selected,
+      Function(String) onSelect,
+      ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(

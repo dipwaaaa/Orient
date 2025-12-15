@@ -1,4 +1,6 @@
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class EventInvitation {
   final String eventId;
@@ -42,8 +44,11 @@ class GuestModel {
   final String? email;
   final String? address;
   final String? note;
+  final String? status; //  Not Sent/Pending/Accepted/Rejected
   final String createdBy;
   final DateTime createdAt;
+  final DateTime? updatedAt; //  Track when guest was last updated
+  final String? eventId; //  Link guest to specific event
   final List<EventInvitation> eventInvitations;
 
   GuestModel({
@@ -56,8 +61,11 @@ class GuestModel {
     this.email,
     this.address,
     this.note,
+    this.status = 'Pending', //  Default status
     required this.createdBy,
     required this.createdAt,
+    this.updatedAt, //  Optional update timestamp
+    this.eventId, //  Optional event ID
     required this.eventInvitations,
   });
 
@@ -72,8 +80,11 @@ class GuestModel {
       'email': email,
       'address': address,
       'note': note,
+      'status': status, //
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null, // ✨ NEW
+      'eventId': eventId, //  Add eventId to map
       'eventInvitations': eventInvitations.map((e) => e.toMap()).toList(),
     };
   }
@@ -89,11 +100,45 @@ class GuestModel {
       email: map['email'],
       address: map['address'],
       note: map['note'],
+      status: map['status'] ?? 'Pending', // Default to Pending if not set
       createdBy: map['createdBy'] ?? '',
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      updatedAt: map['updatedAt'] != null ? (map['updatedAt'] as Timestamp).toDate() : null, // ✨ NEW
+      eventId: map['eventId'], // Get eventId from map
       eventInvitations: (map['eventInvitations'] as List?)
           ?.map((e) => EventInvitation.fromMap(e))
           .toList() ?? [],
     );
+  }
+
+  /// Helper method: Get status color
+  static Color getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'not sent':
+        return Colors.grey;
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  ///  Helper method: Check if guest RSVP'd
+  bool isConfirmed() {
+    return status?.toLowerCase() == 'accepted';
+  }
+
+  /// Helper method: Check if guest declined
+  bool isRejected() {
+    return status?.toLowerCase() == 'rejected';
+  }
+
+  /// Helper method: Check if guest needs follow-up
+  bool needsFollowUp() {
+    return status?.toLowerCase() == 'pending' || status?.toLowerCase() == 'not sent';
   }
 }

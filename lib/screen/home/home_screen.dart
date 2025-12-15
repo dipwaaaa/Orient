@@ -437,6 +437,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     AppResponsive.init(context);
 
@@ -468,6 +469,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 24),
                   if (_currentEventId != null)
                     _buildBudgetSection(),
+                  SizedBox(height: 24),
+                  // ✨ ADD GUEST SECTION
+                  if (_currentEventId != null)
+                    _buildGuestSection(),
+                  SizedBox(height: 24),
+                  // ✨ ADD VENDOR SECTION
+                  if (_currentEventId != null)
+                    _buildVendorSection(),
                   SizedBox(height: 24),
                 ],
               ),
@@ -515,9 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ============================================================
-  // BUDGET SECTION
-  // ============================================================
+
   Widget _buildBudgetSection() {
     return Container(
       width: double.infinity,
@@ -666,6 +673,436 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+  /// Build Guest Statistics Section
+  Widget _buildGuestSection() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsivePadding(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Guest',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GuestPageScreen(
+                        eventId: _currentEventId,
+                        eventName: _currentEventName,
+                      ),
+                    ),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'View all',
+                      style: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        fontSize: 14,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.black.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          _buildGuestStatsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGuestStatsCard() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _currentEventId != null
+          ? _firestore
+          .collection('guests')
+          .where('eventId', isEqualTo: _currentEventId)
+          .where('createdBy', isEqualTo: _authService.currentUser?.uid ?? '')
+          .snapshots()
+          : Stream.empty(),
+      builder: (context, snapshot) {
+        int notSent = 0;
+        int pending = 0;
+        int accepted = 0;
+        int rejected = 0;
+
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            final status = doc['status'] ?? 'Pending';
+            switch (status.toString().toLowerCase()) {
+              case 'not sent':
+                notSent++;
+                break;
+              case 'pending':
+                pending++;
+                break;
+              case 'accepted':
+                accepted++;
+                break;
+              case 'rejected':
+                rejected++;
+                break;
+            }
+          }
+        }
+
+        return Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: Colors.grey.withValues(alpha: 0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildGuestStatRow(
+                icon: Icons.mail_outline,
+                label: 'Not Sent',
+                count: notSent,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 12),
+              _buildGuestStatRow(
+                icon: Icons.schedule,
+                label: 'Pending',
+                count: pending,
+                color: Colors.orange,
+              ),
+              SizedBox(height: 12),
+              _buildGuestStatRow(
+                icon: Icons.check_circle_outline,
+                label: 'Accepted',
+                count: accepted,
+                color: Colors.green,
+              ),
+              SizedBox(height: 12),
+              _buildGuestStatRow(
+                icon: Icons.cancel_outlined,
+                label: 'Rejected',
+                count: rejected,
+                color: Colors.red,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGuestStatRow({
+    required IconData icon,
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 14,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Text(
+          '$count/0',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Build Vendor Statistics Section
+  Widget _buildVendorSection() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsivePadding(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Vendor',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 20,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VendorPageScreen(
+                        eventId: _currentEventId,
+                        eventName: _currentEventName,
+                      ),
+                    ),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'View all',
+                      style: TextStyle(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        fontSize: 14,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.black.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          _buildVendorStatsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVendorStatsCard() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _currentEventId != null
+          ? _firestore
+          .collection('vendors')
+          .where('eventId', isEqualTo: _currentEventId)
+          .where('createdBy', isEqualTo: _authService.currentUser?.uid ?? '')
+          .snapshots()
+          : Stream.empty(),
+      builder: (context, snapshot) {
+        double totalBudget = 0;
+        double paidAmount = 0;
+        double unpaidAmount = 0;
+        int notContacted = 0;
+        int contacted = 0;
+        int reserved = 0;
+        int rejected = 0;
+
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            totalBudget += (data['totalCost'] ?? 0).toDouble();
+            paidAmount += (data['paidAmount'] ?? 0).toDouble();
+            unpaidAmount += (data['pendingAmount'] ?? 0).toDouble();
+
+            final status = data['agreementStatus'] ?? 'pending';
+            switch (status.toString().toLowerCase()) {
+              case 'not contacted':
+                notContacted++;
+                break;
+              case 'contacted':
+                contacted++;
+                break;
+              case 'reserved':
+                reserved++;
+                break;
+              case 'rejected':
+                rejected++;
+                break;
+            }
+          }
+        }
+
+        return Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: Colors.grey.withValues(alpha: 0.2),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 8),
+              _buildVendorBudgetRow(
+                label: 'Budget',
+                amount: _formatCurrency(totalBudget),
+              ),
+              _buildVendorBudgetRow(
+                label: 'Paid',
+                amount: _formatCurrency(paidAmount),
+              ),
+              _buildVendorBudgetRow(
+                label: 'Not Paid',
+                amount: _formatCurrency(unpaidAmount),
+              ),
+              SizedBox(height: 16),
+
+              // Status Summary
+              Text(
+                'Status',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 12,
+                  fontFamily: 'SF Pro',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildVendorStatusBadge('Not Contacted', Colors.grey),
+                  SizedBox(width: 8),
+                  _buildVendorStatusBadge('Contacted', Color(0xFFFFE100)),
+                  SizedBox(width: 8),
+                  _buildVendorStatusBadge('Reserved', Colors.green),
+                  SizedBox(width: 8),
+                  _buildVendorStatusBadge('Rejected', Colors.red),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildVendorBudgetRow({
+    required String label,
+    required String amount,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 13,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Text(
+          amount,
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 13,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVendorStatusBadge(String status, Color color) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+        ),
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color,
+                ),
+              ),
+              SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontFamily: 'SF Pro',
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+
+
 
   Widget _buildTaskSection() {
     return Container(
@@ -1118,7 +1555,10 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const GuestPageScreen(),
+                  builder: (context) => GuestPageScreen(
+                    eventId: _currentEventId,
+                    eventName: _currentEventName,
+                  ),
                 ),
               );
             },

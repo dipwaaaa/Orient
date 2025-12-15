@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:untitled/service/auth_service.dart';
 import '../../../model/guest_model.dart';
 import 'AddGuestScreen.dart';
+import 'guest_detail_screen.dart';
 import '../../../widget/profile_menu.dart';
 
 class GuestPageScreen extends StatefulWidget {
@@ -30,9 +31,21 @@ class _GuestPageScreenState extends State<GuestPageScreen>
   late AnimationController _fabAnimationController;
   late Animation<double> _fabScaleAnimation;
 
+  // ✨ Event Selection State - same as TaskScreen
+  late String? _selectedEventId;
+  late String _selectedEventName;
+
   @override
   void initState() {
     super.initState();
+    // ✨ Initialize with passed eventId/eventName from HomeScreen carousel
+    _selectedEventId = widget.eventId;
+    _selectedEventName = widget.eventName ?? '';
+
+    debugPrint('🎯 GuestPageScreen initialized:');
+    debugPrint('   eventId: $_selectedEventId');
+    debugPrint('   eventName: $_selectedEventName');
+
     _loadUserData();
 
     // Setup FAB Animation
@@ -103,13 +116,43 @@ class _GuestPageScreenState extends State<GuestPageScreen>
         child: Column(
           children: [
             _buildHeader(screenWidth),
-            Expanded(
-              child: _buildGuestList(user.uid),
-            ),
+            // ✨ Only show guest list if eventId is selected
+            if (_selectedEventId != null && _selectedEventId!.isNotEmpty)
+              Expanded(
+                child: _buildGuestList(user.uid),
+              )
+            else
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.event_note,
+                        size: 64,
+                        color: Colors.black.withOpacity(0.2),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Please select an event',
+                        style: TextStyle(
+                          color: Colors.black.withOpacity(0.3),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'SF Pro',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
-      floatingActionButton: _buildTwitterStyleFAB(),
+      floatingActionButton:
+      (_selectedEventId != null && _selectedEventId!.isNotEmpty)
+          ? _buildTwitterStyleFAB()
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -122,14 +165,14 @@ class _GuestPageScreenState extends State<GuestPageScreen>
         padding: const EdgeInsets.only(bottom: 70, right: 16),
         child: GestureDetector(
           onTap: () {
-            // Add haptic feedback
             HapticFeedback.mediumImpact();
 
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const AddGuestScreen()),
+              MaterialPageRoute(
+                builder: (_) => AddGuestScreen(eventId: _selectedEventId),
+              ),
             ).then((_) {
-              // Restart animation when returning
               _fabAnimationController.reset();
               _fabAnimationController.forward();
             });
@@ -151,9 +194,9 @@ class _GuestPageScreenState extends State<GuestPageScreen>
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: null, // Handled by GestureDetector above
+                onTap: null,
                 borderRadius: BorderRadius.circular(28),
-                child: Center(
+                child: const Center(
                   child: Icon(
                     Icons.add,
                     color: Colors.black,
@@ -168,7 +211,7 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
-  /// Header matching TaskScreen style
+  /// Header with Event Info - Same as TaskScreen style
   Widget _buildHeader(double screenWidth) {
     return Padding(
       padding: EdgeInsets.all(15),
@@ -195,7 +238,7 @@ class _GuestPageScreenState extends State<GuestPageScreen>
             ),
           ),
 
-          // Title Section
+          // Title Section - ✨ Shows current event from carousel
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(left: 1),
@@ -212,14 +255,19 @@ class _GuestPageScreenState extends State<GuestPageScreen>
                     ),
                   ),
                   SizedBox(height: 4),
+                  // ✨ Shows selected event name from carousel
                   Text(
-                    DateFormat('For MMMM d, yyyy').format(DateTime.now()),
+                    _selectedEventId != null && _selectedEventId!.isNotEmpty
+                        ? 'For $_selectedEventName'
+                        : 'No event selected',
                     style: TextStyle(
                       color: Colors.black,
                       fontSize: 13,
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -263,7 +311,6 @@ class _GuestPageScreenState extends State<GuestPageScreen>
                       );
                       return;
                     }
-                    // Open ProfileMenu
                     ProfileMenu.show(context, _authService, _username);
                   },
                   child: AvatarWidgetCompact(
@@ -279,13 +326,27 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
+  /// Build Guest List - ✨ ONLY shows guests for selected eventId
   Widget _buildGuestList(String userId) {
+    // ✨ IMPORTANT: Query ONLY guests for this specific event
+    // This is the KEY FIX - filter by eventId like TaskScreen does
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
+      stream: _selectedEventId != null && _selectedEventId!.isNotEmpty
+          ? _firestore
           .collection('guests')
           .where('createdBy', isEqualTo: userId)
-          .snapshots(),
+          .where('eventId', isEqualTo: _selectedEventId) // ✨ FILTER BY EVENT!
+          .snapshots()
+          : Stream.empty(),
       builder: (context, snapshot) {
+        debugPrint('📊 Guest Stream Update:');
+        debugPrint('   State: ${snapshot.connectionState}');
+        debugPrint('   Has Error: ${snapshot.hasError}');
+        if (snapshot.hasData) {
+          debugPrint('   Docs Count: ${snapshot.data?.docs.length ?? 0}');
+          debugPrint('   Event Filter: $_selectedEventId');
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
             child: CircularProgressIndicator(
@@ -295,10 +356,13 @@ class _GuestPageScreenState extends State<GuestPageScreen>
         }
 
         if (snapshot.hasError) {
+          debugPrint('❌ Stream Error: ${snapshot.error}');
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
         final docs = snapshot.data?.docs ?? [];
+
+        debugPrint('✅ Loaded ${docs.length} guests for event $_selectedEventId');
 
         if (docs.isEmpty) {
           return _buildEmptyState();
@@ -329,6 +393,12 @@ class _GuestPageScreenState extends State<GuestPageScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Icon(
+            Icons.people,
+            size: 64,
+            color: Colors.black.withOpacity(0.2),
+          ),
+          SizedBox(height: 16),
           Text(
             'There are no guests',
             style: TextStyle(
@@ -343,67 +413,93 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
+  /// Guest Tile - ✨ Navigates to GuestDetailScreen
   Widget _buildGuestTile(GuestModel guest) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GuestDetailScreen(guest: guest),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: _getGenderColor(guest.gender),
-            child: Text(
-              guest.name.isNotEmpty ? guest.name[0].toUpperCase() : "?",
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+        ).then((result) {
+          if (result == true) {
+            // Refresh list after edit/delete
+            setState(() {});
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Avatar
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: _getGenderColor(guest.gender),
+              child: Text(
+                guest.name.isNotEmpty ? guest.name[0].toUpperCase() : "?",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-          // Name & Status
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  guest.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: Colors.black,
+            // Name & Status
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    guest.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "No event added",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black.withOpacity(0.5),
+                  const SizedBox(height: 4),
+                  // ✨ Status Badge
+                  Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(guest.status ?? 'Pending')
+                          .withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      guest.status ?? 'Pending',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(guest.status ?? 'Pending'),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Arrow Icon
-          Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-        ],
+            // Arrow Icon
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+          ],
+        ),
       ),
     );
   }
@@ -416,6 +512,21 @@ class _GuestPageScreenState extends State<GuestPageScreen>
         return Colors.pink.shade400;
       default:
         return Colors.grey.shade600;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'not sent':
+        return Colors.grey;
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 }
