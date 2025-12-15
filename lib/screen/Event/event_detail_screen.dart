@@ -16,10 +16,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _typeController = TextEditingController();
+  String _selectedEventType = 'General';
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _collaboratorController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
+
 
   Map<String, dynamic>? _event;
   List<String> _collaborators = []; // List of collaborator identifiers
@@ -33,6 +35,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   void initState() {
     super.initState();
     _loadEvent();
+  }
+
+  String _formatCurrency(double amount) {
+    if (amount == 0) return 'Rp0';
+    return 'Rp${amount.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+          (m) => '.',
+    )}';
   }
 
   Future<void> _loadEvent() async {
@@ -50,9 +60,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           _event = eventData;
           _collaborators = collaboratorIds;
           _nameController.text = eventData['eventName'] ?? '';
-          _typeController.text = eventData['eventType'] ?? '';
+          _selectedEventType = eventData['eventType'] ?? 'General';
           _descriptionController.text = eventData['description'] ?? '';
           _locationController.text = eventData['eventLocation'] ?? '';
+          _budgetController.text = (eventData['budget'] ?? 0.0).toString();
           _selectedStatus = eventData['eventStatus'] ?? 'Pending';
           _isLoading = false;
         });
@@ -190,12 +201,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         }
       }
 
+      double budgetValue = 0.0;
+      if (_budgetController.text.trim().isNotEmpty) {
+        budgetValue = double.tryParse(_budgetController.text.trim()) ?? 0.0;
+      }
+
       await _firestore.collection('events').doc(widget.eventId).update({
         'eventName': _nameController.text.trim(),
-        'eventType': _typeController.text.trim(),
+        'eventType': _selectedEventType,
         'description': _descriptionController.text.trim(),
         'eventLocation': _locationController.text.trim(),
         'eventStatus': _selectedStatus,
+        'budget': budgetValue,
         'collaborators': validCollaboratorIds,
         'updatedAt': Timestamp.now(),
       });
@@ -565,12 +582,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                               const SizedBox(height: 12),
 
                               // Event Type Field
-                              _buildField(
-                                label: 'Event Type',
-                                controller: _typeController,
-                                enabled: _isEditing,
-                                placeholder: 'e.g., Wedding, Birthday, Conference',
-                              ),
+
+                                _buildEventTypeDropdown(),
+
 
                               const SizedBox(height: 12),
 
@@ -580,6 +594,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 value: eventDate != null
                                     ? DateFormat('EEEE, MMMM d, yyyy').format(eventDate)
                                     : 'No date set',
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              _buildField(
+                                label: 'Event Budget',
+                                controller: _budgetController,
+                                enabled: _isEditing,
+                                placeholder: 'e.g., 5000000',
+                                keyboardType: TextInputType.number,
                               ),
 
                               const SizedBox(height: 12),
@@ -692,6 +716,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     required bool enabled,
     String? placeholder,
     int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text, // ✨ NEW
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -719,6 +744,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             controller: controller,
             enabled: enabled,
             maxLines: maxLines,
+            keyboardType: keyboardType, // ✨ NEW
             style: const TextStyle(
               color: Colors.black,
               fontSize: 14,
@@ -1059,12 +1085,84 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
+  Widget _buildEventTypeDropdown() {
+    final eventTypes = ['General', 'Wedding', 'Birthday', 'Conference', 'Corporate', 'Celebration', 'Other'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Event Type',
+          style: TextStyle(
+            color: Color(0xFF616161),
+            fontSize: 14,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(
+              width: 2,
+              color: const Color(0xFFFFE100),
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: _isEditing
+              ? DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedEventType,
+              isExpanded: true,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w600,
+              ),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedEventType = newValue;
+                  });
+                }
+              },
+              items: eventTypes.map<DropdownMenuItem<String>>((String eventType) {
+                return DropdownMenuItem<String>(
+                  value: eventType,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(eventType),
+                  ),
+                );
+              }).toList(),
+            ),
+          )
+              : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Text(
+              _selectedEventType,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
   @override
   void dispose() {
-    _nameController.dispose();
-    _typeController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _budgetController.dispose(); // ✨ NEW
     _collaboratorController.dispose();
     super.dispose();
   }

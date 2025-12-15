@@ -10,6 +10,7 @@ class EventModel {
   final String ownerId;
   final List<String> collaborators;
   final String eventStatus; // pending, ongoing, completed, cancelled
+  final double budget;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -23,6 +24,7 @@ class EventModel {
     required this.ownerId,
     required this.collaborators,
     this.eventStatus = 'Pending', // Default value
+    this.budget = 0.0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -38,6 +40,7 @@ class EventModel {
       'ownerId': ownerId,
       'collaborators': collaborators,
       'eventStatus': eventStatus,
+      'budget': budget,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -54,6 +57,7 @@ class EventModel {
       ownerId: map['ownerId'] ?? '',
       collaborators: List<String>.from(map['collaborators'] ?? []),
       eventStatus: map['eventStatus'] ?? 'Pending',
+      budget: (map['budget'] ?? 0.0).toDouble(),
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       updatedAt: (map['updatedAt'] as Timestamp).toDate(),
     );
@@ -68,6 +72,7 @@ class EventModel {
     required String description,
     required String ownerId,
     List<String>? collaborators,
+    double? budget, // ✨ NEW
   }) {
     final now = DateTime.now();
     return EventModel(
@@ -80,6 +85,7 @@ class EventModel {
       ownerId: ownerId,
       collaborators: collaborators ?? [],
       eventStatus: 'Pending', // Always starts as Pending
+      budget: budget ?? 0.0,
       createdAt: now,
       updatedAt: now,
     );
@@ -96,6 +102,7 @@ class EventModel {
     String? ownerId,
     List<String>? collaborators,
     String? eventStatus,
+    double? budget,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -109,8 +116,20 @@ class EventModel {
       ownerId: ownerId ?? this.ownerId,
       collaborators: collaborators ?? this.collaborators,
       eventStatus: eventStatus ?? this.eventStatus,
+      budget: budget ?? this.budget,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  /// Helper: Format budget as currency
+  String formatBudget() {
+    if (budget == 0) return 'No budget set';
+    return 'Rp${budget.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}';
+  }
+
+  /// Helper: Check if budget is set
+  bool hasBudget() {
+    return budget > 0;
   }
 }

@@ -23,6 +23,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _collaboratorController = TextEditingController();
 
+  String _selectedEventType = 'General';
+
   // Form state
   DateTime? _selectedDate;
   String _selectedStatus = 'Pending';
@@ -164,7 +166,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       final result = await _eventService.createEvent(
         eventName: _nameController.text.trim(),
         eventDate: _selectedDate!,
-        eventType: 'General',
+        eventType: _selectedEventType,
         eventLocation: _locationController.text.trim(),
         description: '',
         ownerId: user.uid,
@@ -283,8 +285,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           _nameController,
                         ),
                         const SizedBox(height: 15),
+
+                        _buildEventTypeDropdown(),
+                        const SizedBox(height: 15),
+
                         _buildDateField(),
                         const SizedBox(height: 15),
+
                         _buildTextField(
                           'Budget',
                           'Type here',
@@ -292,6 +299,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 15),
+
                         _buildTextField(
                           'Location',
                           'Type here',
@@ -302,7 +310,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         // Collaborators Section
                         _buildCollaboratorsSection(),
 
-                        const SizedBox(height: 280), // Space untuk status section
+                        const SizedBox(height: 280),
                       ],
                     ),
                   ),
@@ -656,6 +664,62 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           'assets/image/AddTaskImageCat.png',
           height: 110,
           fit: BoxFit.contain,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventTypeDropdown() {
+    final eventTypes = ['General', 'Wedding', 'Birthday', 'Conference', 'Corporate', 'Celebration', 'Other'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Event Type',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 9),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(width: 2, color: Colors.black),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedEventType,
+              isExpanded: true,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.black, size: 24),
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 13,
+                fontFamily: 'SF Pro',
+                fontWeight: FontWeight.w600,
+              ),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedEventType = newValue;
+                  });
+                }
+              },
+              items: eventTypes.map<DropdownMenuItem<String>>((String eventType) {
+                return DropdownMenuItem<String>(
+                  value: eventType,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: Text(eventType),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         ),
       ],
     );
