@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../utilty/google_password_user.dart';
+import '../../widget/change_password_dialog.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/notification_service.dart';
 import 'package:untitled/model/notification_model.dart';
@@ -15,9 +17,9 @@ class ProfileScreen extends StatefulWidget {
   final AuthService authService;
 
   const ProfileScreen({
-    Key? key,
+    super.key,
     required this.authService,
-  }) : super(key: key);
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -36,12 +38,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _originalName;
   String? _originalEmail;
   String? _profileImageUrl;
-  bool _isGoogleUser = false;
   bool _hasPassword = false;
 
   // Notification Service
   late NotificationService _notificationService;
-  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
@@ -55,7 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = widget.authService.currentUser;
     if (user != null) {
       try {
-        _isGoogleUser = user.providerData.any((info) => info.providerId == 'google.com');
         _hasPassword = user.providerData.any((info) => info.providerId == 'password');
 
         final userDoc = await widget.authService.firestore
@@ -65,13 +64,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (userDoc.exists) {
           final data = userDoc.data();
-          final name = data?['username'] ?? '';
+          final username = data?['username'] ?? '';
           final profileImg = data?['profileImageUrl'];
           final notifications = data?['notificationsEnabled'] ?? true;
 
           setState(() {
-            _nameController.text = name;
-            _originalName = name;
+            _nameController.text = username;
+            _originalName = username;
             _notificationsEnabled = notifications;
 
             if (profileImg != null && profileImg.isNotEmpty) {
@@ -108,7 +107,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final count = await _notificationService.getUnreadCount(user.uid);
         setState(() {
-          _unreadNotificationsCount = count;
         });
         debugPrint('Unread notifications: $count');
       } catch (e) {
@@ -164,8 +162,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await storageRef.putFile(File(image.path), metadata);
       final downloadUrl = await storageRef.getDownloadURL();
 
-      debugPrint('✅ Profile image uploaded successfully');
-      debugPrint('   Download URL: ${downloadUrl.substring(0, 50)}...\n');
+      debugPrint(' Profile image uploaded successfully');
+      debugPrint(' Download URL: ${downloadUrl.substring(0, 50)}...\n');
 
       await widget.authService.firestore
           .collection('users')
@@ -192,7 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
-      debugPrint('❌ Error uploading profile image: $e\n');
+      debugPrint(' Error uploading profile image: $e\n');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -236,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (nameQuery.docs.isNotEmpty) {
           if (nameQuery.docs.first.id != user.uid) {
-            throw Exception('Name is already taken');
+            throw Exception('Username is already taken');
           }
         }
 
@@ -306,7 +304,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
           throw Exception('Password must contain letters, numbers, and symbols');
         }
 
-        await user.updatePassword(newPassword);
+        final isGoogleUser = user.providerData
+            .any((info) => info.providerId == 'google.com');
+        final hasPassword = user.providerData
+            .any((info) => info.providerId == 'password');
+
+        if (isGoogleUser && !hasPassword) {
+          final result = await GoogleUserPasswordFix
+              .updatePasswordForGoogleUser(
+            user: user,
+            newPassword: newPassword,
+          );
+
+          if (!result['success']) {
+            throw Exception(result['error']);
+          }
+        } else {
+          // Regular password update untuk non-Google users
+          await user.updatePassword(newPassword);
+        }
+
         _passwordController.clear();
 
         setState(() {
@@ -362,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Show delete account confirmation dialog
+  /// Show delete acc dialog
   void _showDeleteAccountDialog() {
     showDialog(
       context: context,
@@ -377,11 +394,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  ///Show change pass dialog
+  void _showChangePasswordDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return ChangePasswordDialog(
+          authService: widget.authService,
+          userEmail: _emailController.text,
+        );
+      },
+    );
+  }
+
   /// Handle successful account deletion
   Future<void> _handleDeleteSuccess() async {
     if (!mounted) return;
 
-    // Clear all navigation stack and go to login
+    // Go to login after deleting acc
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => LoginScreen()),
@@ -390,7 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Build delete account button
+
   Widget _buildDeleteAccountButton() {
     return SizedBox(
       width: double.infinity,
@@ -461,57 +492,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icon(Icons.arrow_back, color: Colors.black),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          title: Text(
-            _isEditMode ? 'Cancel' : 'Back',
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           centerTitle: false,
           actions: [
-            if (!_isEditMode)
-              Stack(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.notifications, color: Colors.black, size: 24),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NotificationScreenPage(
-                            userId: widget.authService.currentUser?.uid ?? '',
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  if (_unreadNotificationsCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          _unreadNotificationsCount > 99
-                              ? '99+'
-                              : '$_unreadNotificationsCount',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            SizedBox(width: 8),
             if (!_isEditMode)
               IconButton(
                 icon: Icon(Icons.edit, color: Colors.black, size: 20),
@@ -545,7 +527,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.only(top: 16, bottom: 24),
                       child: GestureDetector(
                         onTap: _isEditMode ? _pickAndUploadImage : null,
-                        child: Container(
+                        child: SizedBox(
                           width: 130,
                           height: 130,
                           child: Stack(
@@ -600,12 +582,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 37),
                       child: Column(
                         children: [
-                          // Name Field
+                          // Username Field
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Name',
+                                'Username',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontSize: 14,
@@ -627,7 +609,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   decoration: InputDecoration(
                                     hintText: 'Type here',
                                     hintStyle: TextStyle(
-                                      color: const Color(0xFF1D1D1D).withValues(alpha: .5),
+                                      color: const Color(0xFF1D1D1D),
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -699,101 +681,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ],
                           ),
 
-                          SizedBox(height: 24),
-
-                          // Password Field
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Password',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(height: 9),
-                              Container(
-                                height: 48,
-                                decoration: ShapeDecoration(
-                                  shape: RoundedRectangleBorder(
-                                    side: BorderSide(width: 1.5, color: Colors.black),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: _isEditMode
-                                    ? TextFormField(
-                                  controller: _passwordController,
-                                  enabled: _isEditMode,
-                                  obscureText: _obscurePassword,
-                                  decoration: InputDecoration(
-                                    hintText: _hasPassword
-                                        ? 'Leave empty to keep current'
-                                        : 'Set a password',
-                                    hintStyle: TextStyle(
-                                      color: const Color(0xFF1D1D1D).withValues(alpha: .5),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                    border: InputBorder.none,
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _obscurePassword
-                                            ? Icons.visibility_off
-                                            : Icons.visibility,
-                                        color: Colors.grey,
-                                        size: 18,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          _obscurePassword = !_obscurePassword;
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value != null && value.isNotEmpty) {
-                                      if (value.length < 8) {
-                                        return 'Password must be at least 8 characters';
-                                      }
-                                      final hasLetter = value.contains(RegExp(r'[a-zA-Z]'));
-                                      final hasNumber = value.contains(RegExp(r'[0-9]'));
-                                      final hasSymbol = value.contains(RegExp(r'[!@#\$%&*\-_+=]'));
-
-                                      if (!hasLetter || !hasNumber || !hasSymbol) {
-                                        return 'Must contain letters, numbers, and symbols';
-                                      }
-                                    }
-                                    return null;
-                                  },
-                                )
-                                    : TextFormField(
-                                  enabled: false,
-                                  obscureText: true,
-                                  decoration: InputDecoration(
-                                    hintText: _hasPassword ? '••••••••' : 'No password set',
-                                    hintStyle: TextStyle(
-                                      color: _hasPassword
-                                          ? Colors.black
-                                          : Colors.orange,
-                                      fontSize: 14,
-                                      fontWeight: _hasPassword
-                                          ? FontWeight.w600
-                                          : FontWeight.w500,
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                    border: InputBorder.none,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
                           SizedBox(height: 32),
 
-                          // Notification Toggle (visible when not editing)
+                          // Notification Toggle
                           if (!_isEditMode)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -814,7 +704,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     });
                                     _updateNotificationPreference();
                                   },
-                                  activeColor: Colors.white,
+                                  activeThumbColor: Colors.white,
                                   activeTrackColor: Colors.black,
                                   inactiveThumbColor: Colors.white,
                                   inactiveTrackColor: Colors.black87,
@@ -824,7 +714,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           SizedBox(height: 24),
 
-                          // Delete Account Button (visible when not editing)
+                          // Change Password Button
+                          if (!_isEditMode)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _showChangePasswordDialog,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFF6A00),
+                                  disabledBackgroundColor: Colors.grey,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Change Password',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          SizedBox(height: 12),
+
+
+                          // Delete Account Button
                           if (!_isEditMode)
                             _buildDeleteAccountButton(),
 
@@ -934,7 +852,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         }
 
-        debugPrint('✅ Notification preference updated: $_notificationsEnabled');
+        debugPrint('Notification preference updated: $_notificationsEnabled');
       }
     } catch (e) {
       debugPrint('Error updating notification preference: $e');
@@ -947,9 +865,9 @@ class NotificationScreenPage extends StatefulWidget {
   final String userId;
 
   const NotificationScreenPage({
-    Key? key,
+    super.key,
     required this.userId,
-  }) : super(key: key);
+  });
 
   @override
   State<NotificationScreenPage> createState() => _NotificationScreenPageState();
@@ -1049,7 +967,7 @@ class _NotificationScreenPageState extends State<NotificationScreenPage> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -1074,7 +992,7 @@ class _NotificationScreenPageState extends State<NotificationScreenPage> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.15),
+                        color: typeColor.withValues(alpha:0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(

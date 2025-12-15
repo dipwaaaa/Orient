@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:untitled/service/auth_service.dart';
 import '../../../model/guest_model.dart';
 import 'AddGuestScreen.dart';
-import '../../../widget/ProfileMenu.dart';
+import '../../../widget/profile_menu.dart';
 
 class GuestPageScreen extends StatefulWidget {
   final String? eventId;

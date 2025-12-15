@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
-import '../../../widget/ProfileMenu.dart';
+import '../../../widget/profile_menu.dart';
 import 'addVendorScreen.dart';           // Your Add Vendor screen
 import 'vendorDetailsScreen.dart';       // Vendor detail page
 import '../../../model/vendor_model.dart';

@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
 import '../../../service/budget_service.dart';
 import '../../../model/budget_model.dart';
-import '../../../widget/ProfileMenu.dart';
+import '../../../widget/profile_menu.dart';
 import 'budget_detail_screen.dart';
 import 'create_budget_screen.dart';
 import 'payment_detail_screen.dart';

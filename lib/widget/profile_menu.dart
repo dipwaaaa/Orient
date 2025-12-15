@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:untitled/screen/Setting/ProfileScreen.dart';
+import 'package:untitled/screen/Setting/profile_screen.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/notification_service.dart';
-import '../screen/login_signup_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../screen/notification_screen.dart';
 import '../utilty/app_responsive.dart';
 import '../provider/auth_provider.dart';
 
-/// Avatar Widget dengan Notification Icon + Badge (FIXED)
 class Profilemenu extends StatefulWidget {
   final AuthService authService;
   final String username;
@@ -18,13 +15,13 @@ class Profilemenu extends StatefulWidget {
   final BuildContext parentContext;
 
   const Profilemenu({
-    Key? key,
+    super.key,
     required this.authService,
     required this.username,
     this.showNotificationIcon = true,
     this.onNotificationTap,
     required this.parentContext,
-  }) : super(key: key);
+  });
 
   @override
   State<Profilemenu> createState() => _ProfilemenuState();
@@ -70,14 +67,14 @@ class _ProfilemenuState extends State<Profilemenu> {
       return _buildNotificationIconWithBadge(0);
     }
 
-    // Use Stream for real-time badge updates
+    //Stream for real-time badge updates
     return StreamBuilder<int>(
       stream: _notificationService.getUnreadCountStream(user.uid),
       builder: (context, snapshot) {
         int unreadCount = snapshot.data ?? 0;
 
         if (snapshot.hasError) {
-          debugPrint('❌ Badge stream error: ${snapshot.error}');
+          debugPrint(' Badge stream error: ${snapshot.error}');
         }
 
         return _buildNotificationIconWithBadge(unreadCount);
@@ -101,7 +98,7 @@ class _ProfilemenuState extends State<Profilemenu> {
               onTap: () {
                 final user = widget.authService.currentUser;
                 if (user != null) {
-                  debugPrint('🔔 Navigating to notification screen for user: ${user.uid}');
+                  debugPrint('Navigating to notification screen for user: ${user.uid}');
                   Navigator.push(
                     widget.parentContext,
                     MaterialPageRoute(
@@ -109,7 +106,7 @@ class _ProfilemenuState extends State<Profilemenu> {
                     ),
                   ).then((_) {
                     // When returning from NotificationScreen, rebuild to update badge
-                    debugPrint('🔄 Returned from NotificationScreen, rebuilding');
+                    debugPrint('Returned from NotificationScreen, rebuilding');
                     setState(() {});
                   });
                 }
@@ -123,7 +120,7 @@ class _ProfilemenuState extends State<Profilemenu> {
               ),
             ),
           ),
-          // Notification Badge (only show if unread > 0)
+          // Notification Badge
           if (unreadCount > 0)
             Positioned(
               top: -4,
@@ -199,16 +196,16 @@ class _ProfilemenuState extends State<Profilemenu> {
   }
 }
 
-/// Compact Avatar Widget (hanya avatar)
+/// Compact Avatar Widget
 class AvatarWidgetCompact extends StatelessWidget {
   final AuthService authService;
   final String username;
 
   const AvatarWidgetCompact({
-    Key? key,
+    super.key,
     required this.authService,
     required this.username,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +243,7 @@ class AvatarWidgetCompact extends StatelessWidget {
   }
 }
 
-/// Header Widget dengan Avatar
+/// Header Widget with Avatar
 class HeaderWithAvatar extends StatelessWidget {
   final String username;
   final String greeting;
@@ -255,13 +252,13 @@ class HeaderWithAvatar extends StatelessWidget {
   final VoidCallback? onNotificationTap;
 
   const HeaderWithAvatar({
-    Key? key,
+    super.key,
     required this.username,
     required this.greeting,
     required this.subtitle,
     required this.authService,
     this.onNotificationTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +310,7 @@ class HeaderWithAvatar extends StatelessWidget {
 }
 
 class ProfileMenu {
-  /// Tampilkan profile menu dari mana saja
+  /// profile menu from any page
   static void show(
       BuildContext context,
       AuthService authService,
@@ -347,7 +344,6 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
   String? _profileImageUrl;
   bool _isLoading = true;
   late NotificationService _notificationService;
-  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
@@ -405,9 +401,8 @@ class _ProfileMenuContentState extends State<_ProfileMenuContent> {
     final user = widget.authService.currentUser;
     if (user != null) {
       try {
-        final count = await _notificationService.getUnreadCount(user.uid);
+        final _ = await _notificationService.getUnreadCount(user.uid);
         setState(() {
-          _unreadNotificationsCount = count;
         });
       } catch (e) {
         debugPrint('Error loading unread notifications count: $e');

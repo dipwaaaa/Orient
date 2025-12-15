@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
-import 'package:untitled/widget/ProfileMenu.dart' as profile_menu;
+import 'package:untitled/widget/profile_menu.dart' as profile_menu;
 import 'package:untitled/screen/Event/event_detail_screen.dart';
 import 'create_event_screen.dart';
 

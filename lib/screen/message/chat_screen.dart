@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:untitled/service/auth_service.dart';
 import 'package:untitled/service/encryption_service.dart';
 import 'package:untitled/widget/NavigationBar.dart';
-import 'package:untitled/widget/ProfileMenu.dart';
+import 'package:untitled/widget/profile_menu.dart';
 import 'room_chat_screen.dart';
 import '../login_signup_screen.dart';
 
