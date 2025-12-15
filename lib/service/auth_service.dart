@@ -13,7 +13,7 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // ===== UTILITY METHODS =====
+
 
   /// Generate random username
   String _generateRandomUsername() {
@@ -52,7 +52,7 @@ class AuthService {
 
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
-      debugPrint('❌ Error checking username availability: $e');
+      debugPrint(' Error checking username availability: $e');
       return false;
     }
   }
@@ -71,7 +71,7 @@ class AuthService {
       }
       return null;
     } catch (e) {
-      debugPrint('❌ Error getting email from username: $e');
+      debugPrint(' Error getting email from username: $e');
       return null;
     }
   }
@@ -105,10 +105,10 @@ class AuthService {
           'notificationsEnabled': true,
           'friends': [],
         });
-        debugPrint('✅ User document created successfully');
+        debugPrint(' User document created successfully');
       }
     } catch (e) {
-      debugPrint('❌ Error creating user document: $e');
+      debugPrint(' Error creating user document: $e');
     }
   }
 
@@ -146,13 +146,13 @@ class AuthService {
           });
         }).timeout(Duration(seconds: 15));
 
-        debugPrint('✅ User document created successfully with transaction');
+        debugPrint(' User document created successfully with transaction');
         return;
       } catch (e) {
-        debugPrint('⚠️ Attempt $attempt failed: $e');
+        debugPrint('⚠ Attempt $attempt failed: $e');
 
         if (attempt == maxRetries) {
-          debugPrint('❌ Max retries reached');
+          debugPrint(' Max retries reached');
           return;
         }
 
@@ -161,7 +161,6 @@ class AuthService {
     }
   }
 
-  // ===== CHECK METHODS =====
 
   /// Check if user has completed onboarding
   Future<bool> hasCompletedOnboarding() async {
@@ -175,7 +174,7 @@ class AuthService {
       final data = snap.data();
       return data?['hasCompletedOnboarding'] ?? false;
     } catch (e) {
-      debugPrint('❌ Error checking onboarding status: $e');
+      debugPrint(' Error checking onboarding status: $e');
       return false;
     }
   }
@@ -201,14 +200,14 @@ class AuthService {
               .doc(user.uid)
               .update({'isNewUser': false});
         } catch (e) {
-          debugPrint('❌ Failed to update isNewUser flag: $e');
+          debugPrint(' Failed to update isNewUser flag: $e');
         }
         return true;
       }
 
       return false;
     } catch (e) {
-      debugPrint('❌ Error checking welcome screen status: $e');
+      debugPrint('Error checking welcome screen status: $e');
       return false;
     }
   }
@@ -257,12 +256,12 @@ class AuthService {
       await _createUserDocumentSafe(user, user.displayName ?? _generateRandomUsername());
       return true;
     } catch (e) {
-      debugPrint('❌ Retry profile setup failed: $e');
+      debugPrint(' Retry profile setup failed: $e');
       return false;
     }
   }
 
-  // ===== AUTHENTICATION METHODS =====
+
 
   /// Sign in dengan email atau username
   Future<Map<String, dynamic>> signInWithEmailOrUsername(
@@ -351,49 +350,49 @@ class AuthService {
         return {'success': false, 'error': 'Registration failed'};
       }
 
-      debugPrint('✅ User created in Auth: ${result.user!.uid}');
+      debugPrint(' User created in Auth: ${result.user!.uid}');
 
       try {
         await result.user!.updateDisplayName(username.trim());
-        debugPrint('✅ Display name updated');
+        debugPrint(' Display name updated');
       } catch (e) {
-        debugPrint('⚠️ Failed to update display name: $e');
+        debugPrint(' Failed to update display name: $e');
       }
 
       await Future.delayed(Duration(seconds: 2));
       try {
         await result.user!.reload();
         final token = await result.user!.getIdToken(true);
-        debugPrint('✅ Fresh token obtained: ${token != null}');
+        debugPrint('Fresh token obtained: ${token != null}');
       } catch (e) {
-        debugPrint('⚠️ Token refresh failed: $e');
+        debugPrint(' Token refresh failed: $e');
       }
 
       try {
         bool usernameTaken = await _isUsernameTaken(username.trim());
         if (usernameTaken) {
           final altUsername = '${username.trim()}_${Random().nextInt(9999)}';
-          debugPrint('⚠️ Username was taken, using: $altUsername');
+          debugPrint('Username was taken, using: $altUsername');
           await _createUserDocumentSafe(result.user!, altUsername);
         } else {
           await _createUserDocumentSafe(result.user!, username.trim());
         }
       } catch (e) {
-        debugPrint('⚠️ Username check/creation failed: $e');
+        debugPrint(' Username check/creation failed: $e');
         await _createUserDocumentSafe(result.user!, _generateRandomUsername());
       }
 
       return {'success': true, 'userCredential': result, 'isNewUser': true};
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Firebase Auth error: ${e.code} - ${e.message}');
+      debugPrint(' Firebase Auth error: ${e.code} - ${e.message}');
       return {'success': false, 'error': _handleAuthError(e)};
     } catch (e) {
-      debugPrint('❌ Unexpected registration error: $e');
+      debugPrint(' Unexpected registration error: $e');
       return {'success': false, 'error': 'Registration failed: $e'};
     }
   }
 
-  // ===== GOOGLE SIGN-IN =====
+
 
   /// Sign in dengan Google
   Future<Map<String, dynamic>> signInWithGoogle() async {
@@ -407,18 +406,18 @@ class AuthService {
       final GoogleSignInAccount? account = await GoogleSignIn.instance.authenticate();
 
       if (account == null) {
-        debugPrint('⚠️ User cancelled sign in');
+        debugPrint(' User cancelled sign in');
         return {'success': false, 'error': 'User cancelled sign in'};
       }
 
-      debugPrint('✅ Google account obtained: ${account.email}');
+      debugPrint(' Google account obtained: ${account.email}');
 
       final googleAuth = account.authentication;
 
-      debugPrint('ℹ️ ID Token available: ${googleAuth.idToken != null}');
+      debugPrint(' ID Token available: ${googleAuth.idToken != null}');
 
       if (googleAuth.idToken == null) {
-        debugPrint('❌ Failed to get ID Token');
+        debugPrint(' Failed to get ID Token');
         return {'success': false, 'error': 'Failed to get ID Token'};
       }
 
@@ -427,9 +426,9 @@ class AuthService {
         final authClient = account.authorizationClient;
         final clientAuth = await authClient.authorizationForScopes(['email', 'profile']);
         accessToken = clientAuth?.accessToken;
-        debugPrint('ℹ️ Access Token available: ${accessToken != null}');
+        debugPrint(' Access Token available: ${accessToken != null}');
       } catch (e) {
-        debugPrint('⚠️ Could not get access token: $e');
+        debugPrint(' Could not get access token: $e');
       }
 
       final credential = GoogleAuthProvider.credential(
@@ -437,11 +436,11 @@ class AuthService {
         accessToken: accessToken,
       );
 
-      debugPrint('🔐 Signing in to Firebase...');
+      debugPrint(' Signing in to Firebase...');
 
       final result = await _auth.signInWithCredential(credential);
 
-      debugPrint('✅ Firebase sign-in successful: ${result.user?.email}');
+      debugPrint(' Firebase sign-in successful: ${result.user?.email}');
 
       final isNew = result.additionalUserInfo?.isNewUser ?? false;
 
@@ -460,13 +459,12 @@ class AuthService {
 
       return {'success': true, 'userCredential': result, 'isNewUser': isNew};
     } catch (e, stackTrace) {
-      debugPrint('❌ Error: $e');
+      debugPrint(' Error: $e');
       debugPrint('Stack trace: $stackTrace');
       return {'success': false, 'error': 'Google sign in failed: $e'};
     }
   }
 
-  // ===== ACCOUNT DELETION =====
 
   /// Delete account dengan comprehensive cleanup
   Future<Map<String, dynamic>> deleteAccount({
@@ -479,7 +477,7 @@ class AuthService {
         return {'success': false, 'error': 'No user logged in'};
       }
 
-      debugPrint('🗑️ Starting account deletion process for user: ${user.uid}');
+      debugPrint(' Starting account deletion process for user: ${user.uid}');
 
       // Step 1: Validate user authentication
       final hasPassword = user.providerData.any((info) => info.providerId == 'password');
@@ -500,12 +498,12 @@ class AuthService {
             password: password,
           );
           await user.reauthenticateWithCredential(credential);
-          debugPrint('✅ Re-authenticated with email/password');
+          debugPrint(' Re-authenticated with email/password');
         } else if (hasGoogle) {
-          debugPrint('✅ Google account detected - proceeding with deletion');
+          debugPrint(' Google account detected - proceeding with deletion');
         }
       } catch (e) {
-        debugPrint('❌ Re-authentication failed: $e');
+        debugPrint(' Re-authentication failed: $e');
         return {'success': false, 'error': 'Authentication failed. Please check your credentials.'};
       }
 
@@ -514,7 +512,7 @@ class AuthService {
 
       // Step 4: Delete user authentication account
       await user.delete();
-      debugPrint('✅ Firebase user account deleted');
+      debugPrint(' Firebase user account deleted');
 
       // Step 5: Sign out
       await signOut();
@@ -524,13 +522,13 @@ class AuthService {
         'message': 'Account deleted successfully',
       };
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Firebase Auth Error: ${e.code} - ${e.message}');
+      debugPrint(' Firebase Auth Error: ${e.code} - ${e.message}');
       return {
         'success': false,
         'error': _handleDeleteAccountError(e),
       };
     } catch (e) {
-      debugPrint('❌ Unexpected error during account deletion: $e');
+      debugPrint(' Unexpected error during account deletion: $e');
       return {
         'success': false,
         'error': 'An unexpected error occurred. Please try again.',
@@ -541,17 +539,17 @@ class AuthService {
   /// Delete semua user-related data dari Firestore
   Future<void> _deleteUserData(String userId) async {
     try {
-      debugPrint('🗑️ Deleting user data for: $userId');
+      debugPrint(' Deleting user data for: $userId');
 
       final userDocRef = firestore.collection('users').doc(userId);
 
       // Step 1: Remove user dari collaborators list
-      debugPrint('📋 Removing user from collaborators in events...');
+      debugPrint(' Removing user from collaborators in events...');
       await _removeUserFromCollaborators(userId);
-      debugPrint('✅ User removed from all collaborators lists');
+      debugPrint(' User removed from all collaborators lists');
 
       // Step 2: Delete notifications
-      debugPrint('📧 Deleting notifications...');
+      debugPrint(' Deleting notifications...');
       final notificationsSnapshot = await firestore
           .collection('notifications')
           .where('userId', isEqualTo: userId)
@@ -562,7 +560,7 @@ class AuthService {
       debugPrint('  ✓ Deleted ${notificationsSnapshot.docs.length} notifications');
 
       // Step 3: Delete chats
-      debugPrint('💬 Deleting chats...');
+      debugPrint(' Deleting chats...');
       final chatsSnapshot = await firestore
           .collection('chats')
           .where('participants', arrayContains: userId)
@@ -573,7 +571,7 @@ class AuthService {
       }
 
       // Step 4: Delete messages
-      debugPrint('📨 Deleting messages...');
+      debugPrint(' Deleting messages...');
       final messagesSnapshot = await firestore
           .collection('messages')
           .where('senderId', isEqualTo: userId)
@@ -584,7 +582,7 @@ class AuthService {
       debugPrint('  ✓ Deleted ${messagesSnapshot.docs.length} messages');
 
       // Step 5: Delete events owned by user
-      debugPrint('📅 Deleting events...');
+      debugPrint(' Deleting events...');
       final eventsSnapshot = await firestore
           .collection('events')
           .where('ownerId', isEqualTo: userId)
@@ -596,17 +594,17 @@ class AuthService {
       }
 
       // Step 6: Delete profile image
-      debugPrint('🖼️ Deleting profile image...');
+      debugPrint(' Deleting profile image...');
       await _deleteProfileImage(userId);
 
       // Step 7: Delete user document
-      debugPrint('👤 Deleting user document...');
+      debugPrint(' Deleting user document...');
       await userDocRef.delete();
       debugPrint('  ✓ Deleted user document: $userId');
 
-      debugPrint('✅ All user data deleted successfully');
+      debugPrint(' All user data deleted successfully');
     } catch (e) {
-      debugPrint('❌ Error deleting user data: $e');
+      debugPrint(' Error deleting user data: $e');
       rethrow;
     }
   }
@@ -619,7 +617,7 @@ class AuthService {
           .where('collaborators', arrayContains: userId)
           .get();
 
-      debugPrint('📋 Found ${eventsSnapshot.docs.length} events where user is collaborator');
+      debugPrint(' Found ${eventsSnapshot.docs.length} events where user is collaborator');
 
       for (var eventDoc in eventsSnapshot.docs) {
         await eventDoc.reference.update({
@@ -630,10 +628,10 @@ class AuthService {
       }
 
       if (eventsSnapshot.docs.isEmpty) {
-        debugPrint('  ℹ️ User was not a collaborator in any events');
+        debugPrint('  ️ User was not a collaborator in any events');
       }
     } catch (e) {
-      debugPrint('⚠️ Error removing user from collaborators: $e');
+      debugPrint(' Error removing user from collaborators: $e');
       // Don't rethrow - this shouldn't block account deletion
     }
   }
@@ -651,7 +649,7 @@ class AuthService {
         debugPrint('  ✓ Deleted $subcollection subcollection');
       }
     } catch (e) {
-      debugPrint('❌ Error deleting event subcollections: $e');
+      debugPrint(' Error deleting event subcollections: $e');
     }
   }
 
@@ -670,24 +668,77 @@ class AuthService {
         debugPrint('  ✓ Deleted profile image: ${file.name}');
       }
     } catch (e) {
-      debugPrint('ℹ️ Note: Could not delete profile images: $e');
+      debugPrint(' Note: Could not delete profile images: $e');
     }
   }
 
-  // ===== SIGN OUT =====
 
   /// Sign out user
   Future<void> signOut() async {
     try {
       await GoogleSignIn.instance.signOut();
     } catch (e) {
-      debugPrint("ℹ️ Error signing out from Google: $e");
+      debugPrint(" Error signing out from Google: $e");
     }
     await _auth.signOut();
-    debugPrint("✅ User signed out successfully");
+    debugPrint("  User signed out successfully");
   }
 
-  // ===== ERROR HANDLING =====
+  /// Send password reset email
+  Future<Map<String, dynamic>> sendPasswordResetEmail(String email) async {
+    try {
+      if (email.trim().isEmpty) {
+        return {'success': false, 'error': 'Please enter your email address'};
+      }
+
+      // Validasi email format
+      final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+      if (!emailRegex.hasMatch(email.trim())) {
+        return {'success': false, 'error': 'Please enter a valid email address'};
+      }
+
+      debugPrint(' Sending password reset email to: $email');
+
+      // Send reset email
+      await _auth.sendPasswordResetEmail(email: email.trim());
+
+      debugPrint(' Password reset email sent successfully');
+
+      return {
+        'success': true,
+        'message': 'Password reset email sent! Check your inbox.',
+      };
+    } on FirebaseAuthException catch (e) {
+      debugPrint(' Firebase error: ${e.code} - ${e.message}');
+      return {
+        'success': false,
+        'error': _handlePasswordResetError(e),
+      };
+    } catch (e) {
+      debugPrint(' Unexpected error: $e');
+      return {
+        'success': false,
+        'error': 'Failed to send reset email. Please try again.',
+      };
+    }
+  }
+
+  /// Handle password reset errors
+  String _handlePasswordResetError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No account found with this email address.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      case 'too-many-requests':
+        return 'Too many reset requests. Try again later.';
+      case 'operation-not-allowed':
+        return 'Password reset is not enabled for this account.';
+      default:
+        return e.message ?? 'Failed to send reset email.';
+    }
+  }
+
 
   /// Handle authentication errors
   String _handleAuthError(FirebaseAuthException e) {

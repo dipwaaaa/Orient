@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'package:untitled/service/auth_service.dart';
 import 'landing_page/welcome_screen.dart';
+import '../widget/forgot_password_dialog.dart';
 import 'home/home_screen.dart';
 
 void main() {
@@ -460,16 +461,98 @@ class _LoginScreenState extends State<LoginScreen> {
           isForLogin: true,
         ),
         const SizedBox(height: 20),
-        _buildInputField(
-          label: 'Password',
-          controller: passwordController,
-          hintText: 'Type here',
-          obscureText: _obscureLoginPassword,
-          isPassword: true,
-          isForLogin: true,
-          onToggleVisibility: () {
-            setState(() => _obscureLoginPassword = !_obscureLoginPassword);
-          },
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Password',
+                  style: TextStyle(
+                    color: const Color(0xFF616161),
+                    fontSize: 13,
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => ForgotPasswordDialog(
+                        authService: _authService,
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Forgot Password?',
+                    style: TextStyle(
+                      color: const Color(0xFFFF6A00),
+                      fontSize: 12,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Password input field
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: ShapeDecoration(
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(
+                    width: 2,
+                    color: const Color(0xFFFFE100),
+                  ),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: passwordController,
+                      obscureText: _obscureLoginPassword,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Type here',
+                        hintStyle: TextStyle(
+                          color: const Color(0xFF616161),
+                          fontSize: 11,
+                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() =>
+                      _obscureLoginPassword = !_obscureLoginPassword);
+                    },
+                    child: Icon(
+                      _obscureLoginPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
