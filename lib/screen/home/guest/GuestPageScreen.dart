@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:untitled/service/auth_service.dart';
+import '../../../service/auth_service.dart';
 import '../../../model/guest_model.dart';
 import 'AddGuestScreen.dart';
 import 'guest_detail_screen.dart';

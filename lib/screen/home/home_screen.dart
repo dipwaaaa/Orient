@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:untitled/screen/home/budget/budget_screen.dart';
+import '/screen/home/budget/budget_screen.dart';
 import 'dart:async';
-import 'package:untitled/service/auth_service.dart';
-import 'package:untitled/service/event_service.dart';
-import 'package:untitled/service/budget_service.dart';
-import 'package:untitled/utilty/app_responsive.dart';
+import '/service/auth_service.dart';
+import '/service/event_service.dart';
+import '/service/budget_service.dart';
+import '/utilty/app_responsive.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import '../../widget/NavigationBar.dart';
 import '../../widget/profile_menu.dart';

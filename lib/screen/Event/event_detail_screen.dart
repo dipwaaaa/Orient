@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:untitled/widget/Animated_Gradient_Background.dart';
+import '../../widget/Animated_Gradient_Background.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;

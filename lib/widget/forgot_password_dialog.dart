@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:untitled/service/auth_service.dart';
+import '/service/auth_service.dart';
 
 class ForgotPasswordDialog extends StatefulWidget {
   final AuthService authService;

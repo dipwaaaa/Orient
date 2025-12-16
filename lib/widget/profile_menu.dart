@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:untitled/screen/Setting/profile_screen.dart';
-import 'package:untitled/service/auth_service.dart';
-import 'package:untitled/service/notification_service.dart';
+import '/screen/Setting/profile_screen.dart';
+import '/service/auth_service.dart';
+import '/service/notification_service.dart';
 import '../screen/notification_screen.dart';
 import '../utilty/app_responsive.dart';
 import '../provider/auth_provider.dart';

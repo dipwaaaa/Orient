@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:untitled/service/auth_service.dart';
-import 'package:untitled/service/encryption_service.dart';
-import 'package:untitled/widget/NavigationBar.dart';
-import 'package:untitled/widget/profile_menu.dart';
+import '/service/auth_service.dart';
+import '/service/encryption_service.dart';
+import '/widget/NavigationBar.dart';
+import '/widget/profile_menu.dart';
 import 'room_chat_screen.dart';
 import '../login_signup_screen.dart';
 

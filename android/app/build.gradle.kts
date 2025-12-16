@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.untitled"
+    namespace = "com.example.orient"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

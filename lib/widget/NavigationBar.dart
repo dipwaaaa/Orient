@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:untitled/screen/home/home_screen.dart';
-import 'package:untitled/screen/Event/list_event_screen.dart';
-import 'package:untitled/screen/message/chat_screen.dart';
+import '/screen/home/home_screen.dart';
+import '/screen/Event/list_event_screen.dart';
+import '/screen/message/chat_screen.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
   final int currentIndex;

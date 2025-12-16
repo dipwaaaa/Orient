@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:untitled/service/auth_service.dart';
+import '/service/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../screen/login_signup_screen.dart';

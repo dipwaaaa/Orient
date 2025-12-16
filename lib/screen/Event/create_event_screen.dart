@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:untitled/service/auth_service.dart';
-import 'package:untitled/service/event_service.dart';
+import '../../service/auth_service.dart';
+import '../../service/event_service.dart';
 import 'package:intl/intl.dart';
 import '../../widget/Animated_Gradient_Background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

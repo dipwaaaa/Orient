@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'package:untitled/service/auth_service.dart';
+import '../service/auth_service.dart';
 import 'landing_page/welcome_screen.dart';
 import '../widget/forgot_password_dialog.dart';
 import 'home/home_screen.dart';
