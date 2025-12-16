@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "249442742487",
+    "project_id": "orient-eb724",
+    "storage_bucket": "orient-eb724.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:249442742487:android:20a93cc4d1db3172cec092",
+        "android_client_info": {
+          "package_name": "com.example.orient"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "249442742487-mnc33cfun8jfdivk4p4rj102nmjuc8l0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQkgb_zpsNwpPo-eW5J-uxAuFQsa7RBd4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "249442742487-mnc33cfun8jfdivk4p4rj102nmjuc8l0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "249442742487-lhvic9ub3o84vjthiftoragjmjan8q08.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.untitled"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
