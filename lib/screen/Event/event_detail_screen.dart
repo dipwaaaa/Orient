@@ -22,10 +22,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final TextEditingController _collaboratorController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
 
-
   Map<String, dynamic>? _event;
-  List<String> _collaborators = []; // List of collaborator identifiers
-  List<String> _collaboratorNames = []; // List of collaborator names
+  List<String> _collaborators = []; // List of collaborator identifiers (username/email)
+  List<String> _collaboratorNames = []; // List of collaborator display names
   String _selectedStatus = 'Pending';
   bool _isLoading = true;
   bool _isEditing = false;
@@ -53,12 +52,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         final eventData = doc.data()!;
         final collaboratorIds = List<String>.from(eventData['collaborators'] as List<dynamic>? ?? []);
 
-        // Load collaborators names
+        // Load collaborators usernames for editing
+        List<String> collaboratorUsernames = [];
+        for (String userId in collaboratorIds) {
+          final userDoc = await _firestore.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            collaboratorUsernames.add(userDoc.data()?['username'] ?? 'Unknown');
+          }
+        }
+
+        // Load collaborators names for display
         await _loadCollaborators(collaboratorIds);
 
         setState(() {
           _event = eventData;
-          _collaborators = collaboratorIds;
+          _collaborators = collaboratorUsernames; // ✅ Load usernames untuk editing
           _nameController.text = eventData['eventName'] ?? '';
           _selectedEventType = eventData['eventType'] ?? 'General';
           _descriptionController.text = eventData['description'] ?? '';
@@ -582,9 +590,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                               const SizedBox(height: 12),
 
                               // Event Type Field
-
-                                _buildEventTypeDropdown(),
-
+                              _buildEventTypeDropdown(),
 
                               const SizedBox(height: 12),
 
@@ -716,7 +722,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     required bool enabled,
     String? placeholder,
     int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text, // ✨ NEW
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,7 +750,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             controller: controller,
             enabled: enabled,
             maxLines: maxLines,
-            keyboardType: keyboardType, // ✨ NEW
+            keyboardType: keyboardType,
             style: const TextStyle(
               color: Colors.black,
               fontSize: 14,
@@ -815,7 +821,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     required bool enabled,
   }) {
     if (!enabled) {
-      // Read-only mode
+      // Read-only mode - Show usernames from _collaboratorNames
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -855,7 +861,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       );
     }
 
-    // Editable mode
+    // Editable mode - FIXED LAYOUT
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -878,119 +884,94 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: Collaborators chips + buttons
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Collaborators chips (left side)
-                  Expanded(
-                    child: _collaborators.isEmpty
-                        ? const SizedBox.shrink()
-                        : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: List.generate(
-                        _collaborators.length,
-                            (index) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFE100),
-                              border: Border.all(
-                                width: 1,
+              // Collaborators chips
+              if (_collaborators.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: List.generate(
+                    _collaborators.length,
+                        (index) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE100),
+                          border: Border.all(
+                            width: 1,
+                            color: Colors.black,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _collaborators[index],
+                              style: const TextStyle(
                                 color: Colors.black,
+                                fontSize: 12,
+                                fontFamily: 'SF Pro',
+                                fontWeight: FontWeight.w600,
                               ),
-                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _collaborators[index],
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 12,
-                                    fontFamily: 'SF Pro',
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () => _removeCollaborator(index),
-                                  child: Icon(
-                                    Icons.close,
-                                    size: 14,
-                                    color: Colors.black.withOpacity(0.6),
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () => _removeCollaborator(index),
+                              child: Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.black.withOpacity(0.6),
+                              ),
                             ),
-                          );
-                        },
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              // Input field with add button
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _collaboratorController,
+                      decoration: InputDecoration(
+                        hintText: 'Email or username',
+                        hintStyle: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          fontSize: 13,
+                          fontFamily: 'SF Pro',
+                          fontWeight: FontWeight.w600,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontFamily: 'SF Pro',
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSubmitted: (_) => _addCollaborator(),
                     ),
                   ),
-
-                  // Buttons on the right (top)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Row(
-                      children: [
-                        // Remove button (-)
-                        if (_collaborators.isNotEmpty)
-                          GestureDetector(
-                            onTap: () =>
-                                _removeCollaborator(_collaborators.length - 1),
-                            child: Icon(
-                              Icons.remove_circle,
-                              color: Colors.red[600],
-                              size: 20,
-                            ),
-                          ),
-                        if (_collaborators.isNotEmpty)
-                          const SizedBox(width: 4),
-                        // Add button (+)
-                        GestureDetector(
-                          onTap: _addCollaborator,
-                          child: const Icon(
-                            Icons.add_circle,
-                            color: Color(0xFFFFE100),
-                            size: 20,
-                          ),
-                        ),
-                      ],
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _addCollaborator,
+                    child: const Icon(
+                      Icons.add_circle,
+                      color: Color(0xFFFFE100),
+                      size: 24,
                     ),
                   ),
                 ],
-              ),
-
-              // Spacing
-              if (_collaborators.isNotEmpty) const SizedBox(height: 8),
-
-              // Input field (bottom)
-              TextField(
-                controller: _collaboratorController,
-                decoration: InputDecoration(
-                  hintText: 'Email or username',
-                  hintStyle: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    fontSize: 13,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w600,
-                  ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 13,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w600,
-                ),
               ),
             ],
           ),

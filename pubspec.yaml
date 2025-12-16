@@ -55,6 +55,7 @@ dependencies:
   provider: ^6.1.5+1
   firebase_functions: ^0.0.1-dev
   cloud_functions: ^6.0.4
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:

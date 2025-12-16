@@ -29,7 +29,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   String _username = 'User';
   String _selectedEventName = '';
-  Map<String, double> _budgetSummary = {
+
+  //  Keep fallback for loading state only
+  Map<String, double> _budgetSummaryFallback = {
     'totalPaid': 0,
     'totalUnpaid': 0,
     'remainingBalance': 0,
@@ -46,7 +48,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
       if (_selectedEventName.isEmpty) {
         _loadEventName();
       }
-      _loadBudgetSummary();
+      //  Remove _loadBudgetSummary() call - use Stream instead!
     }
   }
 
@@ -101,23 +103,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
     }
   }
 
-  Future<void> _loadBudgetSummary() async {
-    if (widget.eventId == null) {
-      debugPrint('No eventId provided');
-      return;
-    }
-
-    debugPrint('Loading budget summary for eventId: ${widget.eventId}');
-    final summary = await _budgetService.getBudgetSummary(widget.eventId!);
-
-    if (mounted) {
-      debugPrint('Budget summary loaded: $summary');
-      setState(() {
-        _budgetSummary = summary;
-      });
-    }
-  }
-
   String _formatCurrency(double amount) {
     final formatter = NumberFormat.currency(
       locale: 'id_ID',
@@ -142,8 +127,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   ? _buildNoEventState()
                   : StreamBuilder<List<BudgetModel>>(
                 stream: _budgetService.getBudgetsByEvent(widget.eventId!),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                builder: (context, snapshotBudgets) {
+                  if (snapshotBudgets.connectionState ==
+                      ConnectionState.waiting) {
                     return const Center(
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -153,29 +139,67 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     );
                   }
 
-                  if (snapshot.hasError) {
-                    debugPrint('Stream error: ${snapshot.error}');
+                  if (snapshotBudgets.hasError) {
+                    debugPrint(
+                        'Stream error: ${snapshotBudgets.error}');
                     return Center(
-                      child: Text('Error: ${snapshot.error}'),
+                      child: Text('Error: ${snapshotBudgets.error}'),
                     );
                   }
 
-                  final budgets = snapshot.data ?? [];
+                  final budgets = snapshotBudgets.data ?? [];
                   debugPrint('Budgets count: ${budgets.length}');
 
-                  return ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      const SizedBox(height: 15),
-                      _buildBalanceCarousel(screenWidth),
-                      const SizedBox(height: 20),
-                      _buildToSpendSection(screenWidth),
-                      const SizedBox(height: 15),
-                      budgets.isEmpty
-                          ? _buildEmptyState()
-                          : _buildBudgetList(screenWidth, budgets),
-                      const SizedBox(height: 20),
-                    ],
+                  //  Wrap with StreamBuilder for summary (real-time updates!)
+                  return StreamBuilder<Map<String, double>>(
+                    stream: _budgetService
+                        .getBudgetSummaryStream(widget.eventId!),
+                    builder: (context, snapshotSummary) {
+                      // Handle loading state
+                      if (snapshotSummary.connectionState ==
+                          ConnectionState.waiting) {
+                        return ListView(
+                          padding: EdgeInsets.zero,
+                          children: [
+                            const SizedBox(height: 15),
+                            _buildBalanceCarousel(
+                              screenWidth,
+                              snapshotSummary.data ??
+                                  _budgetSummaryFallback,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildToSpendSection(screenWidth),
+                            const SizedBox(height: 15),
+                            budgets.isEmpty
+                                ? _buildEmptyState()
+                                : _buildBudgetList(
+                                screenWidth, budgets),
+                            const SizedBox(height: 20),
+                          ],
+                        );
+                      }
+
+                      // Main UI with real-time data
+                      final summary = snapshotSummary.data ?? {};
+
+                      return ListView(
+                        padding: EdgeInsets.zero,
+                        children: [
+                          const SizedBox(height: 15),
+                          _buildBalanceCarousel(
+                            screenWidth,
+                            summary,
+                          ), //  Real-time summary!
+                          const SizedBox(height: 20),
+                          _buildToSpendSection(screenWidth),
+                          const SizedBox(height: 15),
+                          budgets.isEmpty
+                              ? _buildEmptyState()
+                              : _buildBudgetList(screenWidth, budgets),
+                          const SizedBox(height: 20),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -264,7 +288,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     debugPrint('Profile avatar tapped');
                     if (_authService.currentUser == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please login first')),
+                        const SnackBar(content: Text('Please login first')),
                       );
                       return;
                     }
@@ -284,10 +308,15 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  Widget _buildBalanceCarousel(double screenWidth) {
-    debugPrint('Building carousel - remainingBalance: ${_budgetSummary['remainingBalance']}');
-    debugPrint('Building carousel - totalPaid: ${_budgetSummary['totalPaid']}');
-    debugPrint('Building carousel - totalUnpaid: ${_budgetSummary['totalUnpaid']}');
+  //  Update signature to accept summary parameter
+  Widget _buildBalanceCarousel(
+      double screenWidth,
+      Map<String, double> summary,
+      ) {
+    debugPrint(
+        'Building carousel - remainingBalance: ${summary['remainingBalance']}');
+    debugPrint('Building carousel - totalPaid: ${summary['totalPaid']}');
+    debugPrint('Building carousel - totalUnpaid: ${summary['totalUnpaid']}');
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -299,21 +328,21 @@ class _BudgetScreenState extends State<BudgetScreen> {
           children: [
             _buildCarouselCard(
               label: 'Remaining Balance',
-              amount: _formatCurrency(_budgetSummary['remainingBalance'] ?? 0),
+              amount: _formatCurrency(summary['remainingBalance'] ?? 0),
               backgroundColor: const Color(0xFFFFE100),
               imagePath: 'assets/image/balance-pig.png',
             ),
             const SizedBox(width: 12),
             _buildCarouselCard(
               label: 'Amount Paid',
-              amount: _formatCurrency(_budgetSummary['totalPaid'] ?? 0),
+              amount: _formatCurrency(summary['totalPaid'] ?? 0),
               backgroundColor: const Color(0xFF51FF00),
               imagePath: 'assets/image/bussines.png',
             ),
             const SizedBox(width: 12),
             _buildCarouselCard(
               label: 'Amount Unpaid',
-              amount: _formatCurrency(_budgetSummary['totalUnpaid'] ?? 0),
+              amount: _formatCurrency(summary['totalUnpaid'] ?? 0),
               backgroundColor: const Color(0xFFFF6B00),
               imagePath: 'assets/image/cash.png',
             ),
@@ -438,7 +467,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                       eventId: widget.eventId!,
                     ),
                   ),
-                ).then((_) => _loadBudgetSummary());
+                );
+                //  No need to manually refresh - Stream will auto-update!
               }
             },
             child: Container(
@@ -545,7 +575,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFE100).withValues(alpha: 0.3),
+                                color: const Color(0xFFFFE100)
+                                    .withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(

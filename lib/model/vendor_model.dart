@@ -14,7 +14,8 @@ class VendorModel {
   final double paidAmount;
   final double pendingAmount;
   final String agreementStatus; // accepted/pending/rejected
-  final bool addToBudget;
+  final bool? addToBudget;
+  final String? linkedBudgetId; // ✅ NEW FIELD!
   final String? note;
   final List<PaymentRecord> payments;
   final String? listName;
@@ -36,6 +37,7 @@ class VendorModel {
     required this.pendingAmount,
     required this.agreementStatus,
     required this.addToBudget,
+    this.linkedBudgetId, // ✅ NEW!
     this.note,
     required this.payments,
     this.listName,
@@ -59,6 +61,7 @@ class VendorModel {
       'pendingAmount': pendingAmount,
       'agreementStatus': agreementStatus,
       'addToBudget': addToBudget,
+      'linkedBudgetId': linkedBudgetId, // ✅ NEW!
       'note': note,
       'payments': payments.map((p) => p.toMap()).toList(),
       'listName': listName,
@@ -83,6 +86,7 @@ class VendorModel {
       pendingAmount: (map['pendingAmount'] ?? 0).toDouble(),
       agreementStatus: map['agreementStatus'] ?? 'pending',
       addToBudget: map['addToBudget'] ?? false,
+      linkedBudgetId: map['linkedBudgetId'], // ✅ NEW!
       note: map['note'],
       payments: (map['payments'] as List?)
           ?.map((p) => PaymentRecord.fromMap(p))

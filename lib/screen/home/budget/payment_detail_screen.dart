@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../model/budget_model.dart' as budget_models;
 import '../../../service/budget_service.dart';
-import '../../../model/budget_model.dart';
 import '../../../widget/Animated_Gradient_Background.dart';
 
 class PaymentDetailScreen extends StatefulWidget {
   final String budgetId;
-  final PaymentRecord payment;
+  final budget_models.PaymentRecord payment;
   final int paymentIndex;
 
   const PaymentDetailScreen({

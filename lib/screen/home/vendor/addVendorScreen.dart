@@ -26,6 +26,7 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _customCategoryController = TextEditingController();
+  final TextEditingController _totalCostController = TextEditingController();
 
   // Form state
   String? _selectedCategory;
@@ -101,6 +102,22 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
       return;
     }
 
+    // ⭐ NEW: Validate total cost
+    if (_totalCostController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter total cost')),
+      );
+      return;
+    }
+
+    final totalCost = double.tryParse(_totalCostController.text.trim());
+    if (totalCost == null || totalCost <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid total cost (> 0)')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -120,9 +137,9 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
         address: _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
-        totalCost: 0.0,
+        totalCost: totalCost,
         paidAmount: 0.0,
-        pendingAmount: 0.0,
+        pendingAmount: totalCost,
         agreementStatus: _selectedStatus,
         addToBudget: false,
         payments: [],
@@ -197,7 +214,7 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(
-                color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
+                color: const Color(0xFF1D1D1D).withOpacity(0.6),
                 fontSize: 13,
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
@@ -276,7 +293,6 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        // ✅ CAT IMAGE - LARGER TO MATCH MOCKUP
         Image.asset(
           'assets/image/AddTaskImageCat.png',
           height: 240,
@@ -350,6 +366,14 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
                           _addressController,
                           'Type here',
                           maxLines: 3,
+                        ),
+                        const SizedBox(height: 15),
+
+                        _buildTextField(
+                          'Total Cost (Rp)',
+                          _totalCostController,
+                          'e.g. 2000000',
+                          keyboardType: TextInputType.number,
                         ),
                         const SizedBox(height: 30),
                       ],
@@ -432,7 +456,7 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
                                         hintText: 'Enter category name',
                                         hintStyle: TextStyle(
                                           color: const Color(0xFF1D1D1D)
-                                              .withValues(alpha: 0.6),
+                                              .withOpacity(0.6),
                                           fontSize: 12,
                                           fontFamily: 'SF Pro',
                                         ),
@@ -629,6 +653,7 @@ class _AddVendorScreenState extends State<AddVendorScreen> {
     _emailController.dispose();
     _addressController.dispose();
     _customCategoryController.dispose();
+    _totalCostController.dispose();
     super.dispose();
   }
 }

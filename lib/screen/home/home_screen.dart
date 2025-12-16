@@ -927,9 +927,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: _currentEventId != null
           ? _firestore
+          .collection('events')
+          .doc(_currentEventId)
           .collection('vendors')
-          .where('eventId', isEqualTo: _currentEventId)
-          .where('createdBy', isEqualTo: _authService.currentUser?.uid ?? '')
           .snapshots()
           : Stream.empty(),
       builder: (context, snapshot) {
@@ -986,42 +986,37 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 8),
-              _buildVendorBudgetRow(
-                label: 'Budget',
-                amount: _formatCurrency(totalBudget),
-              ),
-              _buildVendorBudgetRow(
-                label: 'Paid',
-                amount: _formatCurrency(paidAmount),
-              ),
-              _buildVendorBudgetRow(
-                label: 'Not Paid',
-                amount: _formatCurrency(unpaidAmount),
-              ),
-              SizedBox(height: 16),
+              SizedBox(height: 10),
 
-              // Status Summary
-              Text(
-                'Status',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 12,
-                  fontFamily: 'SF Pro',
-                  fontWeight: FontWeight.w600,
-                ),
+              // Not Contacted
+              _buildVendorStatusRow(
+                label: 'Not Contacted',
+                count: notContacted,
+                color: Colors.grey,
               ),
               SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildVendorStatusBadge('Not Contacted', Colors.grey),
-                  SizedBox(width: 8),
-                  _buildVendorStatusBadge('Contacted', Color(0xFFFFE100)),
-                  SizedBox(width: 8),
-                  _buildVendorStatusBadge('Reserved', Colors.green),
-                  SizedBox(width: 8),
-                  _buildVendorStatusBadge('Rejected', Colors.red),
-                ],
+
+              // Contacted
+              _buildVendorStatusRow(
+                label: 'Contacted',
+                count: contacted,
+                color: Color(0xFFFFE100),
+              ),
+              SizedBox(height: 8),
+
+              // Reserved
+              _buildVendorStatusRow(
+                label: 'Reserved',
+                count: reserved,
+                color: Colors.green,
+              ),
+              SizedBox(height: 8),
+
+              // Rejected
+              _buildVendorStatusRow(
+                label: 'Rejected',
+                count: rejected,
+                color: Colors.red,
               ),
             ],
           ),
@@ -1030,6 +1025,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Budget row for vendor section (match budget screen style)
   Widget _buildVendorBudgetRow({
     required String label,
     required String amount,
@@ -1058,6 +1054,55 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+
+  Widget _buildVendorStatusRow({
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        // Colored dot
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color,
+          ),
+        ),
+        SizedBox(width: 8),
+
+        // Label
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 13,
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+
+        // Count
+        Text(
+          count.toString(),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 13,
+            fontFamily: 'SF Pro',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
 
   Widget _buildVendorStatusBadge(String status, Color color) {
     return Expanded(
