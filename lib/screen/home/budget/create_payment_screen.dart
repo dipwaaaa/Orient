@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../service/budget_service.dart';
 import '../../../model/budget_model.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../utilty/app_responsive.dart';
+import '../../../widget/animated_gradient_background.dart';
 
 class CreatePaymentScreen extends StatefulWidget {
   final String budgetId;
@@ -163,6 +164,8 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -172,36 +175,38 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
           ),
           Column(
             children: [
-              // Header
               SafeArea(
                 bottom: false,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding(),
+                    vertical: AppResponsive.spacingSmall(),
+                  ),
                   child: Row(
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: AppResponsive.responsiveSize(0.122),
+                          height: AppResponsive.responsiveSize(0.122),
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Center(
                           child: Text(
                             'Create a Payment',
                             style: TextStyle(
                               color: Colors.black,
-                              fontSize: 25,
+                              fontSize: AppResponsive.responsiveFont(25),
                               fontFamily: 'SF Pro',
                               fontWeight: FontWeight.w700,
                             ),
@@ -211,16 +216,16 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                       GestureDetector(
                         onTap: _isLoading ? null : _createPayment,
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: AppResponsive.responsiveSize(0.122),
+                          height: AppResponsive.responsiveSize(0.122),
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.check,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
@@ -228,34 +233,32 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                   ),
                 ),
               ),
-              // Content
               Expanded(
                 flex: 2,
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 24),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.responsivePadding() * 2,
+                      vertical: AppResponsive.spacingMedium(),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Payment Name
                         _buildFormField(
                           label: 'Name',
                           controller: _nameController,
                           hintText: 'Type here',
                         ),
-                        const SizedBox(height: 15),
-                        // Date
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildDateField(),
-                        const SizedBox(height: 15),
-                        // Budget
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildFormField(
                           label: 'Budget',
                           controller: TextEditingController(text: widget.budgetName),
                           hintText: 'Type here',
                           enabled: false,
                         ),
-                        const SizedBox(height: 15),
-                        // Amount
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildFormField(
                           label: 'Amount',
                           controller: _amountController,
@@ -263,30 +266,31 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                           hintText: 'Type here',
                           keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(height: 15),
-                        // Note
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildFormField(
                           label: 'Note',
                           controller: _noteController,
                           hintText: 'Type here',
                           maxLines: 3,
                         ),
-                        const SizedBox(height: 30),
+                        SizedBox(height: AppResponsive.spacingLarge()),
                       ],
                     ),
                   ),
                 ),
               ),
-              // Bottom Section - Status and Cat Image
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
-                decoration: const ShapeDecoration(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppResponsive.responsivePadding() * 2,
+                  vertical: AppResponsive.responsivePadding() * 2,
+                ),
+                decoration: ShapeDecoration(
                   color: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(40),
-                      topRight: Radius.circular(40),
+                      topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                      topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
                     ),
                   ),
                 ),
@@ -300,19 +304,19 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
+                            Text(
                               'Status',
                               style: TextStyle(
                                 color: Colors.black,
-                                fontSize: 14,
+                                fontSize: AppResponsive.responsiveFont(14),
                                 fontFamily: 'SF Pro',
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 7),
+                            SizedBox(height: AppResponsive.spacingSmall()),
                             Wrap(
-                              spacing: 7,
-                              runSpacing: 7,
+                              spacing: AppResponsive.spacingSmall(),
+                              runSpacing: AppResponsive.spacingSmall(),
                               children: ['Paid', 'Pending'].map((status) {
                                 final isSelected = _selectedStatus == status;
                                 return GestureDetector(
@@ -322,9 +326,9 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                                     });
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 40,
-                                      vertical: 8,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: AppResponsive.responsivePadding() * 1.5,
+                                      vertical: AppResponsive.spacingSmall() * 0.8,
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
@@ -340,7 +344,7 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                                       status,
                                       style: TextStyle(
                                         color: Colors.black,
-                                        fontSize: 14,
+                                        fontSize: AppResponsive.responsiveFont(14),
                                         fontFamily: 'SF Pro',
                                         fontWeight: isSelected
                                             ? FontWeight.w600
@@ -354,10 +358,10 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: AppResponsive.spacingSmall()),
                       Image.asset(
                         'assets/image/AddTaskImageCat.png',
-                        height: 110,
+                        height: AppResponsive.responsiveHeight(15),
                         fit: BoxFit.contain,
                       ),
                     ],
@@ -385,19 +389,19 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(AppResponsive.responsivePadding()),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
@@ -405,9 +409,9 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
             keyboardType: keyboardType,
             maxLines: maxLines,
             minLines: maxLines == 1 ? 1 : 3,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.black,
-              fontSize: 13,
+              fontSize: AppResponsive.responsiveFont(13),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
@@ -415,7 +419,7 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
               hintText: hintText,
               hintStyle: TextStyle(
                 color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                fontSize: 13,
+                fontSize: AppResponsive.responsiveFont(13),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -433,23 +437,23 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Date',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         GestureDetector(
           onTap: _selectDate,
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(AppResponsive.responsivePadding()),
             decoration: BoxDecoration(
               border: Border.all(width: 2, color: Colors.black),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
             ),
             child: Row(
               children: [
@@ -462,13 +466,17 @@ class _CreatePaymentScreenState extends State<CreatePaymentScreen> {
                       color: _selectedDate != null
                           ? Colors.black
                           : const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                      fontSize: 13,
+                      fontSize: AppResponsive.responsiveFont(13),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const Icon(Icons.calendar_today, size: 18, color: Colors.black),
+                Icon(
+                  Icons.calendar_today,
+                  size: AppResponsive.responsiveIconSize(18),
+                  color: Colors.black,
+                ),
               ],
             ),
           ),

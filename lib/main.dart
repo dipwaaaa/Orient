@@ -10,7 +10,7 @@ import 'screen/onboarding/onboarding_chatbot_screen.dart';
 import 'screen/home/home_screen.dart';
 import 'service/auth_service.dart';
 import 'provider/auth_provider.dart' as auth_notifier;
-import 'widget/Animated_Gradient_Background.dart';
+import 'widget/animated_gradient_background.dart';
 import 'utilty/app_responsive.dart';
 
 

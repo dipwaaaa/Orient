@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../../../model/guest_model.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../utilty/app_responsive.dart';
+import '../../../widget/animated_gradient_background.dart';
 
 class GuestDetailScreen extends StatefulWidget {
   final GuestModel guest;
@@ -21,10 +21,8 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
 
   late GuestModel _guest;
   bool _isEditMode = false;
-  bool _isLoading = false;
   bool _isDeleting = false;
 
-  // Controllers
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
@@ -66,10 +64,11 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
   }
 
   Future<void> _saveChanges() async {
-    setState(() => _isLoading = true);
-
     try {
+      // Update in event subcollection
       await _firestore
+          .collection('events')
+          .doc(_guest.eventId)  //  Use eventId from guest model
           .collection('guests')
           .doc(_guest.guestId)
           .update({
@@ -112,10 +111,6 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
           SnackBar(content: Text('Error: $e')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
   }
 
@@ -143,7 +138,10 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
       setState(() => _isDeleting = true);
 
       try {
+        // Delete from event subcollection
         await _firestore
+            .collection('events')
+            .doc(_guest.eventId)  //  Use eventId from guest model
             .collection('guests')
             .doc(_guest.guestId)
             .delete();
@@ -159,7 +157,7 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
           );
         }
       } catch (e) {
-        debugPrint('❌ Error deleting guest: $e');
+        debugPrint('Error deleting guest: $e');
         if (mounted) {
           setState(() => _isDeleting = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -175,6 +173,8 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return WillPopScope(
       onWillPop: () async {
         if (_isDeleting) return false;
@@ -183,28 +183,24 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
       child: Scaffold(
         body: Stack(
           children: [
-            // Animated Gradient Background
             Positioned.fill(
               child: AnimatedGradientBackground(),
             ),
 
-            // Main Content
             Column(
               children: [
-                // Top Section with Avatar
                 SafeArea(
                   bottom: false,
                   child: SizedBox(
-                    height: 280,
+                    height: AppResponsive.responsiveHeight(31),
                     child: Stack(
                       children: [
-                        // Back Button
                         Positioned(
-                          top: 16,
-                          left: 16,
+                          top: AppResponsive.spacingSmall(),
+                          left: AppResponsive.spacingSmall(),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -213,14 +209,13 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                             ),
                           ),
                         ),
-                        // Delete Button
                         if (!_isEditMode && !_isDeleting)
                           Positioned(
-                            top: 16,
-                            right: 16,
+                            top: AppResponsive.spacingSmall(),
+                            right: AppResponsive.spacingSmall(),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha:0.9),
                                 shape: BoxShape.circle,
                               ),
                               child: IconButton(
@@ -229,21 +224,20 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                               ),
                             ),
                           ),
-                        // Loading indicator during deletion
                         if (_isDeleting)
                           Positioned(
-                            top: 16,
-                            right: 16,
+                            top: AppResponsive.spacingSmall(),
+                            right: AppResponsive.spacingSmall(),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha:0.9),
                                 shape: BoxShape.circle,
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(8.0),
+                                padding: EdgeInsets.all(AppResponsive.spacingSmall() * 0.5),
                                 child: SizedBox(
-                                  width: 24,
-                                  height: 24,
+                                  width: AppResponsive.responsiveIconSize(24),
+                                  height: AppResponsive.responsiveIconSize(24),
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(Colors.red[600]!),
@@ -252,19 +246,18 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                               ),
                             ),
                           ),
-                        // Guest Avatar centered
                         Positioned.fill(
                           child: Center(
                             child: CircleAvatar(
-                              radius: 60,
+                              radius: AppResponsive.avatarRadius(),
                               backgroundColor: _getGenderColor(_selectedGender),
                               child: Text(
                                 _guest.name.isNotEmpty
                                     ? _guest.name[0].toUpperCase()
                                     : "?",
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 56,
+                                  fontSize: AppResponsive.responsiveFont(56),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -276,12 +269,11 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                   ),
                 ),
 
-                // White Content Section
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(40),
-                      topRight: Radius.circular(40),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                      topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
                     ),
                     child: Container(
                       width: double.infinity,
@@ -289,11 +281,15 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                       child: SafeArea(
                         top: false,
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(45, 43, 45, 32),
+                          padding: EdgeInsets.fromLTRB(
+                            AppResponsive.responsivePadding() * 2.2,
+                            AppResponsive.responsivePadding() * 2.6,
+                            AppResponsive.responsivePadding() * 2.2,
+                            AppResponsive.responsivePadding() * 2,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Title and Edit Button
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,19 +300,21 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                                       children: [
                                         Text(
                                           _nameController.text,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 25,
+                                            fontSize: AppResponsive.responsiveFont(25),
                                             fontFamily: 'SF Pro',
                                             fontWeight: FontWeight.w900,
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(height: 3),
+                                        SizedBox(height: AppResponsive.spacingSmall() * 0.3),
                                         Text(
                                           _selectedGender,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 13,
+                                            fontSize: AppResponsive.responsiveFont(13),
                                             fontFamily: 'SF Pro',
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -325,8 +323,8 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                                     ),
                                   ),
                                   Container(
-                                    width: 31,
-                                    height: 31,
+                                    width: AppResponsive.responsiveSize(0.089),
+                                    height: AppResponsive.responsiveSize(0.089),
                                     decoration: BoxDecoration(
                                       color: _isEditMode ? Colors.grey[200] : Colors.transparent,
                                       shape: BoxShape.circle,
@@ -336,7 +334,7 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                                       icon: Icon(
                                         _isEditMode ? Icons.check : Icons.edit,
                                         color: Colors.black,
-                                        size: 18,
+                                        size: AppResponsive.responsiveIconSize(18),
                                       ),
                                       onPressed: () {
                                         if (_isEditMode) {
@@ -352,105 +350,98 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                                 ],
                               ),
 
-                              const SizedBox(height: 28),
+                              SizedBox(height: AppResponsive.spacingLarge() * 2),
 
-                              // Guest Name Field
                               _buildField(
                                 label: 'Name',
                                 controller: _nameController,
                                 enabled: _isEditMode,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Gender & Age Status (Row)
                               Row(
                                 children: [
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Gender',
                                           style: TextStyle(
-                                            color: Color(0xFF616161),
-                                            fontSize: 14,
+                                            color: const Color(0xFF616161),
+                                            fontSize: AppResponsive.responsiveFont(14),
                                             fontFamily: 'SF Pro',
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
-                                        const SizedBox(height: 7),
+                                        SizedBox(height: AppResponsive.spacingSmall()),
                                         if (_isEditMode)
                                           _buildGenderSelection()
                                         else
-                                          _buildReadOnlyDropdown(_selectedGender, value: ''),
+                                          _buildReadOnlyDropdown(_selectedGender),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 16),
+                                  SizedBox(width: AppResponsive.spacingMedium()),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Age Status',
                                           style: TextStyle(
-                                            color: Color(0xFF616161),
-                                            fontSize: 14,
+                                            color: const Color(0xFF616161),
+                                            fontSize: AppResponsive.responsiveFont(14),
                                             fontFamily: 'SF Pro',
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
-                                        const SizedBox(height: 7),
+                                        SizedBox(height: AppResponsive.spacingSmall()),
                                         if (_isEditMode)
                                           _buildAgeStatusSelection()
                                         else
-                                          _buildReadOnlyDropdown(_selectedAgeStatus, value: ''),
+                                          _buildReadOnlyDropdown(_selectedAgeStatus),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Group
                               _buildField(
                                 label: 'Group',
                                 controller: _groupController,
                                 enabled: _isEditMode,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Phone
                               _buildField(
                                 label: 'Phone',
                                 controller: _phoneController,
                                 enabled: _isEditMode,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Email
                               _buildField(
                                 label: 'Email',
                                 controller: _emailController,
                                 enabled: _isEditMode,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Address
                               _buildField(
                                 label: 'Address',
                                 controller: _addressController,
                                 enabled: _isEditMode,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Note
                               _buildField(
                                 label: 'Note',
                                 controller: _noteController,
@@ -458,9 +449,8 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                                 maxLines: 3,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
-                              // Status Dropdown
                               _buildStatusDropdown(
                                 label: 'Status',
                                 value: _selectedStatus,
@@ -483,24 +473,23 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
               ],
             ),
 
-            // Deletion overlay
             if (_isDeleting)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black.withOpacity(0.3),
-                  child: const Center(
+                  color: Colors.black.withValues(alpha:0.3),
+                  child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(
+                        const CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         Text(
                           'Deleting guest...',
                           style: TextStyle(
                             color: Colors.black,
-                            fontSize: 16,
+                            fontSize: AppResponsive.responsiveFont(16),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -527,30 +516,34 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.spacingSmall(),
+            vertical: AppResponsive.spacingSmall() * 0.9,
+          ),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
               color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
             maxLines: maxLines,
-            style: const TextStyle(
+            minLines: 1,
+            style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.responsiveFont(14),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
@@ -560,8 +553,8 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
               contentPadding: EdgeInsets.zero,
               hintText: placeholder,
               hintStyle: TextStyle(
-                color: Colors.black.withOpacity(0.5),
-                fontSize: 14,
+                color: Colors.black.withValues(alpha:0.5),
+                fontSize: AppResponsive.responsiveFont(14),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -572,25 +565,30 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
     );
   }
 
-  Widget _buildReadOnlyDropdown(String selectedGender, {required String value}) {
+  Widget _buildReadOnlyDropdown(String selectedValue) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.spacingSmall(),
+        vertical: AppResponsive.spacingSmall() * 0.9,
+      ),
       decoration: BoxDecoration(
         border: Border.all(
           width: 2,
           color: const Color(0xFFFFE100),
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
       ),
       child: Text(
-        value,
-        style: const TextStyle(
+        selectedValue,
+        style: TextStyle(
           color: Colors.black,
-          fontSize: 14,
+          fontSize: AppResponsive.responsiveFont(14),
           fontFamily: 'SF Pro',
           fontWeight: FontWeight.w600,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -607,12 +605,12 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
               });
             },
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              margin: EdgeInsets.symmetric(horizontal: AppResponsive.spacingSmall() * 0.3),
+              padding: EdgeInsets.symmetric(vertical: AppResponsive.spacingSmall() * 0.8),
               decoration: BoxDecoration(
                 color: isSelected ? Colors.black : Colors.transparent,
                 border: Border.all(color: Colors.black, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
               ),
               child: Text(
                 gender,
@@ -620,7 +618,10 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                 style: TextStyle(
                   color: isSelected ? Colors.white : Colors.black,
                   fontWeight: FontWeight.w600,
+                  fontSize: AppResponsive.responsiveFont(14),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -641,21 +642,23 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
               });
             },
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              margin: EdgeInsets.symmetric(horizontal: AppResponsive.spacingSmall() * 0.2),
+              padding: EdgeInsets.symmetric(vertical: AppResponsive.spacingSmall() * 0.6),
               decoration: BoxDecoration(
                 color: isSelected ? Colors.black : Colors.transparent,
                 border: Border.all(color: Colors.black, width: 1.5),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
               ),
               child: Text(
                 status,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isSelected ? Colors.white : Colors.black,
-                  fontSize: 12,
+                  fontSize: AppResponsive.responsiveFont(12),
                   fontWeight: FontWeight.w600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -677,32 +680,32 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+          padding: EdgeInsets.symmetric(horizontal: AppResponsive.spacingSmall() * 0.2, vertical: AppResponsive.spacingSmall() * 0.3),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
               color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: enabled
               ? DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
-              style: const TextStyle(
+              icon: Icon(Icons.arrow_drop_down, color: Colors.black, size: AppResponsive.responsiveIconSize(20)),
+              style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: AppResponsive.responsiveFont(14),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -712,8 +715,14 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
                   value: status,
                   child: Row(
                     children: [
-                      const SizedBox(width: 12),
-                      Text(status),
+                      SizedBox(width: AppResponsive.spacingSmall()),
+                      Expanded(
+                        child: Text(
+                          status,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -721,15 +730,20 @@ class _GuestDetailScreenState extends State<GuestDetailScreen> {
             ),
           )
               : Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            padding: EdgeInsets.symmetric(
+              vertical: AppResponsive.spacingSmall() * 0.8,
+              horizontal: AppResponsive.spacingSmall(),
+            ),
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: AppResponsive.responsiveFont(14),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),

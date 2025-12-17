@@ -7,10 +7,10 @@ class ChangePasswordDialog extends StatefulWidget {
   final String userEmail;
 
   const ChangePasswordDialog({
-    Key? key,
+    super.key,
     required this.authService,
     required this.userEmail,
-  }) : super(key: key);
+  });
 
   @override
   State<ChangePasswordDialog> createState() => _ChangePasswordDialogState();
@@ -18,12 +18,10 @@ class ChangePasswordDialog extends StatefulWidget {
 
 class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
   bool _isLoading = false;
-  int _step = 0; // 0: Choose method, 1: Email link, 2: Password old/new
+  int _step = 0;
 
-  // Email method
   bool _emailSent = false;
 
-  // Password method controllers
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -51,7 +49,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Icon(Icons.lock_outline, color: Colors.blue, size: 28),
@@ -77,7 +74,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               ),
               SizedBox(height: 20),
 
-              // Content based on step
               if (_step == 0) ...[
                 _buildChooseMethod(),
               ] else if (_step == 1) ...[
@@ -88,7 +84,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
               SizedBox(height: 24),
 
-              // Action Buttons
               _buildActionButtons(),
             ],
           ),
@@ -110,7 +105,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     }
   }
 
-  // STEP 0: CHOOSE METHOD
   Widget _buildChooseMethod() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,10 +119,9 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         ),
         SizedBox(height: 20),
 
-        // Email Link Option
         _buildMethodCard(
           icon: Icons.email_outlined,
-          title: '📧 Email Link',
+          title: 'Email Link',
           subtitle: 'Receive password reset link via email',
           description: 'You\'ll receive a verification link to change password securely',
           onTap: () => setState(() => _step = 1),
@@ -136,7 +129,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         ),
         SizedBox(height: 16),
 
-        // Password Method Option
         _buildMethodCard(
           icon: Icons.lock_outline,
           title: ' Enter Old Password',
@@ -235,7 +227,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     );
   }
 
-  // STEP 1: EMAIL METHOD
   Widget _buildEmailMethod() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +243,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '📧 Email Method',
+                  'Email Method',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.blue.shade700,
@@ -369,7 +360,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         ),
         SizedBox(height: 16),
 
-        // New Password
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -413,7 +403,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         ),
         SizedBox(height: 16),
 
-        // Confirm Password
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -478,7 +467,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
   Widget _buildActionButtons() {
     if (_step == 0) {
-      // Step 0: Back/Cancel button
       return Row(
         children: [
           Expanded(
@@ -503,7 +491,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         ],
       );
     } else if (_step == 1) {
-      // Step 1: Send Email / Done
       return Row(
         children: [
           Expanded(
@@ -558,7 +545,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         ],
       );
     } else {
-      // Step 2: Change Password
       return Row(
         children: [
           Expanded(
@@ -615,7 +601,6 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     }
   }
 
-  // Send password reset email
   Future<void> _sendPasswordResetEmail() async {
     setState(() => _isLoading = true);
 
@@ -624,7 +609,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         email: widget.userEmail,
       );
 
-      debugPrint('✅ Password reset email sent to ${widget.userEmail}');
+      debugPrint(' Password reset email sent to ${widget.userEmail}');
 
       setState(() {
         _emailSent = true;
@@ -634,18 +619,16 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
       _showSuccessSnackBar('Password reset email sent!');
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('❌ Error sending password reset email: $e');
+      debugPrint(' Error sending password reset email: $e');
       _showErrorSnackBar('Failed to send email: $e');
     }
   }
 
-  // Change password directly
   Future<void> _changePasswordDirectly() async {
     final oldPassword = _oldPasswordController.text.trim();
     final newPassword = _newPasswordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    // Validation
     if (oldPassword.isEmpty) {
       _showErrorSnackBar('Please enter your current password');
       return;
@@ -668,7 +651,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
 
     final hasLetter = newPassword.contains(RegExp(r'[a-zA-Z]'));
     final hasNumber = newPassword.contains(RegExp(r'[0-9]'));
-    final hasSymbol = newPassword.contains(RegExp(r'[!@#\$%&*\-_+=]'));
+    final hasSymbol = newPassword.contains(RegExp(r'[!@#$%&*\-_+=]'));
 
     if (!hasLetter || !hasNumber || !hasSymbol) {
       _showErrorSnackBar('Password must contain letters, numbers, and symbols');
@@ -683,23 +666,20 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         throw Exception('No user logged in');
       }
 
-      // Re-authenticate dengan old password
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: oldPassword,
       );
 
       await user.reauthenticateWithCredential(credential);
-      debugPrint('✅ Re-authentication successful');
+      debugPrint(' Re-authentication successful');
 
-      // Update password
       await user.updatePassword(newPassword);
       debugPrint('Password updated successfully');
 
       setState(() => _isLoading = false);
       _showSuccessSnackBar('Password changed successfully!');
 
-      // Close dialog setelah 1 detik
       await Future.delayed(Duration(seconds: 1));
       if (mounted) {
         Navigator.of(context).pop();

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import '../../widget/Animated_Gradient_Background.dart';
+import '../../widget/animated_gradient_background.dart';
 import '../home/home_screen.dart';
 
 class OnboardingChatbotScreen extends StatefulWidget {

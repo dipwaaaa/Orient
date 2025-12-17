@@ -3,8 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../../service/auth_service.dart';
+import '../../../utilty/app_responsive.dart';
 import '../../../model/guest_model.dart';
-import 'AddGuestScreen.dart';
+import 'add_guest_screen.dart';
 import 'guest_detail_screen.dart';
 import '../../../widget/profile_menu.dart';
 
@@ -31,24 +32,21 @@ class _GuestPageScreenState extends State<GuestPageScreen>
   late AnimationController _fabAnimationController;
   late Animation<double> _fabScaleAnimation;
 
-  // ✨ Event Selection State - same as TaskScreen
   late String? _selectedEventId;
   late String _selectedEventName;
 
   @override
   void initState() {
     super.initState();
-    // ✨ Initialize with passed eventId/eventName from HomeScreen carousel
     _selectedEventId = widget.eventId;
     _selectedEventName = widget.eventName ?? '';
 
-    debugPrint('🎯 GuestPageScreen initialized:');
+    debugPrint(' GuestPageScreen initialized:');
     debugPrint('   eventId: $_selectedEventId');
     debugPrint('   eventName: $_selectedEventName');
 
     _loadUserData();
 
-    // Setup FAB Animation
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -91,8 +89,9 @@ class _GuestPageScreenState extends State<GuestPageScreen>
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     final user = _authService.currentUser;
-    final screenWidth = MediaQuery.of(context).size.width;
 
     if (user == null) {
       return Scaffold(
@@ -101,7 +100,7 @@ class _GuestPageScreenState extends State<GuestPageScreen>
           child: Text(
             "Please log in",
             style: TextStyle(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha:0.5),
               fontSize: 16,
               fontFamily: 'SF Pro',
             ),
@@ -115,8 +114,7 @@ class _GuestPageScreenState extends State<GuestPageScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(screenWidth),
-            // ✨ Only show guest list if eventId is selected
+            _buildHeader(),
             if (_selectedEventId != null && _selectedEventId!.isNotEmpty)
               Expanded(
                 child: _buildGuestList(user.uid),
@@ -130,14 +128,14 @@ class _GuestPageScreenState extends State<GuestPageScreen>
                       Icon(
                         Icons.event_note,
                         size: 64,
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha:0.2),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: AppResponsive.spacingMedium()),
                       Text(
                         'Please select an event',
                         style: TextStyle(
-                          color: Colors.black.withOpacity(0.3),
-                          fontSize: 15,
+                          color: Colors.black.withValues(alpha:0.3),
+                          fontSize: AppResponsive.responsiveFont(15),
                           fontWeight: FontWeight.w600,
                           fontFamily: 'SF Pro',
                         ),
@@ -157,12 +155,14 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
-  /// Add Guest Button
   Widget _buildTwitterStyleFAB() {
     return ScaleTransition(
       scale: _fabScaleAnimation,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 70, right: 16),
+        padding: EdgeInsets.only(
+          bottom: AppResponsive.spacingLarge() * 4,
+          right: AppResponsive.spacingMedium(),
+        ),
         child: GestureDetector(
           onTap: () {
             HapticFeedback.mediumImpact();
@@ -178,14 +178,14 @@ class _GuestPageScreenState extends State<GuestPageScreen>
             });
           },
           child: Container(
-            width: 56,
-            height: 56,
+            width: AppResponsive.responsiveSize(0.15),
+            height: AppResponsive.responsiveSize(0.15),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFFFFE100),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha:0.15),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -196,11 +196,11 @@ class _GuestPageScreenState extends State<GuestPageScreen>
               child: InkWell(
                 onTap: null,
                 borderRadius: BorderRadius.circular(28),
-                child: const Center(
+                child: Center(
                   child: Icon(
                     Icons.add,
                     color: Colors.black,
-                    size: 28,
+                    size: AppResponsive.responsiveIconSize(28),
                   ),
                 ),
               ),
@@ -211,37 +211,34 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
-  /// Header with Event Info - Same as TaskScreen style
-  Widget _buildHeader(double screenWidth) {
+  Widget _buildHeader() {
     return Padding(
-      padding: EdgeInsets.all(15),
+      padding: EdgeInsets.all(AppResponsive.responsivePadding()),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Back Button
           GestureDetector(
             onTap: () {
               Navigator.pop(context);
             },
             child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
+              width: AppResponsive.responsiveSize(0.1),
+              height: AppResponsive.responsiveSize(0.1),
+              decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.transparent,
               ),
               child: Icon(
                 Icons.chevron_left,
                 color: Colors.black,
-                size: 28,
+                size: AppResponsive.responsiveIconSize(28),
               ),
             ),
           ),
 
-          // Title Section - ✨ Shows current event from carousel
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(left: 1),
+              padding: EdgeInsets.only(left: AppResponsive.spacingSmall()),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -249,20 +246,19 @@ class _GuestPageScreenState extends State<GuestPageScreen>
                     "Guest List",
                     style: TextStyle(
                       color: Colors.black,
-                      fontSize: 25,
+                      fontSize: AppResponsive.responsiveFont(25),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  SizedBox(height: 4),
-                  // ✨ Shows selected event name from carousel
+                  SizedBox(height: AppResponsive.spacingSmall() * 0.5),
                   Text(
                     _selectedEventId != null && _selectedEventId!.isNotEmpty
-                        ? 'For $_selectedEventName'
+                        ? 'For ${DateFormat('MMMM dd, yyyy').format(DateTime.now())}'
                         : 'No event selected',
                     style: TextStyle(
                       color: Colors.black,
-                      fontSize: 13,
+                      fontSize: AppResponsive.responsiveFont(13),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w500,
                     ),
@@ -274,40 +270,37 @@ class _GuestPageScreenState extends State<GuestPageScreen>
             ),
           ),
 
-          // Notification + Avatar Section
           Container(
-            padding: EdgeInsets.all(screenWidth * 0.022),
+            padding: EdgeInsets.all(AppResponsive.spacingSmall()),
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(screenWidth * 0.069),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusLarge()),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Notification Icon
                 Container(
-                  width: screenWidth * 0.089,
-                  height: screenWidth * 0.089,
-                  decoration: BoxDecoration(
+                  width: AppResponsive.notificationIconSize(),
+                  height: AppResponsive.notificationIconSize(),
+                  decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: screenWidth * 0.069,
+                    size: AppResponsive.responsiveIconSize(20),
                   ),
                 ),
-                SizedBox(width: screenWidth * 0.022),
+                SizedBox(width: AppResponsive.spacingSmall()),
 
-                // Avatar - Tap to show ProfileMenu
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
                     debugPrint('Profile avatar tapped');
                     if (_authService.currentUser == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please login first')),
+                        const SnackBar(content: Text('Please login first')),
                       );
                       return;
                     }
@@ -326,20 +319,18 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
-  /// Build Guest List - ✨ ONLY shows guests for selected eventId
   Widget _buildGuestList(String userId) {
-    // ✨ IMPORTANT: Query ONLY guests for this specific event
-    // This is the KEY FIX - filter by eventId like TaskScreen does
     return StreamBuilder<QuerySnapshot>(
+      // Query from event subcollection, not top-level
       stream: _selectedEventId != null && _selectedEventId!.isNotEmpty
           ? _firestore
-          .collection('guests')
-          .where('createdBy', isEqualTo: userId)
-          .where('eventId', isEqualTo: _selectedEventId) // ✨ FILTER BY EVENT!
-          .snapshots()
+          .collection('events')
+          .doc(_selectedEventId!)
+          .collection('guests')  //  Query subcollection
+          .snapshots()  //  Remove createdBy filter so collaborators can see all guests
           : Stream.empty(),
       builder: (context, snapshot) {
-        debugPrint('📊 Guest Stream Update:');
+        debugPrint('🔍 Guest Stream Update:');
         debugPrint('   State: ${snapshot.connectionState}');
         debugPrint('   Has Error: ${snapshot.hasError}');
         if (snapshot.hasData) {
@@ -368,7 +359,6 @@ class _GuestPageScreenState extends State<GuestPageScreen>
           return _buildEmptyState();
         }
 
-        // Convert to GuestModel and sort by name
         final guests = docs
             .map((doc) =>
             GuestModel.fromMap(doc.data() as Map<String, dynamic>))
@@ -376,9 +366,12 @@ class _GuestPageScreenState extends State<GuestPageScreen>
           ..sort((a, b) => a.name.compareTo(b.name));
 
         return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.responsivePadding(),
+            vertical: AppResponsive.responsivePadding(),
+          ),
           itemCount: guests.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, __) => SizedBox(height: AppResponsive.spacingMedium()),
           itemBuilder: (context, index) {
             final guest = guests[index];
             return _buildGuestTile(guest);
@@ -396,14 +389,14 @@ class _GuestPageScreenState extends State<GuestPageScreen>
           Icon(
             Icons.people,
             size: 64,
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha:0.2),
           ),
-          SizedBox(height: 16),
+          SizedBox(height: AppResponsive.spacingMedium()),
           Text(
             'There are no guests',
             style: TextStyle(
-              color: Colors.black.withOpacity(0.3),
-              fontSize: 15,
+              color: Colors.black.withValues(alpha:0.3),
+              fontSize: AppResponsive.responsiveFont(15),
               fontWeight: FontWeight.w600,
               fontFamily: 'SF Pro',
             ),
@@ -413,7 +406,6 @@ class _GuestPageScreenState extends State<GuestPageScreen>
     );
   }
 
-  /// Guest Tile - ✨ Navigates to GuestDetailScreen
   Widget _buildGuestTile(GuestModel guest) {
     return GestureDetector(
       onTap: () {
@@ -424,20 +416,22 @@ class _GuestPageScreenState extends State<GuestPageScreen>
           ),
         ).then((result) {
           if (result == true) {
-            // Refresh list after edit/delete
             setState(() {});
           }
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.spacingSmall(),
+          vertical: AppResponsive.spacingSmall() * 0.8,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(AppResponsive.borderRadiusLarge()),
+          border: Border.all(color: Colors.grey.withValues(alpha:0.2)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha:0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -445,59 +439,65 @@ class _GuestPageScreenState extends State<GuestPageScreen>
         ),
         child: Row(
           children: [
-            // Avatar
             CircleAvatar(
-              radius: 22,
+              radius: AppResponsive.avatarRadius() * 0.5,
               backgroundColor: _getGenderColor(guest.gender),
               child: Text(
                 guest.name.isNotEmpty ? guest.name[0].toUpperCase() : "?",
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: AppResponsive.responsiveFont(18),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: AppResponsive.spacingSmall()),
 
-            // Name & Status
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     guest.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                      fontSize: AppResponsive.responsiveFont(15),
                       color: Colors.black,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  // ✨ Status Badge
+                  SizedBox(height: AppResponsive.spacingSmall() * 0.3),
                   Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.spacingSmall() * 0.5,
+                      vertical: AppResponsive.spacingSmall() * 0.2,
+                    ),
                     decoration: BoxDecoration(
                       color: _getStatusColor(guest.status ?? 'Pending')
-                          .withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
+                          .withValues(alpha:0.2),
+                      borderRadius: BorderRadius.circular(AppResponsive.borderRadiusSmall()),
                     ),
                     child: Text(
                       guest.status ?? 'Pending',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppResponsive.responsiveFont(11),
                         fontWeight: FontWeight.w600,
                         color: _getStatusColor(guest.status ?? 'Pending'),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Arrow Icon
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: AppResponsive.responsiveIconSize(16),
+              color: Colors.grey[400],
+            ),
           ],
         ),
       ),

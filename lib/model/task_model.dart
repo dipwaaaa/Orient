@@ -8,7 +8,7 @@ class TaskModel {
   final DateTime dueDate;
   final String status;
   final String? note;
-  final double? budget; // TAMBAHKAN INI
+  final double? budget;
   final List<String>? imageUrls;
   final String createdBy;
   final DateTime createdAt;
@@ -22,7 +22,7 @@ class TaskModel {
     required this.dueDate,
     required this.status,
     this.note,
-    this.budget, // TAMBAHKAN INI
+    this.budget,
     this.imageUrls,
     required this.createdBy,
     required this.createdAt,
@@ -38,7 +38,7 @@ class TaskModel {
       'dueDate': Timestamp.fromDate(dueDate),
       'status': status,
       'note': note,
-      'budget': budget, // TAMBAHKAN INI
+      'budget': budget,
       'imageUrls': imageUrls,
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -55,7 +55,7 @@ class TaskModel {
       dueDate: (map['dueDate'] as Timestamp).toDate(),
       status: map['status'] ?? 'pending',
       note: map['note'],
-      budget: map['budget']?.toDouble(), // TAMBAHKAN INI
+      budget: map['budget']?.toDouble(),
       imageUrls: map['imageUrls'] != null ? List<String>.from(map['imageUrls']) : null,
       createdBy: map['createdBy'] ?? '',
       createdAt: (map['createdAt'] as Timestamp).toDate(),

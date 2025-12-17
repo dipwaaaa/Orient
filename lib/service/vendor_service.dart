@@ -1,4 +1,3 @@
-// File: service/vendor_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import '../model/vendor_model.dart';
@@ -9,9 +8,7 @@ class VendorService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BudgetService _budgetService = BudgetService();
 
-  // ============= VENDOR CREATION & MANAGEMENT =============
 
-  /// Create new vendor
   Future<Map<String, dynamic>> createVendor({
     required String eventId,
     required String vendorName,
@@ -51,7 +48,6 @@ class VendorService {
         lastUpdated: now,
       );
 
-      // Save vendor di subcollection event
       await _firestore
           .collection('events')
           .doc(eventId)
@@ -72,7 +68,6 @@ class VendorService {
     }
   }
 
-  /// Get all vendors for an event
   Stream<List<VendorModel>> getVendorsByEvent(String eventId) {
     return _firestore
         .collection('events')
@@ -89,7 +84,6 @@ class VendorService {
     });
   }
 
-  /// Get single vendor
   Future<VendorModel?> getVendor({
     required String eventId,
     required String vendorId,
@@ -114,7 +108,6 @@ class VendorService {
     }
   }
 
-  /// Update vendor details
   Future<Map<String, dynamic>> updateVendor({
     required String eventId,
     required String vendorId,
@@ -140,7 +133,6 @@ class VendorService {
       if (address != null) updates['address'] = address;
       if (note != null) updates['note'] = note;
 
-      // Jika totalCost berubah, update pending amount juga
       if (totalCost != null) {
         final vendor = await getVendor(
           eventId: eventId,
@@ -172,10 +164,7 @@ class VendorService {
     }
   }
 
-  // ============= VENDOR-BUDGET LINKING =============
 
-  /// Toggle vendor add to budget flag
-  /// Ketika checkbox "Add to Budget" diaktifkan/dinonaktifkan
   Future<Map<String, dynamic>> toggleAddToBudget({
     required String eventId,
     required String vendorId,
@@ -196,7 +185,6 @@ class VendorService {
       }
 
       if (addToBudget) {
-        // Add vendor to budget
         final result = await _budgetService.addLinkedVendor(
           budgetId: budgetId,
           vendorId: vendorId,
@@ -209,7 +197,6 @@ class VendorService {
           return result;
         }
 
-        // Update vendor flag
         await _firestore
             .collection('events')
             .doc(eventId)
@@ -225,7 +212,6 @@ class VendorService {
           'message': 'Vendor added to budget',
         };
       } else {
-        // Remove vendor from budget
         final result = await _budgetService.removeLinkedVendor(
           budgetId: budgetId,
           vendorId: vendorId,
@@ -235,7 +221,6 @@ class VendorService {
           return result;
         }
 
-        // Update vendor flag
         await _firestore
             .collection('events')
             .doc(eventId)
@@ -259,8 +244,6 @@ class VendorService {
     }
   }
 
-  /// Update vendor contribution to budget
-  /// Called when vendor cost changes while linked to budget
   Future<Map<String, dynamic>> updateVendorContribution({
     required String eventId,
     required String vendorId,
@@ -273,7 +256,6 @@ class VendorService {
         vendorId: vendorId,
       );
 
-      // ✅ FIX: Check null first!
       if (vendor == null) {
         return {
           'success': false,
@@ -281,7 +263,6 @@ class VendorService {
         };
       }
 
-      // ✅ FIX: Now safe to check addToBudget (vendor guaranteed non-null)
       final isLinked = vendor.addToBudget ?? false;
       if (!isLinked) {
         return {
@@ -290,7 +271,6 @@ class VendorService {
         };
       }
 
-      // Update vendor cost
       await _firestore
           .collection('events')
           .doc(eventId)
@@ -302,7 +282,6 @@ class VendorService {
         'lastUpdated': Timestamp.fromDate(DateTime.now()),
       });
 
-      // Update vendor contribution in budget
       final result = await _budgetService.updateVendorContribution(
         budgetId: budgetId,
         vendorId: vendorId,
@@ -318,9 +297,6 @@ class VendorService {
     }
   }
 
-  // ============= VENDOR PAYMENT MANAGEMENT =============
-
-  /// Add payment to vendor
   Future<Map<String, dynamic>> addVendorPayment({
     required String eventId,
     required String vendorId,
@@ -334,7 +310,6 @@ class VendorService {
         vendorId: vendorId,
       );
 
-      // ✅ FIX: Check null first!
       if (vendor == null) {
         return {
           'success': false,
@@ -342,7 +317,6 @@ class VendorService {
         };
       }
 
-      // ✅ FIX: Now safe to use vendor (guaranteed non-null)
       final paymentId =
           _firestore.collection('events').doc(eventId).collection('vendors').doc().id;
       final now = paymentDate ?? DateTime.now();
@@ -384,7 +358,6 @@ class VendorService {
     }
   }
 
-  /// Delete vendor
   Future<Map<String, dynamic>> deleteVendor({
     required String eventId,
     required String vendorId,
@@ -395,7 +368,6 @@ class VendorService {
         vendorId: vendorId,
       );
 
-      // ✅ FIX: Check null first!
       if (vendor == null) {
         return {
           'success': false,
@@ -403,7 +375,6 @@ class VendorService {
         };
       }
 
-      // ✅ FIX: Now safe to check addToBudget (vendor guaranteed non-null)
       final isLinked = vendor.addToBudget ?? false;
       if (isLinked) {
         debugPrint('Vendor is linked to budget. Consider removing link first.');
@@ -428,9 +399,7 @@ class VendorService {
     }
   }
 
-  // ============= VENDOR SUMMARY & QUERIES =============
 
-  /// Get vendor summary for event
   Future<Map<String, dynamic>> getVendorSummary(String eventId) async {
     try {
       final snapshot = await _firestore
@@ -453,7 +422,6 @@ class VendorService {
         totalPaidToVendors += vendor.paidAmount;
         vendorCount++;
 
-        // ✅ Use null coalescing operator (??) for safe condition check
         if (vendor.addToBudget ?? false) {
           linkedVendorCount++;
         }
@@ -478,7 +446,6 @@ class VendorService {
     }
   }
 
-  /// Get vendors linked to budget
   Future<List<VendorModel>> getLinkedVendorsByBudget({
     required String eventId,
     required String budgetId,

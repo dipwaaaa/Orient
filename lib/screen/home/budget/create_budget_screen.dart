@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../service/auth_service.dart';
 import '../../../service/budget_service.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../utilty/app_responsive.dart';
+import '../../../widget/animated_gradient_background.dart';
 import 'package:intl/intl.dart';
-import 'payment_detail_screen.dart';
 
 class CreateBudgetScreen extends StatefulWidget {
   final String eventId;
@@ -19,18 +18,15 @@ class CreateBudgetScreen extends StatefulWidget {
 }
 
 class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
-  final AuthService _authService = AuthService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final BudgetService _budgetService = BudgetService();
 
-  // Form controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _customCategoryController = TextEditingController();
 
-  // Form state
   String _selectedEventName = '';
   String? _selectedCategory;
   String _selectedStatus = 'pending';
@@ -130,7 +126,6 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
   }
 
   Future<void> _createBudget() async {
-    // Validation
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter budget name')),
@@ -164,7 +159,6 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
     });
 
     try {
-      // Parse budget value
       final budget = double.tryParse(
         _budgetController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
       ) ??
@@ -233,19 +227,19 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(AppResponsive.responsivePadding()),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
@@ -255,7 +249,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               hintText: hint,
               hintStyle: TextStyle(
                 color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                fontSize: 13,
+                fontSize: AppResponsive.responsiveFont(13),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -273,23 +267,23 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Date',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         GestureDetector(
           onTap: _selectDate,
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(AppResponsive.responsivePadding()),
             decoration: BoxDecoration(
               border: Border.all(width: 2, color: Colors.black),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
             ),
             child: Row(
               children: [
@@ -302,13 +296,13 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                       color: _dateController.text.isEmpty
                           ? const Color(0xFF1D1D1D).withValues(alpha: 0.6)
                           : Colors.black,
-                      fontSize: 13,
+                      fontSize: AppResponsive.responsiveFont(13),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const Icon(Icons.calendar_today, size: 18),
+                Icon(Icons.calendar_today, size: AppResponsive.responsiveIconSize(18)),
               ],
             ),
           ),
@@ -325,19 +319,19 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Status',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 14,
+                  fontSize: AppResponsive.responsiveFont(14),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 7),
+              SizedBox(height: AppResponsive.spacingSmall()),
               Wrap(
-                spacing: 7,
-                runSpacing: 7,
+                spacing: AppResponsive.spacingSmall(),
+                runSpacing: AppResponsive.spacingSmall(),
                 children: ['Completed', 'Pending'].map((status) {
                   final statusValue = status.toLowerCase();
                   final isSelected = _selectedStatus == statusValue;
@@ -348,8 +342,10 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                       });
                     },
                     child: Container(
-                      padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.responsivePadding(),
+                        vertical: AppResponsive.spacingSmall() * 0.8,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? const Color(0xFFFFE100)
@@ -359,9 +355,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                       ),
                       child: Text(
                         status,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.black,
-                          fontSize: 14,
+                          fontSize: AppResponsive.responsiveFont(14),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w500,
                         ),
@@ -373,10 +369,10 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
             ],
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: AppResponsive.spacingSmall()),
         Image.asset(
           'assets/image/AddTaskImageCat.png',
-          height: 110,
+          height: AppResponsive.responsiveHeight(15),
           fit: BoxFit.contain,
         ),
       ],
@@ -385,67 +381,69 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Animated Gradient Background
           Positioned.fill(
             child: AnimatedGradientBackground(),
           ),
 
-          // Content
           Column(
             children: [
-              // Header dengan SafeArea
               SafeArea(
                 bottom: false,
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    SizedBox(height: AppResponsive.spacingMedium()),
                     _buildHeader(),
-                    const SizedBox(height: 25),
+                    SizedBox(height: AppResponsive.spacingLarge()),
                   ],
                 ),
               ),
 
-              // Form Section (Scrollable)
               Expanded(
                 flex: 2,
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 31),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.responsivePadding() * 2,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildTextField('Name', _nameController, 'Type here'),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildDateField(),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildTextField('Budget', _budgetController, 'Type here',
                             keyboardType: TextInputType.number),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildTextField('Note', _noteController, 'Type here',
                             maxLines: 3),
-                        const SizedBox(height: 30),
+                        SizedBox(height: AppResponsive.spacingLarge()),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // Category dan Status Section (Scrollable di dalam white container)
               Expanded(
                 flex: 3,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
-                  decoration: const ShapeDecoration(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding() * 2,
+                    vertical: AppResponsive.responsivePadding() * 2,
+                  ),
+                  decoration: ShapeDecoration(
                     color: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(40),
-                        topRight: Radius.circular(40),
+                        topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                        topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
                       ),
                     ),
                   ),
@@ -456,15 +454,14 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Category Section
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'Category',
                                 style: TextStyle(
                                   color: Colors.black,
-                                  fontSize: 14,
+                                  fontSize: AppResponsive.responsiveFont(14),
                                   fontFamily: 'SF Pro',
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -477,27 +474,28 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                   });
                                 },
                                 child: Container(
-                                  width: 30,
-                                  height: 30,
+                                  width: AppResponsive.responsiveSize(0.089),
+                                  height: AppResponsive.responsiveSize(0.089),
                                   decoration: const BoxDecoration(
                                     color: Color(0xFFFFE100),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.add,
                                     color: Colors.black,
-                                    size: 18,
+                                    size: AppResponsive.responsiveIconSize(18),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 7),
+                          SizedBox(height: AppResponsive.spacingSmall()),
 
-                          // Custom Category Input
                           if (_showCustomCategoryInput)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.only(
+                                bottom: AppResponsive.spacingSmall(),
+                              ),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -508,42 +506,44 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                         hintStyle: TextStyle(
                                           color: const Color(0xFF1D1D1D)
                                               .withValues(alpha: 0.6),
-                                          fontSize: 12,
+                                          fontSize: AppResponsive.responsiveFont(12),
                                           fontFamily: 'SF Pro',
                                         ),
                                         border: OutlineInputBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            AppResponsive.borderRadiusMedium(),
+                                          ),
                                         ),
-                                        contentPadding:
-                                        const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 10,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: AppResponsive.spacingSmall(),
+                                          vertical: AppResponsive.spacingSmall() * 0.8,
                                         ),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  SizedBox(width: AppResponsive.spacingSmall()),
                                   GestureDetector(
                                     onTap: _addCustomCategory,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: AppResponsive.spacingSmall(),
+                                        vertical: AppResponsive.spacingSmall() * 0.8,
                                       ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFE100),
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(
+                                          AppResponsive.borderRadiusMedium(),
+                                        ),
                                         border: Border.all(
                                           width: 1,
                                           color: Colors.black,
                                         ),
                                       ),
-                                      child: const Text(
+                                      child: Text(
                                         'Add',
                                         style: TextStyle(
                                           color: Colors.black,
-                                          fontSize: 12,
+                                          fontSize: AppResponsive.responsiveFont(12),
                                           fontFamily: 'SF Pro',
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -554,10 +554,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                               ),
                             ),
 
-                          // Category Chips
                           Wrap(
-                            spacing: 7,
-                            runSpacing: 7,
+                            spacing: AppResponsive.spacingSmall(),
+                            runSpacing: AppResponsive.spacingSmall(),
                             children: _categories.map((category) {
                               final isSelected =
                                   _selectedCategory == category;
@@ -568,8 +567,10 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                   });
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 15, vertical: 8),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: AppResponsive.spacingSmall() * 1.3,
+                                    vertical: AppResponsive.spacingSmall() * 0.8,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: isSelected
                                         ? const Color(0xFFFFE100)
@@ -582,7 +583,7 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                                     category,
                                     style: TextStyle(
                                       color: Colors.black,
-                                      fontSize: 14,
+                                      fontSize: AppResponsive.responsiveFont(14),
                                       fontFamily: 'SF Pro',
                                       fontWeight: isSelected
                                           ? FontWeight.w600
@@ -593,9 +594,8 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
                               );
                             }).toList(),
                           ),
-                          const SizedBox(height: 25),
+                          SizedBox(height: AppResponsive.spacingLarge()),
 
-                          // Status Section
                           _buildStatusSection(),
                         ],
                       ),
@@ -612,7 +612,9 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 31),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsivePadding() * 2,
+      ),
       child: Column(
         children: [
           Row(
@@ -621,20 +623,24 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: AppResponsive.responsiveSize(0.122),
+                  height: AppResponsive.responsiveSize(0.122),
                   decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 24),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: AppResponsive.responsiveIconSize(24),
+                  ),
                 ),
               ),
-              const Text(
+              Text(
                 'Create a Budget',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 25,
+                  fontSize: AppResponsive.responsiveFont(25),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w900,
                 ),
@@ -642,25 +648,29 @@ class _CreateBudgetScreenState extends State<CreateBudgetScreen> {
               GestureDetector(
                 onTap: _isLoading ? null : _createBudget,
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: AppResponsive.responsiveSize(0.122),
+                  height: AppResponsive.responsiveSize(0.122),
                   decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.save, color: Colors.white, size: 24),
+                  child: Icon(
+                    Icons.save,
+                    color: Colors.white,
+                    size: AppResponsive.responsiveIconSize(24),
+                  ),
                 ),
               ),
             ],
           ),
           if (_selectedEventName.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: EdgeInsets.only(top: AppResponsive.spacingSmall()),
               child: Text(
                 'for $_selectedEventName',
                 style: TextStyle(
                   color: Colors.black.withValues(alpha: 0.7),
-                  fontSize: 13,
+                  fontSize: AppResponsive.responsiveFont(13),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w500,
                 ),

@@ -6,15 +6,15 @@ import '/service/auth_service.dart';
 import '/service/event_service.dart';
 import '/service/budget_service.dart';
 import '/utilty/app_responsive.dart';
-import '../../widget/Animated_Gradient_Background.dart';
-import '../../widget/NavigationBar.dart';
+import '../../widget/animated_gradient_background.dart';
+import '../../widget/navigation_bar.dart';
 import '../../widget/profile_menu.dart';
 import '../../widget/TaskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_signup_screen.dart';
 import 'task/task_page_screen.dart';
-import 'guest/GuestPageScreen.dart';
-import 'vendor/vendorPageScreen.dart';
+import 'guest/guest_page_screen.dart';
+import 'vendor/vendor_page_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,32 +25,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
-  final EventService _eventService = EventService();
   final BudgetService _budgetService = BudgetService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   String _username = 'User';
   int _currentIndex = 1;
 
-  // Carousel and Event State
   final _carouselController = PageController();
   int _currentCarouselIndex = 0;
   List<Map<String, dynamic>> _userEvents = [];
   bool _isLoadingEvents = true;
 
-  // Current Event State
   DateTime? _currentEventDate;
   String _currentEventName = 'No Active Event';
   String? _currentEventId;
 
-  // Budget State
   Map<String, double> _budgetSummary = {
     'totalPaid': 0,
     'totalUnpaid': 0,
     'remainingBalance': 0,
   };
 
-  // Auto-delete state
   bool _isAutoDeleting = false;
 
   Timer? _countdownTimer;
@@ -67,12 +62,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _setupAuthListener();
     _loadUserData();
 
-    // Trigger auto-delete when app starts
-    _triggerAutoDeletePastEvents();
 
     _listenToEvents();
 
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_currentEventDate != null && mounted) {
         final now = DateTime.now();
         final difference = _currentEventDate!.difference(now);
@@ -90,53 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  /// Trigger auto-delete for past events
-  Future<void> _triggerAutoDeletePastEvents() async {
-    try {
-      final user = _authService.currentUser;
-      if (user == null) {
-        debugPrint(' No user logged in, skipping auto-delete');
-        return;
-      }
-
-      if (_isAutoDeleting) {
-        debugPrint(' Auto-delete already in progress, skipping');
-        return;
-      }
-
-      setState(() => _isAutoDeleting = true);
-
-      debugPrint('🗑 Starting auto-delete for past events...');
-
-      // Call auto-delete service
-      final deletedCount = await _eventService.autoDeletePastEvents(user.uid);
-
-      if (mounted) {
-        setState(() => _isAutoDeleting = false);
-
-        if (deletedCount > 0) {
-          debugPrint('Auto-deleted $deletedCount past events');
-
-          // Show snackbar notification
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$deletedCount event${deletedCount > 1 ? 's' : ''} archived'),
-              duration: Duration(seconds: 3),
-              backgroundColor: Colors.green[600],
-            ),
-          );
-
-          // Refresh events list
-          _listenToEvents();
-        }
-      }
-    } catch (e) {
-      debugPrint(' Error in auto-delete: $e');
-      if (mounted) {
-        setState(() => _isAutoDeleting = false);
-      }
-    }
-  }
 
   void _setupAuthListener() {
     _authSubscription = _authService.auth.authStateChanges().listen((user) {
@@ -177,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .collection('events')
             .where('collaborators', arrayContains: user.uid)
             .get()
-            .timeout(Duration(seconds: 10));
+            .timeout(const Duration(seconds: 10));
 
         if (!mounted || _authService.currentUser == null) return;
 
@@ -233,6 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'description': '',
               'isOwner': false,
               'isCollaborator': false,
+              'status': 'Pending',
             };
           }
 
@@ -244,15 +191,31 @@ class _HomeScreenState extends State<HomeScreen> {
             'description': data['description'] ?? '',
             'isOwner': data['ownerId'] == user.uid,
             'isCollaborator': (data['collaborators'] as List<dynamic>?)?.contains(user.uid) ?? false,
+            'status': data['eventStatus'] ?? 'Pending',
           };
         }).toList();
 
+        // FILTER: Hanya events yang belum Completed untuk carousel
+        final visibleEvents = eventsList
+            .where((event) => event['status'] != 'Completed')
+            .toList();
+
         if (mounted) {
           setState(() {
-            _userEvents = eventsList;
+            _userEvents = visibleEvents;
             _isLoadingEvents = false;
-            if (_userEvents.isNotEmpty && _currentCarouselIndex < _userEvents.length) {
+
+            // Jika current index > jumlah visible events, reset ke 0
+            if (_currentCarouselIndex >= _userEvents.length) {
+              _currentCarouselIndex = 0;
+            }
+
+            if (_userEvents.isNotEmpty) {
               _updateCurrentEvent(_currentCarouselIndex);
+            } else {
+              _currentEventDate = null;
+              _currentEventName = 'No Active Event';
+              _currentEventId = null;
             }
           });
         }
@@ -273,12 +236,18 @@ class _HomeScreenState extends State<HomeScreen> {
             'description': data['description'] ?? '',
             'isOwner': true,
             'isCollaborator': false,
+            'status': data['eventStatus'] ?? 'Pending',
           };
         }).whereType<Map<String, dynamic>>().toList();
 
+        // FILTER: Hanya events yang belum Completed
+        final visibleEvents = eventsList
+            .where((event) => event['status'] != 'Completed')
+            .toList();
+
         if (mounted) {
           setState(() {
-            _userEvents = eventsList;
+            _userEvents = visibleEvents;
             _isLoadingEvents = false;
           });
         }
@@ -308,11 +277,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _budgetSubscription = _budgetService
-        .getBudgetSummaryStream(eventId)  // ← Service method yang benar
+        .getBudgetSummaryStream(eventId)
         .listen(
           (summary) {
         if (mounted) {
-          debugPrint(' HomeScreen - Budget summary updated from service:');
+          debugPrint('HomeScreen - Budget summary updated from service:');
           debugPrint('   - Paid: ${summary['totalPaid']}');
           debugPrint('   - Unpaid: ${summary['totalUnpaid']}');
           debugPrint('   - Remaining: ${summary['remainingBalance']}');
@@ -327,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       },
       onError: (error) {
-        debugPrint(' Budget summary stream error: $error');
+        debugPrint('Budget summary stream error: $error');
         if (mounted) {
           setState(() {
             _budgetSummary = {
@@ -340,7 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-
 
   void _updateCurrentEvent(int index) {
     if (_userEvents.isEmpty) {
@@ -383,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => LoginScreen()),
+        MaterialPageRoute(builder: (context) =>  LoginScreen()),
             (route) => false,
       );
     }
@@ -444,7 +412,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     AppResponsive.init(context);
 
@@ -466,31 +433,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
 
-                  SizedBox(height: 24),
+                  SizedBox(height: AppResponsive.spacingLarge()),
                   _buildCarousel(),
-                  SizedBox(height: 16),
+                  SizedBox(height: AppResponsive.spacingMedium()),
                   _buildFeatureButtons(),
-                  SizedBox(height: 24),
+                  SizedBox(height: AppResponsive.spacingLarge()),
                   if (_currentEventId != null)
                     _buildTaskSection(),
-                  SizedBox(height: 24),
+                  SizedBox(height: AppResponsive.spacingLarge()),
                   if (_currentEventId != null)
                     _buildBudgetSection(),
-                  SizedBox(height: 24),
-                  // ✨ ADD GUEST SECTION
+                  SizedBox(height: AppResponsive.spacingLarge()),
                   if (_currentEventId != null)
                     _buildGuestSection(),
-                  SizedBox(height: 24),
-                  // ✨ ADD VENDOR SECTION
+                  SizedBox(height: AppResponsive.spacingLarge()),
                   if (_currentEventId != null)
                     _buildVendorSection(),
-                  SizedBox(height: 24),
+                  SizedBox(height: AppResponsive.spacingLarge()),
                 ],
               ),
             ),
           ),
 
-          // Auto-delete loading overlay
           if (_isAutoDeleting)
             Positioned.fill(
               child: Container(
@@ -499,17 +463,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(
+                      const CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(
                           Color(0xFFFFE100),
                         ),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: AppResponsive.spacingMedium()),
                       Text(
                         'Checking for past events...',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 14,
+                          fontSize: AppResponsive.responsiveFont(14),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -531,7 +495,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
   Widget _buildBudgetSection() {
     return Container(
       width: double.infinity,
@@ -548,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Budget',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 20,
+                  fontSize: AppResponsive.responsiveFont(20),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w700,
                 ),
@@ -571,15 +534,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       'View all',
                       style: TextStyle(
                         color: Colors.black.withValues(alpha: 0.6),
-                        fontSize: 14,
+                        fontSize: AppResponsive.responsiveFont(14),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: AppResponsive.spacingSmall()),
                     Icon(
                       Icons.arrow_forward_ios,
-                      size: 14,
+                      size: AppResponsive.responsiveIconSize(14),
                       color: Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
@@ -587,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildBudgetSummaryCard(),
         ],
       ),
@@ -596,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBudgetSummaryCard() {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(AppResponsive.spacingMedium()),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -608,7 +573,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -619,21 +584,21 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: '●',
             label: 'Balance',
             amount: _formatCurrency(_budgetSummary['remainingBalance'] ?? 0),
-            color: Color(0xFFFFE100),
+            color: const Color(0xFFFFE100),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildBudgetRow(
             icon: '●',
             label: 'Paid',
             amount: _formatCurrency(_budgetSummary['totalPaid'] ?? 0),
-            color: Color(0xFF51FF00),
+            color: const Color(0xFF51FF00),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildBudgetRow(
             icon: '●',
             label: 'Unpaid',
             amount: _formatCurrency(_budgetSummary['totalUnpaid'] ?? 0),
-            color: Color(0xFFFF6B00),
+            color: const Color(0xFFFF6B00),
           ),
         ],
       ),
@@ -652,36 +617,39 @@ class _HomeScreenState extends State<HomeScreen> {
           icon,
           style: TextStyle(
             color: color,
-            fontSize: 16,
+            fontSize: AppResponsive.responsiveFont(16),
             fontWeight: FontWeight.bold,
           ),
         ),
-        SizedBox(width: 12),
+        SizedBox(width: AppResponsive.spacingMedium()),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.responsiveFont(14),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         Text(
           amount,
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w700,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
   }
 
-  /// Build Guest Statistics Section
   Widget _buildGuestSection() {
     return Container(
       width: double.infinity,
@@ -698,7 +666,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Guest',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 20,
+                  fontSize: AppResponsive.responsiveFont(20),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w700,
                 ),
@@ -721,15 +689,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       'View all',
                       style: TextStyle(
                         color: Colors.black.withValues(alpha: 0.6),
-                        fontSize: 14,
+                        fontSize: AppResponsive.responsiveFont(14),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: AppResponsive.spacingSmall()),
                     Icon(
                       Icons.arrow_forward_ios,
-                      size: 14,
+                      size: AppResponsive.responsiveIconSize(14),
                       color: Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
@@ -737,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildGuestStatsCard(),
         ],
       ),
@@ -748,9 +718,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return StreamBuilder<QuerySnapshot>(
       stream: _currentEventId != null
           ? _firestore
+          .collection('events')
+          .doc(_currentEventId)
           .collection('guests')
-          .where('eventId', isEqualTo: _currentEventId)
-          .where('createdBy', isEqualTo: _authService.currentUser?.uid ?? '')
           .snapshots()
           : Stream.empty(),
       builder: (context, snapshot) {
@@ -780,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         return Container(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppResponsive.spacingMedium()),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15),
@@ -792,7 +762,7 @@ class _HomeScreenState extends State<HomeScreen> {
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 4,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -805,21 +775,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 count: notSent,
                 color: Colors.grey,
               ),
-              SizedBox(height: 12),
+              SizedBox(height: AppResponsive.spacingMedium()),
               _buildGuestStatRow(
                 icon: Icons.schedule,
                 label: 'Pending',
                 count: pending,
                 color: Colors.orange,
               ),
-              SizedBox(height: 12),
+              SizedBox(height: AppResponsive.spacingMedium()),
               _buildGuestStatRow(
                 icon: Icons.check_circle_outline,
                 label: 'Accepted',
                 count: accepted,
                 color: Colors.green,
               ),
-              SizedBox(height: 12),
+              SizedBox(height: AppResponsive.spacingMedium()),
               _buildGuestStatRow(
                 icon: Icons.cancel_outlined,
                 label: 'Rejected',
@@ -841,33 +811,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 20),
-        SizedBox(width: 12),
+        Icon(icon, color: color, size: AppResponsive.responsiveIconSize(20)),
+        SizedBox(width: AppResponsive.spacingMedium()),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.responsiveFont(14),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         Text(
           '$count/0',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w700,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
   }
 
-  /// Build Vendor Statistics Section
   Widget _buildVendorSection() {
     return Container(
       width: double.infinity,
@@ -884,7 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Vendor',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 20,
+                  fontSize: AppResponsive.responsiveFont(20),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w700,
                 ),
@@ -907,15 +880,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       'View all',
                       style: TextStyle(
                         color: Colors.black.withValues(alpha: 0.6),
-                        fontSize: 14,
+                        fontSize: AppResponsive.responsiveFont(14),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: AppResponsive.spacingSmall()),
                     Icon(
                       Icons.arrow_forward_ios,
-                      size: 14,
+                      size: AppResponsive.responsiveIconSize(14),
                       color: Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
@@ -923,7 +898,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildVendorStatsCard(),
         ],
       ),
@@ -940,9 +915,6 @@ class _HomeScreenState extends State<HomeScreen> {
           .snapshots()
           : Stream.empty(),
       builder: (context, snapshot) {
-        double totalBudget = 0;
-        double paidAmount = 0;
-        double unpaidAmount = 0;
         int notContacted = 0;
         int contacted = 0;
         int reserved = 0;
@@ -951,9 +923,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (snapshot.hasData) {
           for (var doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
-            totalBudget += (data['totalCost'] ?? 0).toDouble();
-            paidAmount += (data['paidAmount'] ?? 0).toDouble();
-            unpaidAmount += (data['pendingAmount'] ?? 0).toDouble();
 
             final status = data['agreementStatus'] ?? 'pending';
             switch (status.toString().toLowerCase()) {
@@ -974,7 +943,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         return Container(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppResponsive.spacingMedium()),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15),
@@ -986,40 +955,36 @@ class _HomeScreenState extends State<HomeScreen> {
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 4,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 10),
+              SizedBox(height: AppResponsive.spacingSmall()),
 
-              // Not Contacted
               _buildVendorStatusRow(
                 label: 'Not Contacted',
                 count: notContacted,
                 color: Colors.grey,
               ),
-              SizedBox(height: 8),
+              SizedBox(height: AppResponsive.spacingSmall()),
 
-              // Contacted
               _buildVendorStatusRow(
                 label: 'Contacted',
                 count: contacted,
-                color: Color(0xFFFFE100),
+                color: const Color(0xFFFFE100),
               ),
-              SizedBox(height: 8),
+              SizedBox(height: AppResponsive.spacingSmall()),
 
-              // Reserved
               _buildVendorStatusRow(
                 label: 'Reserved',
                 count: reserved,
                 color: Colors.green,
               ),
-              SizedBox(height: 8),
+              SizedBox(height: AppResponsive.spacingSmall()),
 
-              // Rejected
               _buildVendorStatusRow(
                 label: 'Rejected',
                 count: rejected,
@@ -1032,37 +997,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Budget row for vendor section (match budget screen style)
-  Widget _buildVendorBudgetRow({
-    required String label,
-    required String amount,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 13,
-            fontFamily: 'SF Pro',
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          amount,
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 13,
-            fontFamily: 'SF Pro',
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-
   Widget _buildVendorStatusRow({
     required String label,
     required int count,
@@ -1070,7 +1004,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Row(
       children: [
-        // Colored dot
         Container(
           width: 10,
           height: 10,
@@ -1079,82 +1012,36 @@ class _HomeScreenState extends State<HomeScreen> {
             color: color,
           ),
         ),
-        SizedBox(width: 8),
+        SizedBox(width: AppResponsive.spacingSmall()),
 
-        // Label
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               color: Colors.black,
-              fontSize: 13,
+              fontSize: AppResponsive.responsiveFont(13),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w500,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
 
-        // Count
         Text(
           count.toString(),
           style: TextStyle(
             color: Colors.black,
-            fontSize: 13,
+            fontSize: AppResponsive.responsiveFont(13),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w700,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
   }
-
-
-
-
-  Widget _buildVendorStatusBadge(String status, Color color) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
-        ),
-        child: Center(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                ),
-              ),
-              SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-
-
 
   Widget _buildTaskSection() {
     return Container(
@@ -1172,7 +1059,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Task',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 20,
+                  fontSize: AppResponsive.responsiveFont(20),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w700,
                 ),
@@ -1195,15 +1082,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       'View all',
                       style: TextStyle(
                         color: Colors.black.withValues(alpha: 0.6),
-                        fontSize: 14,
+                        fontSize: AppResponsive.responsiveFont(14),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w500,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: AppResponsive.spacingSmall()),
                     Icon(
                       Icons.arrow_forward_ios,
-                      size: 14,
+                      size: AppResponsive.responsiveIconSize(14),
                       color: Colors.black.withValues(alpha: 0.6),
                     ),
                   ],
@@ -1211,7 +1100,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
           TaskListWidget(
             eventId: _currentEventId,
             maxItems: 3,
@@ -1230,7 +1119,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return SizedBox(
         width: cardWidth,
         height: cardHeight,
-        child: Center(
+        child: const Center(
           child: CircularProgressIndicator(
             valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
           ),
@@ -1284,19 +1173,19 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
         if (_userEvents.length > 1)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
               _userEvents.length,
                   (index) => Container(
-                margin: EdgeInsets.symmetric(horizontal: 4),
+                margin: EdgeInsets.symmetric(horizontal: AppResponsive.spacingSmall() * 0.3),
                 width: _currentCarouselIndex == index ? 24 : 8,
                 height: 8,
                 decoration: BoxDecoration(
                   color: _currentCarouselIndex == index
-                      ? Color(0xFFFFE100)
+                      ? const Color(0xFFFFE100)
                       : Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -1317,7 +1206,7 @@ class _HomeScreenState extends State<HomeScreen> {
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1326,8 +1215,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Stack(
           children: [
             Positioned(
-              left: 16,
-              top: 16,
+              left: AppResponsive.spacingMedium(),
+              top: AppResponsive.spacingMedium(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1335,12 +1224,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     "No Active Event",
                     style: TextStyle(
                       color: Colors.black,
-                      fontSize: 12,
+                      fontSize: AppResponsive.responsiveFont(12),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: AppResponsive.spacingMedium()),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1348,25 +1239,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         '00',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 48,
+                          fontSize: AppResponsive.responsiveFont(48),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w700,
                           height: 0.9,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'DAYS',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 10,
+                          fontSize: AppResponsive.responsiveFont(10),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  SizedBox(height: AppResponsive.spacingSmall()),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1374,21 +1269,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         '00',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 48,
+                          fontSize: AppResponsive.responsiveFont(48),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w700,
                           height: 0.9,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'HOURS',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 10,
+                          fontSize: AppResponsive.responsiveFont(10),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -1396,9 +1295,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Positioned(
-              right: 16,
-              top: 16,
-              bottom: 16,
+              right: AppResponsive.spacingMedium(),
+              top: AppResponsive.spacingMedium(),
+              bottom: AppResponsive.spacingMedium(),
               child: SizedBox(
                 width: cardWidth * 0.70,
                 child: _buildIllustration(),
@@ -1420,30 +1319,30 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       width: cardWidth,
       height: cardHeight,
-      margin: EdgeInsets.symmetric(horizontal: 8),
+      margin: EdgeInsets.symmetric(horizontal: AppResponsive.spacingSmall()),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: AnimatedGradientBackground(
-        duration: Duration(seconds: 5),
+        duration: const Duration(seconds: 5),
         radius: 1.5,
-        colors: [
+        colors: const [
           Color(0xFFFFE100),
           Color(0xFFFF6A00),
         ],
         child: Stack(
           children: [
             Positioned(
-              left: 16,
-              top: 16,
+              left: AppResponsive.spacingMedium(),
+              top: AppResponsive.spacingMedium(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1453,7 +1352,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       eventName,
                       style: TextStyle(
                         color: Colors.black,
-                        fontSize: 12,
+                        fontSize: AppResponsive.responsiveFont(12),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                       ),
@@ -1461,7 +1360,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: AppResponsive.spacingMedium()),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1469,25 +1368,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         days.toString().padLeft(2, '0'),
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 48,
+                          fontSize: AppResponsive.responsiveFont(48),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w700,
                           height: 0.9,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'DAYS',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 10,
+                          fontSize: AppResponsive.responsiveFont(10),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  SizedBox(height: AppResponsive.spacingSmall()),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1495,21 +1398,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         hours.toString().padLeft(2, '0'),
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 48,
+                          fontSize: AppResponsive.responsiveFont(48),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w700,
                           height: 0.9,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'HOURS',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 10,
+                          fontSize: AppResponsive.responsiveFont(10),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -1517,9 +1424,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Positioned(
-              right: 16,
-              top: 16,
-              bottom: 16,
+              right: AppResponsive.spacingMedium(),
+              top: AppResponsive.spacingMedium(),
+              bottom: AppResponsive.spacingMedium(),
               child: SizedBox(
                 width: cardWidth * 0.70,
                 child: _buildIllustration(),
@@ -1535,7 +1442,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
+        image: const DecorationImage(
           image: AssetImage('assets/image/CarouselImage.png'),
           fit: BoxFit.contain,
         ),
@@ -1554,7 +1461,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildFeatureButton(
             imagePath: 'assets/image/ButtonTask.png',
             label: 'Task',
-            color: Color(0xFFFFE100),
+            color: const Color(0xFFFFE100),
             onTap: () {
               Navigator.push(
                 context,
@@ -1586,7 +1493,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildFeatureButton(
             imagePath: 'assets/image/ButtonBudget.png',
             label: 'Budget',
-            color: Color(0xFFFFE100),
+            color: const Color(0xFFFFE100),
             onTap: () {
               Navigator.push(
                 context,
@@ -1648,9 +1555,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         children: [
           AnimatedContainer(
-            duration: Duration(milliseconds: 150),
-            width: 60,
-            height: 60,
+            duration: const Duration(milliseconds: 150),
+            width: AppResponsive.responsiveSize(0.145),
+            height: AppResponsive.responsiveSize(0.145),
             decoration: BoxDecoration(
               color: isPressed ? Colors.white : color,
               shape: BoxShape.circle,
@@ -1662,16 +1569,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 4,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Padding(
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.all(AppResponsive.spacingSmall()),
               child: ColorFiltered(
                 colorFilter: isPressed
-                    ? ColorFilter.mode(Colors.black, BlendMode.srcIn)
-                    : ColorFilter.mode(Colors.transparent, BlendMode.dst),
+                    ? const ColorFilter.mode(Colors.black, BlendMode.srcIn)
+                    : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
                 child: Image.asset(
                   imagePath,
                   fit: BoxFit.contain,
@@ -1679,15 +1586,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: AppResponsive.spacingSmall()),
           Text(
             label,
             style: TextStyle(
               color: Colors.black,
-              fontSize: 12,
+              fontSize: AppResponsive.responsiveFont(12),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

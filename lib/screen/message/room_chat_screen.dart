@@ -36,11 +36,30 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
   bool _isInitialized = false;
   bool _isUploading = false;
   bool _isSending = false;
+  String? _receiverProfileImageUrl;
 
+  @override
   @override
   void initState() {
     super.initState();
     _initializeChat();
+    _setupMessageReadListener();
+    _loadReceiverProfileImage();
+  }
+  void _setupMessageReadListener() {
+    if (_chatId == null) return;
+
+    _firestore
+        .collection('messages')
+        .where('chatId', isEqualTo: _chatId)
+        .where('receiverId', isEqualTo: widget.currentUserId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.docs.isNotEmpty && mounted) {
+        _markMessagesAsRead();
+      }
+    });
   }
 
   String _generateChatId(String userId1, String userId2) {
@@ -102,7 +121,26 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
     }
   }
 
-  // Fungsi untuk menandai pesan sebagai sudah dibaca
+  Future<void> _loadReceiverProfileImage() async {
+    try {
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(widget.receiverUserId)
+          .get();
+
+      if (userDoc.exists && mounted) {
+        final userData = userDoc.data();
+        final profileImg = userData?['profileImageUrl'] as String?;
+
+        setState(() {
+          _receiverProfileImageUrl = profileImg;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading receiver profile image: $e');
+    }
+  }
+
   Future<void> _markMessagesAsRead() async {
     if (_chatId == null) return;
 
@@ -122,7 +160,7 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
 
       await batch.commit();
 
-      debugPrint('✅ ${unreadMessages.docs.length} messages marked as read');
+      debugPrint(' ${unreadMessages.docs.length} messages marked as read');
     } catch (e) {
       debugPrint(' Error marking messages as read: $e');
     }
@@ -341,17 +379,17 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       debugPrint('\n📱 Picking image from gallery...');
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85, // Compress sedikit untuk performa
+        imageQuality: 85,
       );
 
       if (image != null) {
-        debugPrint('✅ Image selected: ${image.name}');
+        debugPrint(' Image selected: ${image.name}');
         await _uploadFile(File(image.path), 'image');
       } else {
-        debugPrint('❌ No image selected');
+        debugPrint(' No image selected');
       }
     } catch (e) {
-      debugPrint('❌ Error picking image: $e');
+      debugPrint(' Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -368,17 +406,17 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
       debugPrint('\n📷 Taking photo from camera...');
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 85, // Compress sedikit untuk performa
+        imageQuality: 85,
       );
 
       if (image != null) {
-        debugPrint('✅ Photo taken: ${image.name}');
+        debugPrint(' Photo taken: ${image.name}');
         await _uploadFile(File(image.path), 'image');
       } else {
-        debugPrint('❌ No photo taken');
+        debugPrint(' No photo taken');
       }
     } catch (e) {
-      debugPrint('❌ Error taking photo: $e');
+      debugPrint('Error taking photo: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -571,17 +609,39 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
+                color: const Color(0xFFDEF3FF),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey[300]!, width: 1.5),
               ),
-              child: Center(
-                child: Text(
-                  widget.username[0].toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'SF Pro',
+              child: ClipOval(
+                child: _receiverProfileImageUrl != null && _receiverProfileImageUrl!.isNotEmpty
+                    ? Image.network(
+                  _receiverProfileImageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Text(
+                        widget.username.isNotEmpty
+                            ? widget.username[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    );
+                  },
+                )
+                    : Center(
+                  child: Text(
+                    widget.username.isNotEmpty
+                        ? widget.username[0].toUpperCase()
+                        : '?',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
                 ),
               ),

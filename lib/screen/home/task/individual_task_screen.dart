@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../model/task_model.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../utilty/app_responsive.dart';
+import '../../../widget/animated_gradient_background.dart';
 
 class IndividualTaskScreen extends StatefulWidget {
   final String taskId;
@@ -77,7 +78,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Task updated successfully!')),
+          const SnackBar(content: Text('Task updated successfully!')),
         );
         setState(() {
           _isEditing = false;
@@ -88,7 +89,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
       debugPrint('Error updating task: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Failed to update task'),
             backgroundColor: Colors.red,
           ),
@@ -101,17 +102,17 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Task'),
-        content: Text('Are you sure you want to delete this task?'),
+        title: const Text('Delete Task'),
+        content: const Text('Are you sure you want to delete this task?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -124,14 +125,14 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Task deleted')),
+            const SnackBar(content: Text('Task deleted')),
           );
         }
       } catch (e) {
         debugPrint('Error deleting task: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Failed to delete task'),
               backgroundColor: Colors.red,
             ),
@@ -143,10 +144,12 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.white,
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -158,12 +161,12 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.error_outline, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text('Task not found'),
-              SizedBox(height: 24),
+              SizedBox(height: AppResponsive.spacingMedium()),
+              const Text('Task not found'),
+              SizedBox(height: AppResponsive.spacingLarge()),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Go Back'),
+                child: const Text('Go Back'),
               ),
             ],
           ),
@@ -171,219 +174,216 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
       );
     }
 
-          return Scaffold(
-            body: Stack(
-                children: [
-            // Animated Gradient Background untuk seluruh layar
-            Positioned.fill(
-            child: AnimatedGradientBackground(
-            duration: Duration(seconds: 5),
-            radius: 2.22,
-            colors: [
-              Color(0xFFFF6A00),
-              Color(0xFFFFE100),
-            ],
-          ),
-          ),
-
-          // Konten utama
-          SafeArea(
-          child: Column(
-          children: [
-          // Top Section with Cat Image
-          SizedBox(
-          height: 280,
-          child: Stack(
-          children: [
-          // Back Button
-          Positioned(
-          top: 16,
-          left: 16,
-          child: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-          ),
-          ),
-          // Delete Button
-          if (!_isEditing)
-          Positioned(
-          top: 16,
-          right: 16,
-          child: IconButton(
-          icon: Icon(Icons.delete, color: Colors.red),
-          onPressed: _deleteTask,
-          ),
-          ),
-          // Cat Image
+    return Scaffold(
+      body: Stack(
+        children: [
           Positioned.fill(
-          child: Center(
-          child: Image.asset(
-          'assets/image/TaskIndividualImage.png',
-          height: 180,
-          fit: BoxFit.contain,
-          ),
-          ),
-          ),
-          ],
-          ),
+            child: AnimatedGradientBackground(
+              duration: const Duration(seconds: 5),
+              radius: 2.22,
+              colors: const [
+                Color(0xFFFF6A00),
+                Color(0xFFFFE100),
+              ],
+            ),
           ),
 
-          // White Content Section
-          Expanded(
-          child: ClipRRect(
-          borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(40),
-          topRight: Radius.circular(40),
-          ),
-          child: Container(
-          width: double.infinity,
-          color: Colors.white,
-          child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(45, 43, 45, 32),
-          child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          SafeArea(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: AppResponsive.responsiveHeight(31),
+                  child: Stack(
                     children: [
-                      // Title and Edit Button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
+                      Positioned(
+                        top: AppResponsive.spacingSmall(),
+                        left: AppResponsive.spacingSmall(),
+                        child: IconButton(
+                          icon: Icon(Icons.arrow_back, color: Colors.black, size: AppResponsive.responsiveIconSize(24)),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                      if (!_isEditing)
+                        Positioned(
+                          top: AppResponsive.spacingSmall(),
+                          right: AppResponsive.spacingSmall(),
+                          child: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red, size: AppResponsive.responsiveIconSize(24)),
+                            onPressed: _deleteTask,
+                          ),
+                        ),
+                      Positioned.fill(
+                        child: Center(
+                          child: Image.asset(
+                            'assets/image/TaskIndividualImage.png',
+                            height: AppResponsive.responsiveHeight(20),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                      topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      color: Colors.white,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          AppResponsive.responsivePadding() * 2.2,
+                          AppResponsive.responsivePadding() * 2.6,
+                          AppResponsive.responsivePadding() * 2.2,
+                          AppResponsive.responsivePadding() * 2,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  _task!.name,
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 25,
-                                    fontFamily: 'SF Pro',
-                                    fontWeight: FontWeight.w900,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _task!.name,
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: AppResponsive.responsiveFont(25),
+                                          fontFamily: 'SF Pro',
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      SizedBox(height: AppResponsive.spacingSmall() * 0.3),
+                                      Text(
+                                        'On ${DateFormat('MMMM d, yyyy').format(_task!.dueDate)}',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: AppResponsive.responsiveFont(13),
+                                          fontFamily: 'SF Pro',
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                SizedBox(height: 3),
-                                Text(
-                                  'On ${DateFormat('MMMM d, yyyy').format(_task!.dueDate)}',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 13,
-                                    fontFamily: 'SF Pro',
-                                    fontWeight: FontWeight.w500,
+                                Container(
+                                  width: AppResponsive.responsiveSize(0.089),
+                                  height: AppResponsive.responsiveSize(0.089),
+                                  decoration: BoxDecoration(
+                                    color: _isEditing ? Colors.grey[200] : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(
+                                      _isEditing ? Icons.close : Icons.edit,
+                                      color: Colors.black,
+                                      size: AppResponsive.responsiveIconSize(18),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isEditing = !_isEditing;
+                                        if (!_isEditing) {
+                                          _nameController.text = _task!.name;
+                                          _budgetController.text = _task!.budget != null ? 'Rp${NumberFormat('#,###', 'id_ID').format(_task!.budget)}' : '';
+                                          _noteController.text = _task!.note ?? '';
+                                        }
+                                      });
+                                    },
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          Container(
-                            width: 31,
-                            height: 31,
-                            decoration: BoxDecoration(
-                              color: _isEditing ? Colors.grey[200] : Colors.transparent,
-                              shape: BoxShape.circle,
+
+                            SizedBox(height: AppResponsive.spacingLarge() * 2),
+
+                            _buildField(
+                              label: 'Task Name',
+                              controller: _nameController,
+                              enabled: _isEditing,
                             ),
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              icon: Icon(
-                                _isEditing ? Icons.close : Icons.edit,
-                                color: Colors.black,
-                                size: 18,
+
+                            SizedBox(height: AppResponsive.spacingMedium()),
+
+                            _buildField(
+                              label: 'Budget',
+                              controller: _budgetController,
+                              enabled: _isEditing,
+                              placeholder: 'Not set',
+                            ),
+
+                            SizedBox(height: AppResponsive.spacingMedium()),
+
+                            _buildField(
+                              label: 'Note',
+                              controller: _noteController,
+                              enabled: _isEditing,
+                              placeholder: '-',
+                              maxLines: 2,
+                            ),
+
+                            SizedBox(height: AppResponsive.spacingMedium()),
+
+                            _buildReadOnlyField(
+                              label: 'Category',
+                              value: _task!.category,
+                            ),
+
+                            SizedBox(height: AppResponsive.spacingMedium()),
+
+                            _buildReadOnlyField(
+                              label: 'Status',
+                              value: _task!.status == 'completed' ? 'Completed' : 'Pending',
+                            ),
+
+                            if (_isEditing) ...[
+                              SizedBox(height: AppResponsive.spacingLarge() * 2),
+                              SizedBox(
+                                width: double.infinity,
+                                height: AppResponsive.responsiveHeight(6),
+                                child: ElevatedButton(
+                                  onPressed: _updateTask,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFFE100),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Save Changes',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: AppResponsive.responsiveFont(16),
+                                      fontFamily: 'SF Pro',
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _isEditing = !_isEditing;
-                                  if (!_isEditing) {
-                                    _nameController.text = _task!.name;
-                                    _budgetController.text = _task!.budget != null ? 'Rp${NumberFormat('#,###', 'id_ID').format(_task!.budget)}' : '';
-                                    _noteController.text = _task!.note ?? '';
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 28),
-
-                      // Task Name Field
-                      _buildField(
-                        label: 'Task Name',
-                        controller: _nameController,
-                        enabled: _isEditing,
-                      ),
-
-                      SizedBox(height: 12),
-
-                      // Budget Field
-                      _buildField(
-                        label: 'Budget',
-                        controller: _budgetController,
-                        enabled: _isEditing,
-                        placeholder: 'Not set',
-                      ),
-
-                      SizedBox(height: 12),
-
-                      // Note Field
-                      _buildField(
-                        label: 'Note',
-                        controller: _noteController,
-                        enabled: _isEditing,
-                        placeholder: '-',
-                      ),
-
-                      SizedBox(height: 12),
-
-                      // Category Field (Read-only)
-                      _buildReadOnlyField(
-                        label: 'Category',
-                        value: _task!.category,
-                      ),
-
-                      SizedBox(height: 12),
-
-                      // Status Field (Read-only)
-                      _buildReadOnlyField(
-                        label: 'Status',
-                        value: _task!.status == 'completed' ? 'Completed' : 'Pending',
-                      ),
-
-                      if (_isEditing) ...[
-                        SizedBox(height: 32),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _updateTask,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFFFFE100),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                            ),
-                            child: Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontFamily: 'SF Pro',
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
+                            ],
+                          ],
                         ),
-                      ],
-                    ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-    )
-          ],
-        ),
+          ),
+        ],
       ),
-    ]
-            )
     );
   }
 
@@ -392,6 +392,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
     required TextEditingController controller,
     required bool enabled,
     String? placeholder,
+    int maxLines = 1,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,28 +400,33 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.spacingSmall(),
+            vertical: AppResponsive.spacingSmall() * 0.9,
+          ),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
-              color: Color(0xFFFFE100),
+              color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
+            maxLines: maxLines,
+            minLines: 1,
             style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.responsiveFont(14),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
@@ -431,7 +437,7 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
               hintText: placeholder,
               hintStyle: TextStyle(
                 color: Colors.black.withValues(alpha: 0.5),
-                fontSize: 14,
+                fontSize: AppResponsive.responsiveFont(14),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -452,31 +458,36 @@ class _IndividualTaskScreenState extends State<IndividualTaskScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
           width: double.infinity,
-          padding: EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.spacingSmall(),
+            vertical: AppResponsive.spacingSmall() * 0.9,
+          ),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
-              color: Color(0xFFFFE100),
+              color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: Text(
             value,
             style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.responsiveFont(14),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

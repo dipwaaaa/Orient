@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../service/budget_service.dart';
 import '../../../model/budget_model.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../widget/animated_gradient_background.dart';
+import '../../../utilty/app_responsive.dart';
 import 'create_payment_screen.dart';
 import 'payment_detail_screen.dart';
 
 class BudgetDetailScreen extends StatefulWidget {
+  final String eventId;
   final String budgetId;
 
   const BudgetDetailScreen({
     super.key,
+    required this.eventId,
     required this.budgetId,
   });
 
@@ -144,6 +147,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     if (_isLoading || _budget == null) {
       return const Scaffold(
         body: Center(
@@ -166,7 +171,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               SafeArea(
                 bottom: false,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding(),
+                    vertical: AppResponsive.spacingMedium(),
+                  ),
                   child: Row(
                     children: [
                       GestureDetector(
@@ -178,10 +186,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
@@ -190,7 +198,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildTabButton('Cost', 0),
-                          const SizedBox(width: 7),
+                          SizedBox(width: AppResponsive.spacingSmall()),
                           _buildTabButton('Payments', 1),
                         ],
                       ),
@@ -202,30 +210,34 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
 
               Image.asset(
                 'assets/image/bored.png',
-                height: 180,
+                height: AppResponsive.getHeight(20),
                 fit: BoxFit.contain,
               ),
 
-              const SizedBox(height: 15),
+              SizedBox(height: AppResponsive.spacingMedium()),
 
               Expanded(
                 child: Container(
                   width: double.infinity,
-                  decoration: const ShapeDecoration(
+                  decoration: ShapeDecoration(
                     color: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(40),
-                        topRight: Radius.circular(40),
+                        topLeft: Radius.circular(AppResponsive.borderRadiusLarge()),
+                        topRight: Radius.circular(AppResponsive.borderRadiusLarge()),
                       ),
                     ),
                   ),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(45, 43, 45, 30),
+                    padding: EdgeInsets.fromLTRB(
+                      AppResponsive.responsivePadding() * 1.5,
+                      AppResponsive.responsivePadding() * 1.5,
+                      AppResponsive.responsivePadding() * 1.5,
+                      AppResponsive.responsivePadding(),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title section di dalam card
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -234,20 +246,22 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                               children: [
                                 Text(
                                   _budget!.itemName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 25,
+                                    fontSize: AppResponsive.headerFontSize(),
                                     fontFamily: 'SF Pro',
                                     fontWeight: FontWeight.w700,
                                     height: 0.88,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 3),
+                                SizedBox(height: AppResponsive.spacingSmall()),
                                 Text(
                                   'Rp${NumberFormat('#,###', 'id_ID').format(_budget!.totalCost)} Total Cost',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 13,
+                                    fontSize: AppResponsive.smallFontSize(),
                                     fontFamily: 'SF Pro',
                                     fontWeight: FontWeight.w600,
                                     height: 1.69,
@@ -275,7 +289,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                                   ),
                                   child: Icon(
                                     _isEditMode ? Icons.check : Icons.edit,
-                                    size: 18,
+                                    size: AppResponsive.responsiveIconSize(18),
                                     color: Colors.black,
                                   ),
                                 ),
@@ -290,9 +304,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                                     color: Color(0xFFFFE100),
                                     shape: OvalBorder(),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.add,
-                                    size: 18,
+                                    size: AppResponsive.responsiveIconSize(18),
                                     color: Colors.black,
                                   ),
                                 ),
@@ -300,9 +314,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 28),
+                        SizedBox(height: AppResponsive.spacingExtraLarge()),
 
-                        // Content berdasarkan tab
                         _selectedTabIndex == 0
                             ? _buildCostDetails()
                             : _buildPaymentsTab(),
@@ -328,7 +341,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 5),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.responsivePadding() * 1.2,
+          vertical: AppResponsive.spacingSmall(),
+        ),
         decoration: ShapeDecoration(
           color: isSelected ? Colors.black : Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -341,7 +357,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           textAlign: TextAlign.center,
           style: TextStyle(
             color: isSelected ? const Color(0xFFFFBD09) : Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w700,
             height: 1.57,
@@ -360,7 +376,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           _nameController,
           enabled: _isEditMode,
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
 
         _buildFormField(
           'Date',
@@ -369,7 +385,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           isDateField: true,
           onTapDate: _isEditMode ? _selectDate : null,
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
 
         _buildFormField(
           'Budget',
@@ -378,7 +394,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           prefix: 'Rp',
           keyboardType: TextInputType.number,
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
 
         _buildFormField(
           'Paid',
@@ -388,7 +404,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           enabled: false,
           prefix: 'Rp',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
 
         _buildFormField(
           'Unpaid',
@@ -398,7 +414,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           enabled: false,
           prefix: 'Rp',
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
 
         _buildFormField(
           'Note',
@@ -422,7 +438,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           final payment = entry.value;
           final index = entry.key;
           return _buildPaymentItem(payment, index);
-        }).toList(),
+        }),
       ],
     );
   }
@@ -430,7 +446,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   Widget _buildEmptyPaymentsState() {
     return Column(
       children: [
-        const SizedBox(height: 50),
+        SizedBox(height: AppResponsive.getHeight(5)),
         Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -440,21 +456,21 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                 height: 100,
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.inbox_outlined,
-                  size: 50,
+                  size: AppResponsive.responsiveIconSize(50),
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 15),
+              SizedBox(height: AppResponsive.spacingMedium()),
               Text(
                 'There are no payments',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.black.withValues(alpha: 0.30),
-                  fontSize: 13,
+                  fontSize: AppResponsive.smallFontSize(),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w600,
                 ),
@@ -462,7 +478,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 50),
+        SizedBox(height: AppResponsive.getHeight(5)),
       ],
     );
   }
@@ -506,16 +522,16 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 5),
+              SizedBox(width: AppResponsive.spacingSmall()),
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'Payment ${index + 1}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 14,
+                        fontSize: AppResponsive.bodyFontSize(),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                         height: 0.86,
@@ -523,9 +539,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                     ),
                     Text(
                       'Rp${NumberFormat('#,###', 'id_ID').format(payment.amount)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 14,
+                        fontSize: AppResponsive.bodyFontSize(),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                         height: 0.86,
@@ -536,15 +552,15 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: AppResponsive.spacingSmall()),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Total Paid: Rp${NumberFormat('#,###', 'id_ID').format(cumulativePaid)}',
-                style: const TextStyle(
-                  color: Color(0xFFA1A1A1),
-                  fontSize: 10,
+                style: TextStyle(
+                  color: const Color(0xFFA1A1A1),
+                  fontSize: AppResponsive.extraSmallFontSize(),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w600,
                   height: 1.20,
@@ -552,9 +568,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               ),
               Text(
                 'Unpaid: Rp${NumberFormat('#,###', 'id_ID').format(cumulativeUnpaid)}',
-                style: const TextStyle(
-                  color: Color(0xFFA1A1A1),
-                  fontSize: 10,
+                style: TextStyle(
+                  color: const Color(0xFFA1A1A1),
+                  fontSize: AppResponsive.extraSmallFontSize(),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w600,
                   height: 1.20,
@@ -562,7 +578,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               ),
             ],
           ),
-          if (index < _budget!.payments.length - 1) const SizedBox(height: 12),
+          if (index < _budget!.payments.length - 1) SizedBox(height: AppResponsive.spacingMedium()),
         ],
       ),
     );
@@ -583,14 +599,14 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
           height: 48,
           decoration: ShapeDecoration(
@@ -599,30 +615,33 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                 width: 2,
                 color: Color(0xFFFFE100),
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
             ),
           ),
           child: isDateField
               ? GestureDetector(
             onTap: enabled ? onTapDate : null,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: AppResponsive.spacingMedium(),
+                vertical: AppResponsive.spacingMedium(),
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       controller.text,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 14,
+                        fontSize: AppResponsive.bodyFontSize(),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.calendar_today,
-                    size: 16,
+                    size: AppResponsive.responsiveIconSize(16),
                     color: Colors.black,
                   ),
                 ],
@@ -630,20 +649,23 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             ),
           )
               : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppResponsive.spacingMedium(),
+              vertical: AppResponsive.spacingSmall(),
+            ),
             child: Row(
               children: [
                 if (prefix != null) ...[
                   Text(
                     prefix,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.black,
-                      fontSize: 14,
+                      fontSize: AppResponsive.bodyFontSize(),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: AppResponsive.spacingSmall()),
                 ],
                 Expanded(
                   child: TextField(
@@ -651,9 +673,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                     enabled: enabled,
                     keyboardType: keyboardType,
                     maxLines: maxLines,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.black,
-                      fontSize: 14,
+                      fontSize: AppResponsive.bodyFontSize(),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),

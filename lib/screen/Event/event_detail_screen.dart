@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../../widget/Animated_Gradient_Background.dart';
+import '../../service/auth_service.dart';
+import '../../service/notification_service.dart';
+import '../../service/notification_service.dart';
+import '../../widget/animated_gradient_background.dart';
+import '../../../utilty/app_responsive.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -23,8 +27,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   final TextEditingController _budgetController = TextEditingController();
 
   Map<String, dynamic>? _event;
-  List<String> _collaborators = []; // List of collaborator identifiers (username/email)
-  List<String> _collaboratorNames = []; // List of collaborator display names
+  List<String> _collaborators = [];
+  List<String> _collaboratorNames = [];
   String _selectedStatus = 'Pending';
   bool _isLoading = true;
   bool _isEditing = false;
@@ -34,14 +38,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   void initState() {
     super.initState();
     _loadEvent();
-  }
-
-  String _formatCurrency(double amount) {
-    if (amount == 0) return 'Rp0';
-    return 'Rp${amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-          (m) => '.',
-    )}';
   }
 
   Future<void> _loadEvent() async {
@@ -66,7 +62,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
         setState(() {
           _event = eventData;
-          _collaborators = collaboratorUsernames; // ✅ Load usernames untuk editing
+          _collaborators = collaboratorUsernames;
           _nameController.text = eventData['eventName'] ?? '';
           _selectedEventType = eventData['eventType'] ?? 'General';
           _descriptionController.text = eventData['description'] ?? '';
@@ -186,7 +182,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     if (_event == null) return;
 
     try {
-      // Validate collaborators
       List<String> validCollaboratorIds = [];
 
       if (_collaborators.isNotEmpty) {
@@ -214,6 +209,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         budgetValue = double.tryParse(_budgetController.text.trim()) ?? 0.0;
       }
 
+
+      final currentCollaborators = (_event!['collaborators'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [];
+
+
+      final newCollaborators = validCollaboratorIds
+          .where((id) => !currentCollaborators.contains(id))
+          .toList();
+
+      debugPrint('Current collaborators: $currentCollaborators');
+      debugPrint('New collaborators: $newCollaborators');
+
+
       await _firestore.collection('events').doc(widget.eventId).update({
         'eventName': _nameController.text.trim(),
         'eventType': _selectedEventType,
@@ -224,6 +233,42 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         'collaborators': validCollaboratorIds,
         'updatedAt': Timestamp.now(),
       });
+
+      if (newCollaborators.isNotEmpty) {
+        final notificationService = NotificationService();
+        final authService = AuthService();
+        final currentUser = authService.currentUser;
+
+        String currentUsername = 'Unknown';
+        if (currentUser != null) {
+          try {
+            final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+            if (userDoc.exists) {
+              currentUsername = userDoc.data()?['username'] ?? currentUser.displayName ?? 'Unknown';
+            }
+          } catch (e) {
+            debugPrint('Error getting username: $e');
+            currentUsername = currentUser.displayName ?? 'Unknown';
+          }
+        }
+
+        final eventName = _nameController.text.trim();
+
+        for (String newCollaboratorId in newCollaborators) {
+          try {
+            await notificationService.sendNotification(
+              userId: newCollaboratorId,
+              title: 'Collaborator Invite',
+              message: '$currentUsername invited you as collaborator to "$eventName"',
+              type: 'event',
+              relatedId: widget.eventId,
+            );
+            debugPrint(' Notifikasi terkirim ke collaborator: $newCollaboratorId');
+          } catch (e) {
+            debugPrint(' Gagal kirim notif ke $newCollaboratorId: $e');
+          }
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -271,20 +316,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       setState(() => _isDeleting = true);
 
       try {
-        debugPrint('🗑️ Starting event deletion for: ${widget.eventId}');
+        debugPrint(' Starting event deletion for: ${widget.eventId}');
 
-        // Delete related tasks
         final tasksSnapshot = await _firestore
             .collection('tasks')
             .where('eventId', isEqualTo: widget.eventId)
             .get();
 
-        debugPrint('📋 Found ${tasksSnapshot.docs.length} tasks to delete');
+        debugPrint('Found ${tasksSnapshot.docs.length} tasks to delete');
         for (var doc in tasksSnapshot.docs) {
           await doc.reference.delete();
         }
 
-        // Delete related budgets
         final budgetsSnapshot = await _firestore
             .collection('budgets')
             .where('eventId', isEqualTo: widget.eventId)
@@ -295,7 +338,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           await doc.reference.delete();
         }
 
-        // Delete related vendors
         final vendorsSnapshot = await _firestore
             .collection('vendors')
             .where('eventId', isEqualTo: widget.eventId)
@@ -306,7 +348,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           await doc.reference.delete();
         }
 
-        // Delete related guests
         final guestsSnapshot = await _firestore
             .collection('guests')
             .where('eventId', isEqualTo: widget.eventId)
@@ -317,7 +358,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           await doc.reference.delete();
         }
 
-        // Delete the event
         debugPrint('📅 Deleting event: ${widget.eventId}');
         await _firestore.collection('events').doc(widget.eventId).delete();
 
@@ -361,6 +401,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Colors.white,
@@ -380,9 +422,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.error_outline, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
+              SizedBox(height: AppResponsive.spacingLarge()),
               const Text('Event not found'),
-              const SizedBox(height: 24),
+              SizedBox(height: AppResponsive.spacingExtraLarge()),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text('Go Back'),
@@ -394,6 +436,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
 
     final eventDate = (_event!['eventDate'] as Timestamp?)?.toDate();
+    final isLandscape = AppResponsive.isLandscape();
 
     return WillPopScope(
       onWillPop: () async {
@@ -422,13 +465,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 SafeArea(
                   bottom: false,
                   child: SizedBox(
-                    height: 280,
+                    height: isLandscape
+                        ? AppResponsive.getHeight(25)
+                        : AppResponsive.getHeight(30),
                     child: Stack(
                       children: [
                         // Back Button
                         Positioned(
-                          top: 16,
-                          left: 16,
+                          top: AppResponsive.spacingMedium(),
+                          left: AppResponsive.spacingMedium(),
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.9),
@@ -437,14 +482,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             child: IconButton(
                               icon: const Icon(Icons.arrow_back, color: Colors.black),
                               onPressed: _isDeleting ? null : () => Navigator.pop(context),
+                              iconSize: AppResponsive.responsiveIconSize(24),
                             ),
                           ),
                         ),
                         // Delete Button
                         if (!_isEditing && !_isDeleting)
                           Positioned(
-                            top: 16,
-                            right: 16,
+                            top: AppResponsive.spacingMedium(),
+                            right: AppResponsive.spacingMedium(),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.9),
@@ -453,21 +499,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                               child: IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: _deleteEvent,
+                                iconSize: AppResponsive.responsiveIconSize(24),
                               ),
                             ),
                           ),
                         // Loading indicator during deletion
                         if (_isDeleting)
                           Positioned(
-                            top: 16,
-                            right: 16,
+                            top: AppResponsive.spacingMedium(),
+                            right: AppResponsive.spacingMedium(),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 shape: BoxShape.circle,
                               ),
                               child: Padding(
-                                padding: const EdgeInsets.all(8.0),
+                                padding: EdgeInsets.all(AppResponsive.spacingSmall()),
                                 child: SizedBox(
                                   width: 24,
                                   height: 24,
@@ -484,12 +531,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           child: Center(
                             child: Image.asset(
                               'assets/image/TaskDetailImage.png',
-                              height: 180,
+                              height: isLandscape
+                                  ? AppResponsive.getHeight(20)
+                                  : AppResponsive.getHeight(18),
                               fit: BoxFit.contain,
                               errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
+                                return Icon(
                                   Icons.event,
-                                  size: 100,
+                                  size: AppResponsive.responsiveIconSize(100),
                                   color: Colors.white,
                                 );
                               },
@@ -504,9 +553,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 // White Content Section
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(40),
-                      topRight: Radius.circular(40),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppResponsive.borderRadiusLarge()),
+                      topRight: Radius.circular(AppResponsive.borderRadiusLarge()),
                     ),
                     child: Container(
                       width: double.infinity,
@@ -514,7 +563,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       child: SafeArea(
                         top: false,
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(45, 43, 45, 32),
+                          padding: EdgeInsets.fromLTRB(
+                            AppResponsive.responsivePadding(),
+                            AppResponsive.responsivePadding() * 1.5,
+                            AppResponsive.responsivePadding(),
+                            AppResponsive.responsivePadding(),
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -529,21 +583,23 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                       children: [
                                         Text(
                                           _event!['eventName'] ?? 'Unnamed Event',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 25,
+                                            fontSize: AppResponsive.headerFontSize(),
                                             fontFamily: 'SF Pro',
                                             fontWeight: FontWeight.w900,
                                           ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        const SizedBox(height: 3),
+                                        SizedBox(height: AppResponsive.spacingSmall()),
                                         Text(
                                           eventDate != null
                                               ? 'On ${DateFormat('MMMM d, yyyy').format(eventDate)}'
                                               : 'No date set',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 13,
+                                            fontSize: AppResponsive.smallFontSize(),
                                             fontFamily: 'SF Pro',
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -551,6 +607,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                       ],
                                     ),
                                   ),
+                                  SizedBox(width: AppResponsive.spacingMedium()),
                                   Container(
                                     width: 31,
                                     height: 31,
@@ -578,7 +635,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 ],
                               ),
 
-                              const SizedBox(height: 28),
+                              SizedBox(height: AppResponsive.spacingExtraLarge()),
 
                               // Event Name Field
                               _buildField(
@@ -587,12 +644,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 enabled: _isEditing,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               // Event Type Field
                               _buildEventTypeDropdown(),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               // Date Field (Read-only)
                               _buildReadOnlyField(
@@ -602,7 +659,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                     : 'No date set',
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               _buildField(
                                 label: 'Event Budget',
@@ -612,7 +669,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 keyboardType: TextInputType.number,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               // Location Field
                               _buildField(
@@ -622,7 +679,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 placeholder: 'Event location',
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               // Event Status Dropdown
                               _buildStatusDropdown(
@@ -638,7 +695,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 },
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               // Collaborators Field (Editable)
                               _buildCollaboratorsField(
@@ -646,11 +703,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 enabled: _isEditing,
                               ),
 
-                              const SizedBox(height: 12),
+                              SizedBox(height: AppResponsive.spacingMedium()),
 
                               // Save Button (only when editing)
                               if (_isEditing) ...[
-                                const SizedBox(height: 32),
+                                SizedBox(height: AppResponsive.spacingExtraLarge()),
                                 SizedBox(
                                   width: double.infinity,
                                   height: 50,
@@ -662,11 +719,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                         borderRadius: BorderRadius.circular(25),
                                       ),
                                     ),
-                                    child: const Text(
+                                    child: Text(
                                       'Save Changes',
                                       style: TextStyle(
                                         color: Colors.black,
-                                        fontSize: 16,
+                                        fontSize: AppResponsive.bodyFontSize(),
                                         fontFamily: 'SF Pro',
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -689,19 +746,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               Positioned.fill(
                 child: Container(
                   color: Colors.black.withValues(alpha: 0.3),
-                  child: const Center(
+                  child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(
+                        const CircularProgressIndicator(
                           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFE100)),
                         ),
-                        SizedBox(height: 16),
+                        SizedBox(height: AppResponsive.spacingLarge()),
                         Text(
                           'Deleting event...',
                           style: TextStyle(
                             color: Colors.black,
-                            fontSize: 16,
+                            fontSize: AppResponsive.bodyFontSize(),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -729,31 +786,34 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.responsivePadding() * 0.8,
+            vertical: AppResponsive.spacingMedium(),
+          ),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
               color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
             maxLines: maxLines,
             keyboardType: keyboardType,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.bodyFontSize(),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
@@ -764,7 +824,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               hintText: placeholder,
               hintStyle: TextStyle(
                 color: Colors.black.withValues(alpha: 0.5),
-                fontSize: 14,
+                fontSize: AppResponsive.bodyFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -784,29 +844,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.responsivePadding() * 0.8,
+            vertical: AppResponsive.spacingMedium(),
+          ),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
               color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.bodyFontSize(),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
@@ -821,37 +884,39 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     required bool enabled,
   }) {
     if (!enabled) {
-      // Read-only mode - Show usernames from _collaboratorNames
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF616161),
-              fontSize: 14,
+            style: TextStyle(
+              color: const Color(0xFF616161),
+              fontSize: AppResponsive.smallFontSize(),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 7),
+          SizedBox(height: AppResponsive.spacingSmall()),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 19, vertical: 14),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppResponsive.responsivePadding() * 0.8,
+              vertical: AppResponsive.spacingMedium(),
+            ),
             decoration: BoxDecoration(
               border: Border.all(
                 width: 2,
                 color: const Color(0xFFFFE100),
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
             ),
             child: Text(
               _collaboratorNames.isEmpty
                   ? '-'
                   : _collaboratorNames.join(', '),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: AppResponsive.bodyFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -861,41 +926,39 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       );
     }
 
-    // Editable mode - FIXED LAYOUT
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(AppResponsive.spacingMedium()),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: const Color(0xFFFFE100)),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Collaborators chips
               if (_collaborators.isNotEmpty) ...[
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: AppResponsive.spacingSmall(),
+                  runSpacing: AppResponsive.spacingSmall(),
                   children: List.generate(
                     _collaborators.length,
                         (index) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppResponsive.spacingSmall(),
+                          vertical: AppResponsive.spacingSmall() * 0.75,
                         ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFE100),
@@ -910,19 +973,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           children: [
                             Text(
                               _collaborators[index],
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.black,
-                                fontSize: 12,
+                                fontSize: AppResponsive.extraSmallFontSize(),
                                 fontFamily: 'SF Pro',
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: AppResponsive.spacingSmall() * 0.5),
                             GestureDetector(
                               onTap: () => _removeCollaborator(index),
                               child: Icon(
                                 Icons.close,
-                                size: 14,
+                                size: AppResponsive.responsiveIconSize(14),
                                 color: Colors.black.withOpacity(0.6),
                               ),
                             ),
@@ -932,10 +995,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: AppResponsive.spacingSmall()),
               ],
 
-              // Input field with add button
               Row(
                 children: [
                   Expanded(
@@ -945,7 +1007,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         hintText: 'Email or username',
                         hintStyle: TextStyle(
                           color: Colors.black.withValues(alpha: 0.5),
-                          fontSize: 13,
+                          fontSize: AppResponsive.smallFontSize(),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w600,
                         ),
@@ -953,22 +1015,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                       ),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 13,
+                        fontSize: AppResponsive.smallFontSize(),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                       ),
                       onSubmitted: (_) => _addCollaborator(),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: AppResponsive.spacingSmall()),
                   GestureDetector(
                     onTap: _addCollaborator,
-                    child: const Icon(
+                    child: Icon(
                       Icons.add_circle,
-                      color: Color(0xFFFFE100),
-                      size: 24,
+                      color: const Color(0xFFFFE100),
+                      size: AppResponsive.responsiveIconSize(24),
                     ),
                   ),
                 ],
@@ -993,22 +1055,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+          padding: EdgeInsets.symmetric(vertical: AppResponsive.spacingSmall() * 0.5),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
               color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: enabled
               ? DropdownButtonHideUnderline(
@@ -1016,9 +1078,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               value: value,
               isExpanded: true,
               icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: AppResponsive.bodyFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -1028,11 +1090,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   value: status,
                   child: Row(
                     children: [
-                      const SizedBox(
-                        width: 12,
-                        height: 12,
+                      SizedBox(
+                        width: AppResponsive.spacingSmall(),
+                        height: AppResponsive.spacingSmall(),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: AppResponsive.spacingSmall()),
                       Text(status),
                     ],
                   ),
@@ -1041,19 +1103,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
           )
               : Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: EdgeInsets.symmetric(vertical: AppResponsive.spacingSmall()),
             child: Row(
               children: [
-                const SizedBox(
-                  width: 12,
-                  height: 12,
+                SizedBox(
+                  width: AppResponsive.spacingSmall(),
+                  height: AppResponsive.spacingSmall(),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: AppResponsive.spacingSmall()),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.black,
-                    fontSize: 14,
+                    fontSize: AppResponsive.bodyFontSize(),
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w600,
                   ),
@@ -1067,29 +1129,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildEventTypeDropdown() {
-    final eventTypes = ['General', 'Wedding', 'Birthday', 'Conference', 'Corporate', 'Celebration', 'Other'];
+    final eventTypes = ['Wedding', 'Birthday', 'Corporate Event', 'Conference', 'Workshop', 'Other'];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Event Type',
           style: TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.spacingMedium(),
+            vertical: AppResponsive.spacingSmall() * 0.5,
+          ),
           decoration: BoxDecoration(
             border: Border.all(
               width: 2,
               color: const Color(0xFFFFE100),
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: _isEditing
               ? DropdownButtonHideUnderline(
@@ -1097,9 +1162,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               value: _selectedEventType,
               isExpanded: true,
               icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: AppResponsive.bodyFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -1114,7 +1179,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 return DropdownMenuItem<String>(
                   value: eventType,
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 8),
+                    padding: EdgeInsets.only(left: AppResponsive.spacingSmall()),
                     child: Text(eventType),
                   ),
                 );
@@ -1122,12 +1187,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
           )
               : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppResponsive.spacingMedium(),
+              vertical: AppResponsive.spacingSmall(),
+            ),
             child: Text(
               _selectedEventType,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.black,
-                fontSize: 14,
+                fontSize: AppResponsive.bodyFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -1138,12 +1206,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-
   @override
   void dispose() {
     _descriptionController.dispose();
     _locationController.dispose();
-    _budgetController.dispose(); // ✨ NEW
+    _budgetController.dispose();
     _collaboratorController.dispose();
     super.dispose();
   }

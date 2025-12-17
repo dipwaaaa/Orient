@@ -3,9 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
 import '../../../widget/profile_menu.dart';
-import 'addVendorScreen.dart';           // Your Add Vendor screen
-import 'vendorDetailsScreen.dart';       // Vendor detail page
-import '../../../model/vendor_model.dart';
+import 'add_vendor_screen.dart';
+import 'vendor_details_screen.dart';
+import '../../../utilty/app_responsive.dart';
 
 class VendorPageScreen extends StatefulWidget {
   final String? eventId;
@@ -81,14 +81,14 @@ class _VendorScreenState extends State<VendorPageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    AppResponsive.init(context);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(screenWidth),
+            _buildHeader(),
             Expanded(
               child: widget.eventId == null
                   ? _buildNoEventState()
@@ -108,7 +108,12 @@ class _VendorScreenState extends State<VendorPageScreen> {
                   }
 
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return Center(
+                      child: Text(
+                        'Error: ${snapshot.error}',
+                        style: AppResponsive.bodyStyle(),
+                      ),
+                    );
                   }
 
                   final docs = snapshot.data?.docs ?? [];
@@ -127,9 +132,9 @@ class _VendorScreenState extends State<VendorPageScreen> {
     );
   }
 
-  Widget _buildHeader(double screenWidth) {
+  Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.all(screenWidth * 0.044),
+      padding: AppResponsive.responsivePaddingAll(AppResponsive.responsivePadding()),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -137,68 +142,75 @@ class _VendorScreenState extends State<VendorPageScreen> {
           GestureDetector(
             onTap: () => Navigator.pop(context),
             child: Container(
-              padding: const EdgeInsets.all(8),
-              child: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+              padding: AppResponsive.responsivePaddingAll(8),
+              child: Icon(
+                Icons.arrow_back_ios,
+                color: Colors.black,
+                size: AppResponsive.responsiveIconSize(20),
+              ),
             ),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Your Vendors',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 25,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w800,
+            child: Padding(
+              padding: AppResponsive.responsivePaddingSymmetric(
+                horizontal: 8,
+                vertical: 0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Vendors',
+                    style: AppResponsive.responsiveTextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _selectedEventName.isNotEmpty
-                      ? 'For $_selectedEventName'
-                      : 'As per ${DateFormat('MMMM dd, yyyy').format(DateTime.now())}',
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 13,
-                    fontFamily: 'SF Pro',
-                    fontWeight: FontWeight.w500,
+                  SizedBox(height: AppResponsive.spacingSmall() * 0.3),
+                  Text(
+                    'For ${DateFormat('MMMM dd, yyyy').format(DateTime.now())}',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: AppResponsive.responsiveFont(13),
+                      fontFamily: 'SF Pro',
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           Container(
-            padding: EdgeInsets.all(screenWidth * 0.022),
+            padding: AppResponsive.responsivePaddingAll(AppResponsive.spacingSmall()),
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(screenWidth * 0.069),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusLarge()),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: screenWidth * 0.089,
-                  height: screenWidth * 0.089,
-                  decoration: BoxDecoration(
+                  width: AppResponsive.responsiveSize(0.089),
+                  height: AppResponsive.responsiveSize(0.089),
+                  decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: screenWidth * 0.069,
+                    size: AppResponsive.notificationIconSize(),
                   ),
                 ),
-                SizedBox(width: screenWidth * 0.022),
+                SizedBox(width: AppResponsive.spacingSmall()),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
                     debugPrint('Profile avatar tapped');
                     if (_authService.currentUser == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please login first')),
+                        const SnackBar(content: Text('Please login first')),
                       );
                       return;
                     }
@@ -219,17 +231,19 @@ class _VendorScreenState extends State<VendorPageScreen> {
 
   Widget _buildToContactSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: AppResponsive.responsivePaddingSymmetric(
+        horizontal: 16,
+        vertical: 0,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'To Contact',
-            style: TextStyle(
-              color: Colors.black,
+            style: AppResponsive.responsiveTextStyle(
               fontSize: 25,
-              fontFamily: 'SF Pro',
               fontWeight: FontWeight.w800,
+              color: Colors.black,
             ),
           ),
           GestureDetector(
@@ -238,19 +252,26 @@ class _VendorScreenState extends State<VendorPageScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => AddVendorScreen(eventId: widget.eventId!, listName: '',),
+                    builder: (_) => AddVendorScreen(
+                      eventId: widget.eventId!,
+                      listName: '',
+                    ),
                   ),
                 );
               }
             },
             child: Container(
-              width: 31,
-              height: 31,
+              width: AppResponsive.responsiveSize(0.075),
+              height: AppResponsive.responsiveSize(0.075),
               decoration: const BoxDecoration(
                 color: Color(0xFFFFE100),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.add, color: Colors.black, size: 20),
+              child: Icon(
+                Icons.add,
+                color: Colors.black,
+                size: AppResponsive.responsiveIconSize(20),
+              ),
             ),
           ),
         ],
@@ -261,12 +282,16 @@ class _VendorScreenState extends State<VendorPageScreen> {
   Widget _buildVendorList(List<QueryDocumentSnapshot> docs) {
     return ListView(
       padding: EdgeInsets.zero,
+      physics: const BouncingScrollPhysics(),
       children: [
-        const SizedBox(height: 20),
+        SizedBox(height: AppResponsive.spacingLarge()),
         _buildToContactSection(),
-        const SizedBox(height: 20),
+        SizedBox(height: AppResponsive.spacingLarge()),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: AppResponsive.responsivePaddingSymmetric(
+            horizontal: 16,
+            vertical: 0,
+          ),
           child: Column(
             children: docs.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
@@ -286,17 +311,24 @@ class _VendorScreenState extends State<VendorPageScreen> {
                   );
                 },
                 child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
+                  margin: EdgeInsets.only(
+                    bottom: AppResponsive.spacingMedium(),
+                  ),
+                  padding: AppResponsive.responsivePaddingAll(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    borderRadius: BorderRadius.circular(
+                      AppResponsive.borderRadiusMedium(),
+                    ),
+                    border: Border.all(
+                      color: Colors.grey.withValues(alpha:  0.2),
+                    ),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                      AppResponsive.responsiveBoxShadow(
+                        color: Colors.black,
                         blurRadius: 4,
                         offset: const Offset(0, 2),
+                        opacity: 0.05,
                       ),
                     ],
                   ),
@@ -308,32 +340,41 @@ class _VendorScreenState extends State<VendorPageScreen> {
                           children: [
                             Text(
                               vendorName,
-                              style: const TextStyle(
+                              style: AppResponsive.responsiveTextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                fontFamily: 'SF Pro',
+                                color: Colors.black,
                               ),
                             ),
-                            const SizedBox(height: 6),
+                            SizedBox(height: AppResponsive.spacingSmall() * 0.6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: AppResponsive.responsivePaddingSymmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFE100).withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(12),
+                                color: const Color(0xFFFFE100).withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(
+                                  AppResponsive.borderRadiusSmall(),
+                                ),
                               ),
                               child: Text(
                                 category,
-                                style: const TextStyle(
+                                style: AppResponsive.responsiveTextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  fontFamily: 'SF Pro',
+                                  color: Colors.black,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: AppResponsive.responsiveIconSize(16),
+                        color: Colors.grey[400],
+                      ),
                     ],
                   ),
                 ),
@@ -341,41 +382,40 @@ class _VendorScreenState extends State<VendorPageScreen> {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: AppResponsive.spacingLarge()),
       ],
     );
   }
 
   Widget _buildEmptyState() {
-    return Column(
-      children: [
-        const SizedBox(height: 40),
-        _buildToContactSection(),
-        Expanded(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/image/noVendor.png',  // Changed from no-budget.png
-                  width: 120,
-                  height: 120,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: [
+          SizedBox(height: AppResponsive.spacingExtraLarge()),
+          _buildToContactSection(),
+          SizedBox(height: AppResponsive.getHeight(20)),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/image/noVendor.png',
+                width: AppResponsive.responsiveSize(0.29),
+                height: AppResponsive.responsiveSize(0.29),
+              ),
+              SizedBox(height: AppResponsive.spacingExtraLarge()),
+              Text(
+                'There are no vendors',
+                style: AppResponsive.responsiveTextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black.withValues(alpha: 0.3),
                 ),
-                const SizedBox(height: 30),
-                Text(
-                  'There are no vendors',
-                  style: TextStyle(
-                    color: Colors.black.withOpacity(0.3),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'SF Pro',
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -384,15 +424,18 @@ class _VendorScreenState extends State<VendorPageScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.event_busy, size: 80, color: Colors.grey),
-          const SizedBox(height: 20),
+          Icon(
+            Icons.event_busy,
+            size: AppResponsive.responsiveSize(0.193),
+            color: Colors.grey,
+          ),
+          SizedBox(height: AppResponsive.spacingLarge()),
           Text(
             'No event selected',
-            style: TextStyle(
-              color: Colors.black.withOpacity(0.3),
+            style: AppResponsive.responsiveTextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              fontFamily: 'SF Pro',
+              color: Colors.black.withValues(alpha: 0.3),
             ),
           ),
         ],

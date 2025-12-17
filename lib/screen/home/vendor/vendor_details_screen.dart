@@ -3,18 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../model/vendor_model.dart';
 import '../../../model/budget_model.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../widget/animated_gradient_background.dart';
 import '../../../service/budget_service.dart';
+import '../../../utilty/app_responsive.dart';
 
 class VendorDetailsScreen extends StatefulWidget {
   final String vendorId;
   final String eventId;
 
   const VendorDetailsScreen({
-    Key? key,
+    super.key,
     required this.vendorId,
     required this.eventId,
-  }) : super(key: key);
+  });
 
   @override
   State<VendorDetailsScreen> createState() => _VendorDetailsScreenState();
@@ -30,7 +31,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
   String? _selectedStatus;
   bool _isLoading = false;
 
-  // Controllers
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
@@ -68,7 +68,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
         .get();
   }
 
-  ///  Load budgets dari events/{eventId}/budgets/ (FIXED PATH)
   Future<List<BudgetModel>> _loadBudgets() async {
     try {
       debugPrint('📂 Loading budgets for event: ${widget.eventId}');
@@ -115,11 +114,10 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
     _addressController.text = vendor.address ?? '';
     _totalCostController.text = vendor.totalCost.toString();
     _noteController.text = vendor.note ?? '';
-    _selectedStatus = vendor.agreementStatus ?? 'not contacted';
-
+    _selectedStatus = vendor.agreementStatus;
 
     _selectedBudgetId = (vendor.toMap()['linkedBudgetId'] as String?) ?? '';
-    debugPrint(' Loaded selectedBudgetId: $_selectedBudgetId');
+    debugPrint('🔗 Loaded selectedBudgetId: $_selectedBudgetId');
   }
 
   Future<void> _toggleAddToBudget(VendorModel vendor, bool value) async {
@@ -142,7 +140,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Update vendor flag
       await FirebaseFirestore.instance
           .collection('events')
           .doc(widget.eventId)
@@ -154,7 +151,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
         'lastUpdated': DateTime.now(),
       });
 
-      // Add vendor to budget using BudgetService
       final result = await _budgetService.addLinkedVendor(
         budgetId: budgetId,
         vendorId: widget.vendorId,
@@ -215,7 +211,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
         return;
       }
 
-      // Update vendor flag
       await FirebaseFirestore.instance
           .collection('events')
           .doc(widget.eventId)
@@ -226,7 +221,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
         'lastUpdated': DateTime.now(),
       });
 
-      // Remove vendor from budget using BudgetService
       final result = await _budgetService.removeLinkedVendor(
         budgetId: linkedBudgetId,
         vendorId: widget.vendorId,
@@ -273,7 +267,6 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
       }
 
       setState(() => _isLoading = true);
-
 
       await FirebaseFirestore.instance
           .collection('events')
@@ -338,14 +331,13 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF616161),
+            style: AppResponsive.responsiveTextStyle(
               fontSize: 14,
-              fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
+              color: const Color(0xFF616161),
             ),
           ),
-          const SizedBox(height: 7),
+          SizedBox(height: AppResponsive.spacingSmall()),
           Container(
             decoration: ShapeDecoration(
               shape: RoundedRectangleBorder(
@@ -353,21 +345,23 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                   width: 2,
                   color: Color(0xFFFFE100),
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppResponsive.borderRadiusSmall()),
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: AppResponsive.responsivePaddingSymmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
               child: TextField(
                 controller: controller,
                 enabled: enabled || _isEditMode,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
-                style: const TextStyle(
-                  color: Colors.black,
+                style: AppResponsive.responsiveTextStyle(
                   fontSize: 14,
-                  fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w600,
+                  color: Colors.black,
                 ),
                 decoration: const InputDecoration(
                   border: InputBorder.none,
@@ -377,7 +371,7 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
         ],
       );
     }
@@ -387,54 +381,49 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
+          style: AppResponsive.responsiveTextStyle(
             fontSize: 14,
-            fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
+            color: const Color(0xFF616161),
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Text(
           controller.text.isEmpty ? '-' : controller.text,
-          style: const TextStyle(
-            color: Colors.black,
+          style: AppResponsive.responsiveTextStyle(
             fontSize: 14,
-            fontFamily: 'SF Pro',
             fontWeight: FontWeight.w500,
+            color: Colors.black,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
       ],
     );
   }
 
-  /// Status Dropdown
   Widget _buildStatusDropdown() {
     if (!_isEditMode) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Status',
-            style: TextStyle(
-              color: Color(0xFF616161),
+            style: AppResponsive.responsiveTextStyle(
               fontSize: 14,
-              fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
+              color: const Color(0xFF616161),
             ),
           ),
-          const SizedBox(height: 7),
+          SizedBox(height: AppResponsive.spacingSmall()),
           Text(
             _selectedStatus?.toUpperCase() ?? 'NOT CONTACTED',
-            style: const TextStyle(
-              color: Colors.black,
+            style: AppResponsive.responsiveTextStyle(
               fontSize: 14,
-              fontFamily: 'SF Pro',
               fontWeight: FontWeight.w500,
+              color: Colors.black,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppResponsive.spacingMedium()),
         ],
       );
     }
@@ -442,16 +431,15 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Status',
-          style: TextStyle(
-            color: Color(0xFF616161),
+          style: AppResponsive.responsiveTextStyle(
             fontSize: 14,
-            fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
+            color: const Color(0xFF616161),
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
           decoration: ShapeDecoration(
             shape: RoundedRectangleBorder(
@@ -459,25 +447,35 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                 width: 2,
                 color: Color(0xFFFFE100),
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusSmall()),
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: AppResponsive.responsivePaddingSymmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
             child: DropdownButton<String>(
               isExpanded: true,
               underline: const SizedBox(),
               value: _selectedStatus,
-              hint: const Text('Select Status'),
+              hint: Text(
+                'Select Status',
+                style: AppResponsive.responsiveTextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
               items: _statuses.map((status) {
                 return DropdownMenuItem<String>(
                   value: status.toLowerCase(),
                   child: Text(
                     status,
-                    style: const TextStyle(
+                    style: AppResponsive.responsiveTextStyle(
                       fontSize: 14,
-                      fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
+                      color: Colors.black,
                     ),
                   ),
                 );
@@ -490,13 +488,15 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: AppResponsive.spacingMedium()),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -505,37 +505,37 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
           ),
           Column(
             children: [
-              // Header
               SafeArea(
                 bottom: false,
                 child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding: AppResponsive.responsivePaddingSymmetric(
+                    horizontal: 20,
+                    vertical: 15,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: AppResponsive.responsiveSize(0.097),
+                          height: AppResponsive.responsiveSize(0.097),
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: AppResponsive.spacingSmall()),
                     ],
                   ),
                 ),
               ),
-              // Content Area
               Expanded(
                 child: FutureBuilder<DocumentSnapshot>(
                   future: _vendorFuture,
@@ -551,8 +551,11 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                     }
 
                     if (!snapshot.hasData || !snapshot.data!.exists) {
-                      return const Center(
-                        child: Text('Vendor not found'),
+                      return Center(
+                        child: Text(
+                          'Vendor not found',
+                          style: AppResponsive.bodyStyle(),
+                        ),
                       );
                     }
 
@@ -565,63 +568,61 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                     }
 
                     return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
                       child: Column(
                         children: [
-                          // Image
                           Image.asset(
                             'assets/image/bored.png',
-                            height: 180,
+                            height: AppResponsive.responsiveHeight(20),
                             fit: BoxFit.contain,
                           ),
-                          const SizedBox(height: 15),
-                          // White Container
+                          SizedBox(height: AppResponsive.spacingMedium()),
                           Container(
                             width: double.infinity,
-                            decoration: const ShapeDecoration(
+                            decoration: BoxDecoration(
                               color: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(40),
-                                  topRight: Radius.circular(40),
-                                ),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(AppResponsive.borderRadiusLarge()),
+                                topRight: Radius.circular(AppResponsive.borderRadiusLarge()),
                               ),
                             ),
                             child: SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(45, 43, 45, 30),
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: AppResponsive.responsivePaddingSymmetric(
+                                horizontal: 45,
+                                vertical: 43,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Title Section
                                   Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            vendor.vendorName,
-                                            style: const TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 25,
-                                              fontFamily: 'SF Pro',
-                                              fontWeight: FontWeight.w700,
-                                              height: 0.88,
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              vendor.vendorName,
+                                              style: AppResponsive.responsiveTextStyle(
+                                                fontSize: 25,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.black,
+                                                height: 0.88,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            'Rp${NumberFormat('#,###', 'id_ID').format(vendor.totalCost)} Total Cost',
-                                            style: const TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 13,
-                                              fontFamily: 'SF Pro',
-                                              fontWeight: FontWeight.w600,
-                                              height: 1.69,
+                                            SizedBox(height: AppResponsive.spacingSmall() * 0.3),
+                                            Text(
+                                              'Rp${NumberFormat('#,###', 'id_ID').format(vendor.totalCost)} Total Cost',
+                                              style: AppResponsive.responsiveTextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black,
+                                                height: 1.69,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                       GestureDetector(
                                         onTap: () {
@@ -634,26 +635,22 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                           }
                                         },
                                         child: Container(
-                                          width: 31,
-                                          height: 31,
+                                          width: AppResponsive.responsiveSize(0.075),
+                                          height: AppResponsive.responsiveSize(0.075),
                                           decoration: const ShapeDecoration(
                                             color: Color(0xFFFFE100),
                                             shape: OvalBorder(),
                                           ),
                                           child: Icon(
-                                            _isEditMode
-                                                ? Icons.check
-                                                : Icons.edit,
-                                            size: 18,
+                                            _isEditMode ? Icons.check : Icons.edit,
+                                            size: AppResponsive.responsiveIconSize(18),
                                             color: Colors.black,
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 28),
-
-                                  // Vendor Details
+                                  SizedBox(height: AppResponsive.spacingLarge()),
                                   _buildFormField(
                                     'Vendor Name',
                                     _nameController,
@@ -689,72 +686,59 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                     enabled: _isEditMode,
                                     maxLines: 2,
                                   ),
-
-                                  // Status Dropdown
                                   _buildStatusDropdown(),
-
-                                  const SizedBox(height: 20),
-
-                                  // Budget Section
+                                  SizedBox(height: AppResponsive.spacingLarge()),
                                   const Divider(
                                     height: 1,
                                     color: Colors.black12,
                                   ),
-                                  const SizedBox(height: 20),
-
-                                  const Text(
+                                  SizedBox(height: AppResponsive.spacingLarge()),
+                                  Text(
                                     'Add to Budget',
-                                    style: TextStyle(
+                                    style: AppResponsive.responsiveTextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
-                                      fontFamily: 'SF Pro',
                                       color: Colors.black,
                                     ),
                                   ),
-                                  const SizedBox(height: 15),
-
-                                  // Budget Dropdown & Checkbox
+                                  SizedBox(height: AppResponsive.spacingMedium()),
                                   FutureBuilder<List<BudgetModel>>(
                                     future: _budgetsFuture,
                                     builder: (context, budgetSnapshot) {
-                                      if (budgetSnapshot.connectionState ==
-                                          ConnectionState.waiting) {
+                                      if (budgetSnapshot.connectionState == ConnectionState.waiting) {
                                         return const CircularProgressIndicator();
                                       }
 
                                       if (budgetSnapshot.hasError) {
                                         return Text(
                                           'Error: ${budgetSnapshot.error}',
-                                          style: const TextStyle(
+                                          style: AppResponsive.responsiveTextStyle(
                                             fontSize: 13,
-                                            fontFamily: 'SF Pro',
+                                            fontWeight: FontWeight.w400,
                                             color: Colors.red,
                                           ),
                                         );
                                       }
 
-                                      final budgets =
-                                          budgetSnapshot.data ?? [];
+                                      final budgets = budgetSnapshot.data ?? [];
 
                                       if (budgets.isEmpty) {
                                         return Text(
                                           'No budgets available',
-                                          style: TextStyle(
+                                          style: AppResponsive.responsiveTextStyle(
                                             fontSize: 13,
-                                            fontFamily: 'SF Pro',
-                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w400,
+                                            color: Colors.grey,
                                           ),
                                         );
                                       }
 
                                       return Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          //  Dropdown
                                           if (_isEditMode)
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding: AppResponsive.responsivePaddingSymmetric(
                                                 horizontal: 12,
                                                 vertical: 8,
                                               ),
@@ -762,17 +746,20 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                                 border: Border.all(
                                                   color: Colors.black,
                                                 ),
-                                                borderRadius:
-                                                BorderRadius.circular(8),
+                                                borderRadius: BorderRadius.circular(
+                                                  AppResponsive.borderRadiusSmall(),
+                                                ),
                                               ),
                                               child: DropdownButton<String>(
                                                 isExpanded: true,
                                                 underline: const SizedBox(),
                                                 value: _selectedBudgetId?.isEmpty == true ? null : _selectedBudgetId,
-                                                hint: const Text(
+                                                hint: Text(
                                                   'Select Budget',
-                                                  style: TextStyle(
-                                                    fontFamily: 'SF Pro',
+                                                  style: AppResponsive.responsiveTextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w400,
+                                                    color: Colors.black,
                                                   ),
                                                 ),
                                                 items: budgets.map((budget) {
@@ -780,15 +767,15 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                                     value: budget.budgetId,
                                                     child: Text(
                                                       '${budget.itemName} (${budget.category})',
-                                                      style: const TextStyle(
+                                                      style: AppResponsive.responsiveTextStyle(
                                                         fontSize: 13,
-                                                        fontFamily: 'SF Pro',
+                                                        fontWeight: FontWeight.w400,
+                                                        color: Colors.black,
                                                       ),
                                                     ),
                                                   );
                                                 }).toList(),
                                                 onChanged: (value) {
-
                                                   setState(() {
                                                     _selectedBudgetId = value;
                                                   });
@@ -796,20 +783,18 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                               ),
                                             )
                                           else
-                                          //  View mode - tampilkan selected budget
                                             Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                const Text(
+                                                Text(
                                                   'Selected Budget',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF616161),
+                                                  style: AppResponsive.responsiveTextStyle(
                                                     fontSize: 14,
-                                                    fontFamily: 'SF Pro',
                                                     fontWeight: FontWeight.w600,
+                                                    color: const Color(0xFF616161),
                                                   ),
                                                 ),
-                                                const SizedBox(height: 7),
+                                                SizedBox(height: AppResponsive.spacingSmall()),
                                                 Text(
                                                   _selectedBudgetId?.isEmpty == true
                                                       ? 'No budget selected'
@@ -831,49 +816,43 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                                     ),
                                                   )
                                                       .itemName,
-                                                  style: const TextStyle(
-                                                    color: Colors.black,
+                                                  style: AppResponsive.responsiveTextStyle(
                                                     fontSize: 14,
-                                                    fontFamily: 'SF Pro',
                                                     fontWeight: FontWeight.w500,
+                                                    color: Colors.black,
                                                   ),
                                                 ),
-                                                const SizedBox(height: 12),
+                                                SizedBox(height: AppResponsive.spacingMedium()),
                                               ],
                                             ),
-
-                                          const SizedBox(height: 15),
-
-                                          // Checkbox
+                                          SizedBox(height: AppResponsive.spacingMedium()),
                                           Container(
                                             decoration: BoxDecoration(
                                               border: Border.all(
-                                                color: Colors.grey
-                                                    .withOpacity(0.3),
+                                                color: Colors.grey.withValues(alpha:  0.3),
                                               ),
-                                              borderRadius:
-                                              BorderRadius.circular(8),
+                                              borderRadius: BorderRadius.circular(
+                                                AppResponsive.borderRadiusSmall(),
+                                              ),
                                             ),
                                             child: CheckboxListTile(
-                                              title: const Text(
+                                              title: Text(
                                                 'Link this vendor to selected budget',
-                                                style: TextStyle(
+                                                style: AppResponsive.responsiveTextStyle(
                                                   fontSize: 13,
                                                   fontWeight: FontWeight.w600,
-                                                  fontFamily: 'SF Pro',
                                                   color: Colors.black,
                                                 ),
                                               ),
                                               subtitle: Text(
                                                 'Cost: Rp ${NumberFormat('#,###', 'id_ID').format(vendor.totalCost)}',
-                                                style: const TextStyle(
+                                                style: AppResponsive.responsiveTextStyle(
                                                   fontSize: 12,
-                                                  fontFamily: 'SF Pro',
+                                                  fontWeight: FontWeight.w400,
                                                   color: Colors.grey,
                                                 ),
                                               ),
-                                              value: vendor.addToBudget ??
-                                                  false,
+                                              value: vendor.addToBudget ?? false,
                                               onChanged: _isLoading
                                                   ? null
                                                   : (value) {
@@ -884,8 +863,7 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                                   );
                                                 }
                                               },
-                                              activeColor:
-                                              const Color(0xFFFFE100),
+                                              activeColor: const Color(0xFFFFE100),
                                               checkColor: Colors.black,
                                             ),
                                           ),
@@ -893,8 +871,7 @@ class _VendorDetailsScreenState extends State<VendorDetailsScreen> {
                                       );
                                     },
                                   ),
-
-                                  const SizedBox(height: 30),
+                                  SizedBox(height: AppResponsive.spacingExtraLarge()),
                                 ],
                               ),
                             ),

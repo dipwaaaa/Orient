@@ -4,20 +4,16 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 class EncryptionService {
-  // Generate a key from chat ID (deterministic untuk kedua user)
   static encrypt_lib.Key _generateKeyFromChatId(String chatId) {
     final bytes = utf8.encode(chatId);
     final digest = sha256.convert(bytes);
-    // Gunakan 32 bytes pertama dari hash untuk AES-256
     return encrypt_lib.Key(Uint8List.fromList(digest.bytes));
   }
 
   static encrypt_lib.IV _generateIV() {
-    // Generate IV acak untuk setiap pesan
     return encrypt_lib.IV.fromSecureRandom(16);
   }
 
-  /// Enkripsi pesan menggunakan chat ID sebagai key
   static Map<String, String> encryptMessage(String plainText, String chatId) {
     try {
       final key = _generateKeyFromChatId(chatId);
@@ -39,7 +35,6 @@ class EncryptionService {
     }
   }
 
-  /// Dekripsi pesan menggunakan chat ID sebagai key
   static String decryptMessage(
       String encryptedMessage,
       String ivString,
@@ -61,17 +56,16 @@ class EncryptionService {
     }
   }
 
-  /// Enkripsi pesan terakhir untuk preview (tanpa IV karena tidak perlu terlalu aman)
   static String encryptLastMessage(String plainText, String chatId) {
     try {
       final encrypted = encryptMessage(plainText, chatId);
       return '${encrypted['encryptedMessage']}:${encrypted['iv']}';
     } catch (e) {
-      return plainText; // Fallback jika gagal
+      return plainText;
     }
   }
 
-  /// Dekripsi pesan terakhir dari preview
+
   static String decryptLastMessage(String encryptedData, String chatId) {
     try {
       final parts = encryptedData.split(':');

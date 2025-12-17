@@ -8,16 +8,16 @@ class CustomBottomNavigationBar extends StatelessWidget {
   final Function(int) onIndexChanged;
 
   const CustomBottomNavigationBar({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onIndexChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return Container(
+    return SizedBox(
       height: 140,
       child: Stack(
         clipBehavior: Clip.none,
@@ -143,7 +143,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
           opacity: isSelected ? 0.0 : 1.0,
           child: Icon(
             icon,
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             size: 35,
           ),
         ),
@@ -152,12 +152,10 @@ class CustomBottomNavigationBar extends StatelessWidget {
   }
 
   void _handleNavigation(BuildContext context, int index) {
-    // Cek apakah sudah berada di screen yang benar
     final currentRoute = ModalRoute.of(context)?.settings.name;
 
     switch (index) {
       case 0:
-      // Navigate to EventListScreen
         if (currentRoute != '/event-list') {
           Navigator.pushReplacement(
             context,
@@ -174,7 +172,6 @@ class CustomBottomNavigationBar extends StatelessWidget {
         break;
 
       case 1:
-      // Navigate to HomeScreen
         if (currentRoute != '/home') {
           Navigator.pushReplacement(
             context,

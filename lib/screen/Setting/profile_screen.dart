@@ -11,7 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../widget/delete_acc_dialog.dart';
 import '../login_signup_screen.dart';
-import '../../widget/Animated_Gradient_Background.dart';
+import '../../widget/animated_gradient_background.dart';
 
 class ProfileScreen extends StatefulWidget {
   final AuthService authService;

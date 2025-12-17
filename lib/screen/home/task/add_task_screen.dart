@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
 import '../../../model/task_model.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../utilty/app_responsive.dart';
+import '../../../widget/animated_gradient_background.dart';
 import 'package:intl/intl.dart';
 
 class AddTaskPage extends StatefulWidget {
@@ -81,7 +82,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
             .get();
 
         if (snapshot.docs.isNotEmpty && mounted) {
-          // Sort manual di client side
           final events = snapshot.docs.toList();
           events.sort((a, b) {
             final dateA = (a.data()['eventDate'] as Timestamp).toDate();
@@ -175,7 +175,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
       final taskId = _firestore.collection('tasks').doc().id;
       final now = DateTime.now();
 
-      // Parse budget value
       double? budgetValue;
       if (_budgetController.text.isNotEmpty) {
         budgetValue = double.tryParse(_budgetController.text.replaceAll(',', ''));
@@ -222,74 +221,71 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Animated Gradient Background
           Positioned.fill(
             child: AnimatedGradientBackground(),
           ),
 
-          // Content
           Column(
             children: [
-              // Header dengan SafeArea
               SafeArea(
                 bottom: false,
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
+                    SizedBox(height: AppResponsive.spacingMedium()),
                     _buildHeader(),
-                    const SizedBox(height: 25),
+                    SizedBox(height: AppResponsive.spacingLarge()),
                   ],
                 ),
               ),
 
-              // Form dan Category dengan scroll
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
                       _buildFormSection(),
-                      const SizedBox(height: 24),
+                      SizedBox(height: AppResponsive.spacingLarge()),
 
-                      // Category Section
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height * 0.45,
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppResponsive.responsivePadding() * 2,
+                          vertical: AppResponsive.responsivePadding() * 2,
                         ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
-                          decoration: const ShapeDecoration(
-                            color: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(40),
-                                topRight: Radius.circular(40),
-                              ),
+                        decoration: ShapeDecoration(
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                              topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
                             ),
                           ),
-                          child: SafeArea(
-                            top: false,
+                        ),
+                        child: SafeArea(
+                          top: false,
+                          child: SingleChildScrollView(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Text(
+                                Text(
                                   'Category',
                                   style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 14,
+                                    fontSize: AppResponsive.responsiveFont(14),
                                     fontFamily: 'SF Pro',
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(height: 7),
+                                SizedBox(height: AppResponsive.spacingSmall()),
                                 Wrap(
-                                  spacing: 7,
-                                  runSpacing: 7,
+                                  spacing: AppResponsive.spacingSmall(),
+                                  runSpacing: AppResponsive.spacingSmall(),
                                   children: _categories.map((category) {
                                     final isSelected = _selectedCategory == category;
                                     return GestureDetector(
@@ -299,7 +295,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
                                         });
                                       },
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: AppResponsive.responsivePadding(),
+                                          vertical: AppResponsive.spacingSmall() * 0.6,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: isSelected ? const Color(0xFFFFE100) : Colors.white,
                                           border: Border.all(width: 1, color: Colors.black),
@@ -309,17 +308,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
                                           category,
                                           style: TextStyle(
                                             color: Colors.black,
-                                            fontSize: 14,
+                                            fontSize: AppResponsive.responsiveFont(14),
                                             fontFamily: 'SF Pro',
                                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                                           ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     );
                                   }).toList(),
                                 ),
-                                const SizedBox(height: 25),
+                                SizedBox(height: AppResponsive.spacingLarge()),
                                 _buildStatusSection(),
+                                SizedBox(height: AppResponsive.spacingMedium()),
                               ],
                             ),
                           ),
@@ -336,7 +338,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     );
   }
 
-  // Method untuk status section
   Widget _buildStatusSection() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,19 +346,19 @@ class _AddTaskPageState extends State<AddTaskPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Status',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 14,
+                  fontSize: AppResponsive.responsiveFont(14),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 7),
+              SizedBox(height: AppResponsive.spacingSmall()),
               Wrap(
-                spacing: 7,
-                runSpacing: 7,
+                spacing: AppResponsive.spacingSmall(),
+                runSpacing: AppResponsive.spacingSmall(),
                 children: ['Completed', 'Pending'].map((status) {
                   final statusValue = status.toLowerCase();
                   final isSelected = _selectedStatus == statusValue;
@@ -368,7 +369,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.responsivePadding() * 1.8,
+                        vertical: AppResponsive.spacingSmall() * 0.6,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected ? const Color(0xFFFFE100) : Colors.white,
                         border: Border.all(width: 1, color: Colors.black),
@@ -376,12 +380,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
                       ),
                       child: Text(
                         status,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.black,
-                          fontSize: 14,
+                          fontSize: AppResponsive.responsiveFont(14),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   );
@@ -390,10 +396,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
             ],
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: AppResponsive.spacingMedium()),
         Image.asset(
           'assets/image/AddTaskImageCat.png',
-          height: 110,
+          height: AppResponsive.responsiveHeight(12),
           fit: BoxFit.contain,
         ),
       ],
@@ -402,63 +408,72 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 31),
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsivePadding() * 2),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Close button (black circle)
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: AppResponsive.responsiveSize(0.122),
+                  height: AppResponsive.responsiveSize(0.122),
                   decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close, color: Colors.white, size: 24),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: AppResponsive.responsiveIconSize(24),
+                  ),
                 ),
               ),
 
-              // Title
-              const Text(
+              Text(
                 'Create a Task',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 25,
+                  fontSize: AppResponsive.responsiveFont(25),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w900,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
 
-              // Save button (black circle)
               GestureDetector(
                 onTap: _isLoading ? null : _createTask,
                 child: Container(
-                  width: 40,
-                  height: 40,
+                  width: AppResponsive.responsiveSize(0.122),
+                  height: AppResponsive.responsiveSize(0.122),
                   decoration: const BoxDecoration(
                     color: Colors.black,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.save, color: Colors.white, size: 24),
+                  child: Icon(
+                    Icons.save,
+                    color: Colors.white,
+                    size: AppResponsive.responsiveIconSize(24),
+                  ),
                 ),
               ),
             ],
           ),
           if (_selectedEventName.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: EdgeInsets.only(top: AppResponsive.spacingSmall()),
               child: Text(
                 'for $_selectedEventName',
                 style: TextStyle(
                   color: Colors.black.withValues(alpha: 0.7),
-                  fontSize: 13,
+                  fontSize: AppResponsive.responsiveFont(13),
                   fontFamily: 'SF Pro',
                   fontWeight: FontWeight.w500,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
         ],
@@ -468,16 +483,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   Widget _buildFormSection() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 31),
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsivePadding() * 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildTextField('Name', _nameController, 'Type here'),
-          const SizedBox(height: 15),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildDateField(),
-          const SizedBox(height: 15),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildTextField('Budget', _budgetController, 'Type here', keyboardType: TextInputType.number),
-          const SizedBox(height: 15),
+          SizedBox(height: AppResponsive.spacingMedium()),
           _buildTextField('Note', _noteController, 'Type here', maxLines: 3),
         ],
       ),
@@ -496,29 +511,36 @@ class _AddTaskPageState extends State<AddTaskPage> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(AppResponsive.spacingSmall()),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
             maxLines: maxLines,
+            minLines: 1,
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: AppResponsive.responsiveFont(14),
+              fontFamily: 'SF Pro',
+              fontWeight: FontWeight.w600,
+            ),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(
                 color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                fontSize: 13,
+                fontSize: AppResponsive.responsiveFont(13),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -536,23 +558,23 @@ class _AddTaskPageState extends State<AddTaskPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Date',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         GestureDetector(
           onTap: _selectDate,
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(AppResponsive.spacingSmall()),
             decoration: BoxDecoration(
               border: Border.all(width: 2, color: Colors.black),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
             ),
             child: Row(
               children: [
@@ -563,13 +585,18 @@ class _AddTaskPageState extends State<AddTaskPage> {
                       color: _dateController.text.isEmpty
                           ? const Color(0xFF1D1D1D).withValues(alpha: 0.6)
                           : Colors.black,
-                      fontSize: 13,
+                      fontSize: AppResponsive.responsiveFont(13),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.calendar_today, size: 18),
+                Icon(
+                  Icons.calendar_today,
+                  size: AppResponsive.responsiveIconSize(18),
+                ),
               ],
             ),
           ),

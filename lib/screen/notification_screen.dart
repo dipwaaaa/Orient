@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '/utilty/app_responsive.dart';
 import '../model/notification_model.dart';
 import '../service/notification_service.dart';
-import '../widget/Animated_Gradient_Background.dart';
+import '../widget/animated_gradient_background.dart';
 
 class NotificationScreen extends StatefulWidget {
   final String userId;
@@ -25,40 +26,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
     super.initState();
     _notificationService = NotificationService();
 
-    debugPrint('🔔 NotificationScreen initialized for user: ${widget.userId}');
+    debugPrint(' NotificationScreen initialized for user: ${widget.userId}');
 
-    // Mark all as read when entering screen
-    _markAllAsReadOnEntry();
 
-    // Verify notifications exist (for debugging)
     _verifyNotifications();
   }
 
-  // Mark all as read when screen opens
-  Future<void> _markAllAsReadOnEntry() async {
-    if (_markingAsRead) return;
 
-    setState(() => _markingAsRead = true);
-
-    try {
-      await _notificationService.markAllAsRead(widget.userId);
-      debugPrint('✅ All notifications marked as read on screen entry');
-    } catch (e) {
-      debugPrint('❌ Error marking as read: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _markingAsRead = false);
-      }
-    }
-  }
-
-  // Verify notifications exist in Firestore
   Future<void> _verifyNotifications() async {
     await _notificationService.verifyNotificationsExist(widget.userId);
   }
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return AnimatedGradientBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -73,9 +55,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
             'Notifications',
             style: TextStyle(
               color: Colors.black,
-              fontSize: 24,
+              fontSize: AppResponsive.responsiveFont(24),
               fontWeight: FontWeight.w700,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           centerTitle: true,
         ),
@@ -90,9 +74,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
       builder: (context, snapshot) {
         debugPrint('🔄 Stream state: ${snapshot.connectionState}');
 
-        // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
-          debugPrint('⏳ Loading notifications...');
+          debugPrint(' Loading notifications...');
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -100,108 +83,120 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF6A00)),
                 ),
-                SizedBox(height: 16),
+                SizedBox(height: AppResponsive.responsiveHeight(1.5)),
                 Text(
                   'Loading notifications...',
                   style: TextStyle(
                     color: Colors.grey[600],
-                    fontSize: 14,
+                    fontSize: AppResponsive.responsiveFont(14),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           );
         }
 
-        // Error state
         if (snapshot.hasError) {
-          debugPrint('❌ Stream error: ${snapshot.error}');
+          debugPrint('Stream error: ${snapshot.error}');
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red[400],
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'Error loading notifications',
-                  style: TextStyle(
-                    fontSize: 16,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: AppResponsive.responsiveFont(16),
                     color: Colors.red[400],
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  snapshot.error.toString(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
+                  SizedBox(height: AppResponsive.responsiveHeight(1.5)),
+                  Text(
+                    'Error loading notifications',
+                    style: TextStyle(
+                      fontSize: AppResponsive.responsiveFont(16),
+                      color: Colors.red[400],
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {});
-                  },
-                  child: Text('Retry'),
-                ),
-              ],
+                  SizedBox(height: AppResponsive.responsiveHeight(0.8)),
+                  Text(
+                    snapshot.error.toString(),
+                    style: TextStyle(
+                      fontSize: AppResponsive.responsiveFont(11),
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: AppResponsive.responsiveHeight(2)),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    child: Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        // No data state
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          debugPrint('📭 No notifications found');
+          debugPrint(' No notifications found');
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.notifications_none,
-                  size: 80,
-                  color: Colors.grey[400],
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No Notifications',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w600,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.notifications_none,
+                    size: AppResponsive.responsiveFont(20),
+                    color: Colors.grey[400],
                   ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'When something happens, you\'ll see it here',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
+                  SizedBox(height: AppResponsive.responsiveHeight(1.5)),
+                  Text(
+                    'No Notifications',
+                    style: TextStyle(
+                      fontSize: AppResponsive.responsiveFont(18),
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {});
-                    _verifyNotifications();
-                  },
-                  child: Text('Refresh'),
-                ),
-              ],
+                  SizedBox(height: AppResponsive.responsiveHeight(0.8)),
+                  Text(
+                    'When something happens, you\'ll see it here',
+                    style: TextStyle(
+                      fontSize: AppResponsive.responsiveFont(14),
+                      color: Colors.grey[500],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: AppResponsive.responsiveHeight(2)),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {});
+                      _verifyNotifications();
+                    },
+                    child: Text('Refresh'),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
         final notifications = snapshot.data!;
-        debugPrint('✅ Loaded ${notifications.length} notifications');
+        debugPrint(' Loaded ${notifications.length} notifications');
 
         return ListView.builder(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppResponsive.responsivePadding()),
           itemCount: notifications.length,
           itemBuilder: (context, index) {
             final notification = notifications[index];
@@ -217,13 +212,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
     IconData typeIcon = _getTypeIcon(notification.type);
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: AppResponsive.responsiveHeight(1.2)),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: notification.isRead ? Colors.grey[50] : Colors.white,
+        borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(5.5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withOpacity(notification.isRead ? 0.04 : 0.08),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -232,35 +227,44 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            debugPrint('📌 Notification tapped: ${notification.title}');
+          borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(5.5)),
+          onTap: () async {
+            debugPrint(' Notification tapped: ${notification.title}');
+
+            // Mark as read
+            if (!notification.isRead) {
+              try {
+                await _notificationService.markAsRead(notification.notificationId);
+                debugPrint(' Marked as read: ${notification.notificationId}');
+              } catch (e) {
+                debugPrint(' Error marking as read: $e');
+              }
+            }
+
             _handleNotificationTap(notification);
           },
           child: Padding(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(AppResponsive.responsiveFont(3.5)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Icon
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: AppResponsive.responsiveSize(0.12),
+                      height: AppResponsive.responsiveSize(0.12),
                       decoration: BoxDecoration(
                         color: typeColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(5.5)),
                       ),
                       child: Icon(
                         typeIcon,
                         color: typeColor,
-                        size: 24,
+                        size: AppResponsive.responsiveFont(6),
                       ),
                     ),
-                    SizedBox(width: 12),
-                    // Content
+                    SizedBox(width: AppResponsive.responsiveFont(2.5)),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,60 +272,42 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           Text(
                             notification.title,
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                              fontSize: AppResponsive.responsiveFont(16),
+                              fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.w600,
+                              color: notification.isRead ? Colors.grey[600] : Colors.black,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: 4),
+                          SizedBox(height: AppResponsive.responsiveHeight(0.4)),
                           Text(
                             notification.message,
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
+                              fontSize: AppResponsive.responsiveFont(13),
+                              color: notification.isRead ? Colors.grey[500] : Colors.grey[600],
                               height: 1.4,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(height: 4),
-                          // Type badge
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: typeColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              notification.type.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: typeColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+                          SizedBox(height: AppResponsive.responsiveHeight(0.4)),
+                          if (!notification.isRead)
+                            _getNotificationBadge(notification, typeColor),
                         ],
                       ),
                     ),
-                    SizedBox(width: 8),
-                    // Delete button
+                    SizedBox(width: AppResponsive.responsiveFont(2)),
                     IconButton(
-                      icon: Icon(Icons.close, color: Colors.grey, size: 20),
+                      icon: Icon(Icons.close, color: Colors.grey, size: AppResponsive.responsiveFont(5)),
                       onPressed: () async {
-                        debugPrint('🗑️ Deleting notification: ${notification.notificationId}');
+                        debugPrint('️ Deleting notification: ${notification.notificationId}');
                         try {
                           await _notificationService.deleteNotification(
                             notification.notificationId,
                           );
-                          debugPrint('✅ Notification deleted successfully');
+                          debugPrint(' Notification deleted successfully');
                         } catch (e) {
-                          debugPrint('❌ Error deleting notification: $e');
+                          debugPrint(' Error deleting notification: $e');
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
@@ -332,28 +318,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           }
                         }
                       },
+                      padding: EdgeInsets.zero,
+                      iconSize: AppResponsive.responsiveFont(5),
                     ),
                   ],
                 ),
-                SizedBox(height: 8),
-                // Timestamp
+                SizedBox(height: AppResponsive.responsiveHeight(0.8)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       _formatTime(notification.createdAt),
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+                        fontSize: AppResponsive.responsiveFont(11),
+                        color: notification.isRead ? Colors.grey[400] : Colors.grey[500],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    // Debug info
                     Text(
                       'ID: ${notification.notificationId.substring(0, 8)}...',
                       style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[400],
+                        fontSize: AppResponsive.responsiveFont(8.5),
+                        color: notification.isRead ? Colors.grey[300] : Colors.grey[400],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -365,25 +355,130 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
+  Widget _getNotificationBadge(NotificationModel notification, Color typeColor) {
+    final title = notification.title.toLowerCase();
+    final message = notification.message.toLowerCase();
+
+    // Collaborator Invite - Pink badge dengan icon person_add
+    if (title.contains('collaborator') && title.contains('invite')) {
+      return Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.responsiveFont(2.5),
+          vertical: AppResponsive.responsiveFont(1),
+        ),
+        decoration: BoxDecoration(
+          color: Color(0xFFE91E63).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(3.5)),
+          border: Border.all(
+            color: Color(0xFFE91E63),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_add,
+              size: AppResponsive.responsiveFont(7),
+              color: Color(0xFFE91E63),
+            ),
+            SizedBox(width: AppResponsive.responsiveFont(0.5)),
+            Text(
+              'INVITE',
+              style: TextStyle(
+                fontSize: AppResponsive.responsiveFont(9),
+                color: Color(0xFFE91E63),
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Event Missing - Red badge dengan icon warning
+    if (title.contains('missing') || message.contains('has passed')) {
+      return Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.responsiveFont(2.5),
+          vertical: AppResponsive.responsiveFont(1),
+        ),
+        decoration: BoxDecoration(
+          color: Color(0xFFF44336).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(3.5)),
+          border: Border.all(
+            color: Color(0xFFF44336),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning,
+              size: AppResponsive.responsiveFont(7),
+              color: Color(0xFFF44336),
+            ),
+            SizedBox(width: AppResponsive.responsiveFont(0.5)),
+            Text(
+              'MISSING',
+              style: TextStyle(
+                fontSize: AppResponsive.responsiveFont(9),
+                color: Color(0xFFF44336),
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Default badge
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsiveFont(2),
+        vertical: AppResponsive.responsiveFont(0.8),
+      ),
+      decoration: BoxDecoration(
+        color: typeColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(3.5)),
+      ),
+      child: Text(
+        notification.type.toUpperCase(),
+        style: TextStyle(
+          fontSize: AppResponsive.responsiveFont(9),
+          color: typeColor,
+          fontWeight: FontWeight.w600,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
   Color _getTypeColor(String type) {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'chat':
-        return Color(0xFF4CAF50); // Green
+        return Color(0xFF4CAF50);
       case 'event':
-        return Color(0xFF2196F3); // Blue
+        return Color(0xFF2196F3);
       case 'task':
-        return Color(0xFFFFC107); // Amber
+        return Color(0xFFFFC107);
       case 'vendor':
-        return Color(0xFFFF9800); // Orange
+        return Color(0xFFFF9800);
       case 'system':
-        return Color(0xFF9C27B0); // Purple
+        return Color(0xFF9C27B0);
       default:
-        return Color(0xFF757575); // Grey
+        return Color(0xFF757575);
     }
   }
 
   IconData _getTypeIcon(String type) {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'chat':
         return Icons.chat;
       case 'event':
@@ -400,24 +495,36 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   void _handleNotificationTap(NotificationModel notification) {
-    debugPrint('📍 Handling tap for type: ${notification.type}');
-    // Navigate ke related resource based on type
-    switch (notification.type) {
+    debugPrint(' Handling tap for type: ${notification.type}');
+
+    final title = notification.title.toLowerCase();
+    final message = notification.message.toLowerCase();
+
+    // Handle Collaborator Invite
+    if (title.contains('collaborator') && title.contains('invite')) {
+      debugPrint('   → Collaborator invite for event: ${notification.relatedId}');
+      return;
+    }
+
+    // Handle Event Missing
+    if (title.contains('missing') || message.contains('has passed')) {
+      debugPrint('   → Missing event: ${notification.relatedId}');
+      return;
+    }
+
+    // Handle other types
+    switch (notification.type.toLowerCase()) {
       case 'chat':
         debugPrint('   → Would navigate to chat: ${notification.relatedId}');
-        // Navigator.push(...);
         break;
       case 'event':
         debugPrint('   → Would navigate to event: ${notification.relatedId}');
-        // Navigator.push(...);
         break;
       case 'task':
         debugPrint('   → Would navigate to task: ${notification.relatedId}');
-        // Navigator.push(...);
         break;
       case 'vendor':
         debugPrint('   → Would navigate to vendor: ${notification.relatedId}');
-        // Navigator.push(...);
         break;
       default:
         debugPrint('   → Unknown type, no navigation');

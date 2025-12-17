@@ -1,20 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import '../model/notification_model.dart';
 
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // ✅ Send notification ke user
   Future<void> sendNotification({
     required String userId,
     required String title,
     required String message,
-    required String type, // 'chat', 'event', 'task', 'vendor', etc
+    required String type,
     String? relatedId,
-    bool isAutoDeleted = false,
   }) async {
     try {
       final notificationId = _firestore.collection('notifications').doc().id;
@@ -34,14 +30,13 @@ class NotificationService {
           .doc(notificationId)
           .set(notification.toMap());
 
-      debugPrint('✅ Notification sent to $userId: "$title"');
+      debugPrint('Notification sent to $userId: "$title"');
     } catch (e) {
-      debugPrint('❌ Error sending notification: $e');
+      debugPrint('Error sending notification: $e');
       rethrow;
     }
   }
 
-  // ✅ Get unread notifications count (Stream - Real-time)
   Stream<int> getUnreadCountStream(String userId) {
     return _firestore
         .collection('notifications')
@@ -50,12 +45,11 @@ class NotificationService {
         .snapshots()
         .map((snapshot) {
       int count = snapshot.docs.length;
-      debugPrint('📊 Unread count for $userId: $count');
+      debugPrint('Unread count for $userId: $count');
       return count;
     });
   }
 
-  // ✅ Get unread notifications count (Future - One-time)
   Future<int> getUnreadCount(String userId) async {
     try {
       final snapshot = await _firestore
@@ -66,21 +60,20 @@ class NotificationService {
           .get();
 
       int count = snapshot.count ?? 0;
-      debugPrint('📊 Unread count (future) for $userId: $count');
+      debugPrint('Unread count (future) for $userId: $count');
       return count;
     } catch (e) {
-      debugPrint('❌ Error getting unread count: $e');
+      debugPrint('Error getting unread count: $e');
       return 0;
     }
   }
 
-  // ✅ Get all notifications for user (with proper error handling)
   Stream<List<NotificationModel>> getUserNotifications(
       String userId, {
         int limit = 50,
       }) {
     try {
-      debugPrint('🔄 Fetching notifications for user: $userId');
+      debugPrint('Fetching notifications for user: $userId');
 
       return _firestore
           .collection('notifications')
@@ -94,16 +87,15 @@ class NotificationService {
           try {
             return NotificationModel.fromMap(doc.data());
           } catch (e) {
-            debugPrint('❌ Error parsing notification: $e');
+            debugPrint('Error parsing notification: $e');
             return null;
           }
         })
             .whereType<NotificationModel>()
             .toList();
 
-        debugPrint('📬 Loaded ${notifications.length} notifications for $userId');
+        debugPrint('Loaded ${notifications.length} notifications for $userId');
 
-        // Print first notification for debugging
         if (notifications.isNotEmpty) {
           debugPrint('   First notification: "${notifications.first.title}"');
           debugPrint('   Type: ${notifications.first.type}');
@@ -112,16 +104,15 @@ class NotificationService {
 
         return notifications;
       }).handleError((error) {
-        debugPrint('❌ Stream error: $error');
+        debugPrint('Stream error: $error');
         return <NotificationModel>[];
       });
     } catch (e) {
-      debugPrint('❌ Error in getUserNotifications: $e');
+      debugPrint('Error in getUserNotifications: $e');
       return Stream.value([]);
     }
   }
 
-  // ✅ Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
       await _firestore
@@ -131,17 +122,16 @@ class NotificationService {
         'isRead': true,
         'readAt': DateTime.now(),
       });
-      debugPrint('✅ Notification marked as read: $notificationId');
+      debugPrint('Notification marked as read: $notificationId');
     } catch (e) {
-      debugPrint('❌ Error marking notification as read: $e');
+      debugPrint('Error marking notification as read: $e');
       rethrow;
     }
   }
 
-  // ✅ Mark all notifications as read
   Future<void> markAllAsRead(String userId) async {
     try {
-      debugPrint('📌 Marking all notifications as read for $userId');
+      debugPrint('Marking all notifications as read for $userId');
 
       final snapshot = await _firestore
           .collection('notifications')
@@ -157,28 +147,26 @@ class NotificationService {
           'readAt': DateTime.now(),
         });
       }
-      debugPrint('✅ All notifications marked as read for $userId');
+      debugPrint('All notifications marked as read for $userId');
     } catch (e) {
-      debugPrint('❌ Error marking all notifications as read: $e');
+      debugPrint('Error marking all notifications as read: $e');
       rethrow;
     }
   }
 
-  // ✅ Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
       await _firestore
           .collection('notifications')
           .doc(notificationId)
           .delete();
-      debugPrint('✅ Notification deleted: $notificationId');
+      debugPrint('Notification deleted: $notificationId');
     } catch (e) {
-      debugPrint('❌ Error deleting notification: $e');
+      debugPrint('Error deleting notification: $e');
       rethrow;
     }
   }
 
-  // ✅ Delete all notifications for user
   Future<void> deleteAllNotifications(String userId) async {
     try {
       final snapshot = await _firestore
@@ -189,24 +177,22 @@ class NotificationService {
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
-      debugPrint('✅ All notifications deleted for $userId');
+      debugPrint('All notifications deleted for $userId');
     } catch (e) {
-      debugPrint('❌ Error deleting all notifications: $e');
+      debugPrint('Error deleting all notifications: $e');
       rethrow;
     }
   }
 
-  // ✅ Send notification ke multiple users (untuk auto-delete)
   Future<void> sendBroadcastNotification({
     required List<String> userIds,
     required String title,
     required String message,
     required String type,
     String? relatedId,
-    bool isAutoDeleted = false,
   }) async {
     try {
-      debugPrint('📢 Sending broadcast to ${userIds.length} users: "$title"');
+      debugPrint('Sending broadcast to ${userIds.length} users: "$title"');
 
       for (String userId in userIds) {
         await sendNotification(
@@ -215,17 +201,15 @@ class NotificationService {
           message: message,
           type: type,
           relatedId: relatedId,
-          isAutoDeleted: isAutoDeleted,
         );
       }
-      debugPrint('✅ Broadcast notification sent successfully');
+      debugPrint('Broadcast notification sent successfully');
     } catch (e) {
-      debugPrint('❌ Error sending broadcast notification: $e');
+      debugPrint('Error sending broadcast notification: $e');
       rethrow;
     }
   }
 
-  // ✅ NEW: Get notification details
   Future<NotificationModel?> getNotification(String notificationId) async {
     try {
       final doc = await _firestore
@@ -238,13 +222,11 @@ class NotificationService {
       }
       return null;
     } catch (e) {
-      debugPrint('❌ Error getting notification: $e');
-      debugPrint('❌ Error getting notification: $e');
+      debugPrint('Error getting notification: $e');
       return null;
     }
   }
 
-  // ✅ NEW: Verify notifications exist in Firestore
   Future<void> verifyNotificationsExist(String userId) async {
     try {
       final allDocs = await _firestore
@@ -253,14 +235,14 @@ class NotificationService {
           .limit(10)
           .get();
 
-      debugPrint('🔍 Verification: Found ${allDocs.docs.length} notifications for $userId');
+      debugPrint('Verification: Found ${allDocs.docs.length} notifications for $userId');
 
       for (int i = 0; i < allDocs.docs.length; i++) {
         final data = allDocs.docs[i].data();
         debugPrint('   [$i] ${data['title']} (isRead: ${data['isRead']})');
       }
     } catch (e) {
-      debugPrint('❌ Error verifying notifications: $e');
+      debugPrint('Error verifying notifications: $e');
     }
   }
 }

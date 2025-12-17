@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../service/auth_service.dart';
-import 'package:intl/intl.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../utilty/app_responsive.dart';
+import '../../../widget/animated_gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../model/guest_model.dart';
 
@@ -34,7 +34,7 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
 
   String _selectedGender = 'Male';
   String _selectedAgeStatus = 'Adult';
-  String _selectedGuestStatus = 'Pending'; // ✨ NEW: Guest status
+  String _selectedGuestStatus = 'Pending';
 
   bool _isSaving = false;
   bool _isEditMode = false;
@@ -58,7 +58,7 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
     _noteController.text = guest.note ?? '';
     _selectedGender = guest.gender;
     _selectedAgeStatus = guest.ageStatus[0].toUpperCase() + guest.ageStatus.substring(1);
-    _selectedGuestStatus = guest.status ?? 'Pending'; // ✨ Load status
+    _selectedGuestStatus = guest.status ?? 'Pending';
   }
 
   @override
@@ -72,10 +72,19 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
     super.dispose();
   }
 
+
   Future<void> _saveGuest() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Name is required")),
+      );
+      return;
+    }
+
+    // ✅ Validate eventId
+    if (widget.eventId == null || widget.eventId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: Event ID is missing")),
       );
       return;
     }
@@ -87,8 +96,9 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
       if (user == null) throw "User not logged in";
 
       if (_isEditMode && widget.guestId != null) {
-        // ✨ UPDATE existing guest
         await _firestore
+            .collection('events')
+            .doc(widget.eventId!)
             .collection('guests')
             .doc(widget.guestId)
             .update({
@@ -110,7 +120,7 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
           'note': _noteController.text.trim().isEmpty
               ? null
               : _noteController.text.trim(),
-          'status': _selectedGuestStatus, // ✨ Update status
+          'status': _selectedGuestStatus,
           'updatedAt': DateTime.now(),
         });
 
@@ -118,14 +128,17 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Guest updated successfully!")),
           );
-          Navigator.pop(context, true); // Return true to indicate update
+          Navigator.pop(context, true);
         }
       } else {
-        // ✨ CREATE new guest
-        final guestId = _firestore.collection('guests').doc().id;
+        final guestRef = _firestore
+            .collection('events')
+            .doc(widget.eventId!)
+            .collection('guests')
+            .doc();
 
         final guest = GuestModel(
-          guestId: guestId,
+          guestId: guestRef.id,
           name: _nameController.text.trim(),
           gender: _selectedGender,
           ageStatus: _selectedAgeStatus.toLowerCase(),
@@ -147,14 +160,11 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
           status: _selectedGuestStatus,
           createdBy: user.uid,
           createdAt: DateTime.now(),
-          eventId: widget.eventId ?? '',
+          eventId: widget.eventId!,
           eventInvitations: [],
         );
 
-        await _firestore
-            .collection('guests')
-            .doc(guestId)
-            .set(guest.toMap());
+        await guestRef.set(guest.toMap());
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -176,40 +186,49 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       body: Stack(
         children: [
-          // Gradient Background
           AnimatedGradientBackground(),
 
           Column(
             children: [
-              // Header
               SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  padding: EdgeInsets.fromLTRB(
+                    AppResponsive.responsivePadding(),
+                    AppResponsive.responsivePadding(),
+                    AppResponsive.responsivePadding(),
+                    AppResponsive.spacingMedium(),
+                  ),
                   child: Row(
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: AppResponsive.responsiveSize(0.122),
+                          height: AppResponsive.responsiveSize(0.122),
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 24),
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: AppResponsive.responsiveIconSize(24),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: AppResponsive.spacingSmall()),
                       Expanded(
                         child: Text(
                           _isEditMode ? 'Edit Guest' : 'Add a New Guest',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.black,
-                            fontSize: 25,
+                            fontSize: AppResponsive.responsiveFont(25),
                             fontFamily: 'SF Pro',
                             fontWeight: FontWeight.w900,
                           ),
@@ -218,8 +237,8 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                       GestureDetector(
                         onTap: _isSaving ? null : _saveGuest,
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: AppResponsive.responsiveSize(0.122),
+                          height: AppResponsive.responsiveSize(0.122),
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
@@ -227,7 +246,7 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                           child: Icon(
                             _isSaving ? Icons.hourglass_empty : Icons.save,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
@@ -236,11 +255,12 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                 ),
               ),
 
-              // Form Content (Gradient Background)
               Expanded(
                 flex: 2,
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding() * 1.5,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -276,87 +296,98 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                       _buildSectionTitle("Note"),
                       _buildTextField(_noteController, "Type here", maxLines: 3),
 
-                      const SizedBox(height: 30),
+                      SizedBox(height: AppResponsive.spacingLarge()),
                     ],
                   ),
                 ),
               ),
 
-              // Status Section (White Card - like CreateBudgetScreen)
               Expanded(
                 flex: 1,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
-                  decoration: const ShapeDecoration(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding() * 2,
+                    vertical: AppResponsive.responsivePadding() * 2,
+                  ),
+                  decoration: ShapeDecoration(
                     color: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(40),
-                        topRight: Radius.circular(40),
+                        topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                        topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
                       ),
                     ),
                   ),
                   child: SafeArea(
                     top: false,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ✨ Status Section Label
-                        const Text(
-                          'Guest Status',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontFamily: 'SF Pro',
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        //  Status Buttons
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: ['Not Sent', 'Pending', 'Accepted', 'Rejected']
-                              .map((status) {
-                            final isSelected = _selectedGuestStatus == status;
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedGuestStatus = status;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? Colors.black
-                                      : Colors.white,
-                                  border: Border.all(
-                                    width: 1.5,
-                                    color: Colors.black,
-                                  ),
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: Text(
-                                  status,
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Guest Status',
                                   style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.black,
-                                    fontSize: 13,
+                                    color: Colors.black,
+                                    fontSize: AppResponsive.responsiveFont(14),
                                     fontFamily: 'SF Pro',
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                                SizedBox(height: AppResponsive.spacingMedium()),
+
+                                Wrap(
+                                  spacing: AppResponsive.spacingSmall(),
+                                  runSpacing: AppResponsive.spacingSmall(),
+                                  children: ['Not Sent', 'Pending', 'Accepted', 'Rejected']
+                                      .map((status) {
+                                    final isSelected = _selectedGuestStatus == status;
+                                    return GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedGuestStatus = status;
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: AppResponsive.responsivePadding(),
+                                          vertical: AppResponsive.spacingSmall() * 0.7,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? Colors.black
+                                              : Colors.white,
+                                          border: Border.all(
+                                            width: 1.5,
+                                            color: Colors.black,
+                                          ),
+                                          borderRadius: BorderRadius.circular(25),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: TextStyle(
+                                            color: isSelected
+                                                ? Colors.white
+                                                : Colors.black,
+                                            fontSize: AppResponsive.responsiveFont(13),
+                                            fontFamily: 'SF Pro',
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
+                        SizedBox(height: AppResponsive.spacingMedium()),
                       ],
                     ),
                   ),
@@ -371,11 +402,14 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 8),
+      padding: EdgeInsets.only(
+        top: AppResponsive.spacingMedium(),
+        bottom: AppResponsive.spacingSmall(),
+      ),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 14,
+        style: TextStyle(
+          fontSize: AppResponsive.responsiveFont(14),
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
@@ -389,21 +423,30 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
         int maxLines = 1,
       }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: AppResponsive.spacingMedium()),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFD54F).withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFFFD54F).withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
         border: Border.all(color: Colors.black, width: 1.5),
       ),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(color: Colors.black87, fontSize: 16),
+        minLines: 1,
+        style: TextStyle(
+          color: Colors.black87,
+          fontSize: AppResponsive.responsiveFont(16),
+        ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Colors.black45, fontSize: 16),
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintStyle: TextStyle(
+            color: Colors.black45,
+            fontSize: AppResponsive.responsiveFont(16),
+          ),
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.spacingSmall(),
+            vertical: AppResponsive.spacingSmall() * 0.9,
+          ),
           border: InputBorder.none,
         ),
       ),
@@ -416,7 +459,7 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
       Function(String) onSelect,
       ) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: AppResponsive.spacingMedium()),
       child: Row(
         children: options.map((option) {
           final isSelected = selected == option;
@@ -424,11 +467,15 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
             child: GestureDetector(
               onTap: () => onSelect(option),
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                margin: EdgeInsets.symmetric(
+                  horizontal: AppResponsive.spacingSmall() * 0.3,
+                ),
+                padding: EdgeInsets.symmetric(
+                  vertical: AppResponsive.spacingSmall() * 0.8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.black : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
                   border: Border.all(color: Colors.black, width: 1.5),
                 ),
                 child: Text(
@@ -437,7 +484,10 @@ class _AddGuestScreenState extends State<AddGuestScreen> {
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.black,
                     fontWeight: FontWeight.w600,
+                    fontSize: AppResponsive.responsiveFont(14),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),

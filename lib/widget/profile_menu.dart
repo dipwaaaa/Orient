@@ -67,7 +67,6 @@ class _ProfilemenuState extends State<Profilemenu> {
       return _buildNotificationIconWithBadge(0);
     }
 
-    //Stream for real-time badge updates
     return StreamBuilder<int>(
       stream: _notificationService.getUnreadCountStream(user.uid),
       builder: (context, snapshot) {
@@ -105,7 +104,6 @@ class _ProfilemenuState extends State<Profilemenu> {
                       builder: (context) => NotificationScreen(userId: user.uid),
                     ),
                   ).then((_) {
-                    // When returning from NotificationScreen, rebuild to update badge
                     debugPrint('Returned from NotificationScreen, rebuilding');
                     setState(() {});
                   });
@@ -120,7 +118,6 @@ class _ProfilemenuState extends State<Profilemenu> {
               ),
             ),
           ),
-          // Notification Badge
           if (unreadCount > 0)
             Positioned(
               top: -4,
@@ -196,7 +193,6 @@ class _ProfilemenuState extends State<Profilemenu> {
   }
 }
 
-/// Compact Avatar Widget
 class AvatarWidgetCompact extends StatelessWidget {
   final AuthService authService;
   final String username;
@@ -243,7 +239,6 @@ class AvatarWidgetCompact extends StatelessWidget {
   }
 }
 
-/// Header Widget with Avatar
 class HeaderWithAvatar extends StatelessWidget {
   final String username;
   final String greeting;
@@ -310,7 +305,6 @@ class HeaderWithAvatar extends StatelessWidget {
 }
 
 class ProfileMenu {
-  /// profile menu from any page
   static void show(
       BuildContext context,
       AuthService authService,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../model/budget_model.dart' as budget_models;
 import '../../../service/budget_service.dart';
+import '../../../utilty/app_responsive.dart';
 import '../../../widget/Animated_Gradient_Background.dart';
 
 class PaymentDetailScreen extends StatefulWidget {
@@ -28,7 +29,6 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
   late TextEditingController _noteController;
   String _selectedStatus = 'Paid';
   DateTime? _selectedDate;
-  bool _isLoading = false;
   bool _isEditMode = false;
 
   @override
@@ -93,14 +93,11 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
-
     try {
       final amount = double.tryParse(
         _amountController.text.replaceAll(RegExp(r'[^0-9]'), ''),
       ) ?? 0;
 
-      // Use updatePaymentAtIndex to update at specific index
       final result = await _budgetService.updatePaymentAtIndex(
         budgetId: widget.budgetId,
         paymentIndex: widget.paymentIndex,
@@ -138,13 +135,13 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+
     return Scaffold(
       body: Stack(
         children: [
@@ -156,22 +153,25 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
               SafeArea(
                 bottom: false,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding(),
+                    vertical: AppResponsive.spacingSmall(),
+                  ),
                   child: Row(
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: AppResponsive.responsiveSize(0.122),
+                          height: AppResponsive.responsiveSize(0.122),
                           decoration: const BoxDecoration(
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
@@ -182,40 +182,51 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
               ),
               Image.asset(
                 'assets/image/bored.png',
-                height: 180,
+                height: AppResponsive.responsiveHeight(20),
                 fit: BoxFit.contain,
               ),
-              const SizedBox(height: 15),
+              SizedBox(height: AppResponsive.spacingMedium()),
               Expanded(
                 child: Container(
                   width: double.infinity,
-                  decoration: const ShapeDecoration(
+                  decoration: ShapeDecoration(
                     color: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(40),
-                        topRight: Radius.circular(40),
+                        topLeft: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
+                        topRight: Radius.circular(AppResponsive.borderRadiusLarge() * 2),
                       ),
                     ),
                   ),
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(45, 43, 45, 30),
+                    padding: EdgeInsets.fromLTRB(
+                      AppResponsive.responsivePadding() * 2.2,
+                      AppResponsive.responsivePadding() * 2.6,
+                      AppResponsive.responsivePadding() * 2.2,
+                      AppResponsive.spacingMedium(),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              'Payment ${widget.paymentIndex + 1}',
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 25,
-                                fontFamily: 'SF Pro',
-                                fontWeight: FontWeight.w700,
-                                height: 0.88,
+                            Flexible(
+                              child: Text(
+                                'Payment ${widget.paymentIndex + 1}',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: AppResponsive.responsiveFont(25),
+                                  fontFamily: 'SF Pro',
+                                  fontWeight: FontWeight.w700,
+                                  height: 0.88,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            SizedBox(width: AppResponsive.spacingSmall()),
                             GestureDetector(
                               onTap: () {
                                 if (_isEditMode) {
@@ -225,30 +236,28 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                                 }
                               },
                               child: Container(
-                                width: 31,
-                                height: 31,
+                                width: AppResponsive.responsiveSize(0.089),
+                                height: AppResponsive.responsiveSize(0.089),
                                 decoration: const ShapeDecoration(
                                   color: Color(0xFFFFE100),
                                   shape: OvalBorder(),
                                 ),
                                 child: Icon(
                                   _isEditMode ? Icons.check : Icons.edit,
-                                  size: 18,
+                                  size: AppResponsive.responsiveIconSize(18),
                                   color: Colors.black,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 28),
-                        // Payment Name - editable when in edit mode
+                        SizedBox(height: AppResponsive.spacingLarge() * 2),
                         _buildFormField(
                           'Payment Name',
                           TextEditingController(text: 'Payment ${widget.paymentIndex + 1}'),
                           enabled: _isEditMode,
                         ),
-                        const SizedBox(height: 12),
-                        // Amount
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildFormField(
                           'Amount',
                           _amountController,
@@ -256,61 +265,59 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                           prefix: 'Rp',
                           keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(height: 12),
-                        // Date
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildDateField(),
-                        const SizedBox(height: 12),
-                        // Note
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _buildFormField(
                           'Note',
                           _noteController,
                           enabled: _isEditMode,
                           maxLines: 2,
                         ),
-                        const SizedBox(height: 28),
-                        // Status Section
+                        SizedBox(height: AppResponsive.spacingLarge() * 2),
                         Text(
                           'Status',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.black,
-                            fontSize: 14,
+                            fontSize: AppResponsive.responsiveFont(14),
                             fontFamily: 'SF Pro',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: AppResponsive.spacingMedium()),
                         _isEditMode
-                            ? Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatusButton('Paid'),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildStatusButton('Pending'),
-                            ),
-                          ],
+                            ? Wrap(
+                          spacing: AppResponsive.spacingMedium(),
+                          runSpacing: AppResponsive.spacingMedium(),
+                          children: ['Paid', 'Pending'].map((status) {
+                            return _buildStatusButton(status);
+                          }).toList(),
                         )
                             : Container(
-                          height: 48,
+                          height: AppResponsive.responsiveHeight(6.5),
                           decoration: ShapeDecoration(
                             shape: RoundedRectangleBorder(
-                              side: const BorderSide(
+                              side: BorderSide(
                                 width: 2,
-                                color: Color(0xFFFFE100),
+                                color: const Color(0xFFFFE100),
                               ),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(
+                                AppResponsive.borderRadiusMedium(),
+                              ),
                             ),
                           ),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppResponsive.spacingSmall(),
+                              vertical: AppResponsive.spacingSmall() * 0.5,
+                            ),
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 _selectedStatus,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.black,
-                                  fontSize: 14,
+                                  fontSize: AppResponsive.responsiveFont(14),
                                   fontFamily: 'SF Pro',
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -318,7 +325,7 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        SizedBox(height: AppResponsive.spacingLarge()),
                       ],
                     ),
                   ),
@@ -344,40 +351,45 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+          style: TextStyle(
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          height: maxLines == 1 ? 48 : null,
+          height: maxLines == 1 ? AppResponsive.responsiveHeight(6.5) : null,
           decoration: ShapeDecoration(
             shape: RoundedRectangleBorder(
-              side: const BorderSide(
+              side: BorderSide(
                 width: 2,
-                color: Color(0xFFFFE100),
+                color: const Color(0xFFFFE100),
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(
+                AppResponsive.borderRadiusMedium(),
+              ),
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppResponsive.spacingSmall(),
+              vertical: AppResponsive.spacingSmall() * 0.5,
+            ),
             child: Row(
               children: [
                 if (prefix != null) ...[
                   Text(
                     prefix,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.black,
-                      fontSize: 14,
+                      fontSize: AppResponsive.responsiveFont(14),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: AppResponsive.spacingSmall() * 0.4),
                 ],
                 Expanded(
                   child: TextField(
@@ -385,20 +397,21 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
                     enabled: enabled,
                     keyboardType: keyboardType,
                     maxLines: maxLines,
-                    style: const TextStyle(
+                    minLines: 1,
+                    style: TextStyle(
                       color: Colors.black,
-                      fontSize: 14,
+                      fontSize: AppResponsive.responsiveFont(14),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
                       hintText: 'Type here',
                       hintStyle: TextStyle(
-                        color: Color(0xFF1D1D1D),
-                        fontSize: 13,
+                        color: const Color(0xFF1D1D1D),
+                        fontSize: AppResponsive.responsiveFont(13),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                       ),
@@ -417,47 +430,54 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Date',
           style: TextStyle(
-            color: Color(0xFF616161),
-            fontSize: 14,
+            color: const Color(0xFF616161),
+            fontSize: AppResponsive.responsiveFont(14),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 7),
+        SizedBox(height: AppResponsive.spacingSmall()),
         GestureDetector(
           onTap: _isEditMode ? _selectDate : null,
           child: Container(
-            height: 48,
+            height: AppResponsive.responsiveHeight(6.5),
             decoration: ShapeDecoration(
               shape: RoundedRectangleBorder(
-                side: const BorderSide(
+                side: BorderSide(
                   width: 2,
-                  color: Color(0xFFFFE100),
+                  color: const Color(0xFFFFE100),
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  AppResponsive.borderRadiusMedium(),
+                ),
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: AppResponsive.spacingSmall(),
+                vertical: AppResponsive.spacingSmall() * 0.5,
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
                       _dateController.text,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 14,
+                        fontSize: AppResponsive.responsiveFont(14),
                         fontFamily: 'SF Pro',
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.calendar_today,
-                    size: 16,
+                    size: AppResponsive.responsiveIconSize(16),
                     color: Colors.black,
                   ),
                 ],
@@ -474,8 +494,11 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
     return GestureDetector(
       onTap: () => setState(() => _selectedStatus = status),
       child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        height: AppResponsive.responsiveHeight(5.5),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.responsivePadding() * 1.5,
+          vertical: AppResponsive.spacingSmall() * 0.6,
+        ),
         decoration: ShapeDecoration(
           color: isSelected ? const Color(0xFFFFE100) : Colors.transparent,
           shape: RoundedRectangleBorder(
@@ -491,10 +514,12 @@ class _PaymentDetailScreenState extends State<PaymentDetailScreen> {
             status,
             style: TextStyle(
               color: isSelected ? Colors.black : Colors.black,
-              fontSize: 14,
+              fontSize: AppResponsive.responsiveFont(14),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w700,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),

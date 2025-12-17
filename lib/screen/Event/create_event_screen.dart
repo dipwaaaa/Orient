@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../service/auth_service.dart';
 import '../../service/event_service.dart';
 import 'package:intl/intl.dart';
-import '../../widget/Animated_Gradient_Background.dart';
+import '../../service/notification_service.dart';
+import '../../widget/animated_gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../utilty/app_responsive.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -17,7 +19,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final EventService _eventService = EventService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Form controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
@@ -25,11 +26,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   String _selectedEventType = 'General';
 
-  // Form state
   DateTime? _selectedDate;
   String _selectedStatus = 'Pending';
   bool _isLoading = false;
-  List<String> _collaborators = []; // List of collaborator identifiers
+  final List<String> _collaborators = [];
 
   @override
   void dispose() {
@@ -51,7 +51,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         if (identifier.contains('@')) {
           userQuery = await _firestore
               .collection('users')
-              .where('email', isEqualTo: identifier.trim().toLowerCase())
+              .where('email', isEqualTo: identifier.trim())
               .limit(1)
               .get();
         } else {
@@ -108,6 +108,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     });
   }
 
+
   Future<void> _createEvent() async {
     if (_nameController.text.trim().isEmpty) {
       _showErrorDialog('Please enter event name');
@@ -157,7 +158,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
       validCollaboratorIds.remove(user.uid);
 
-      // Parse budget dengan benar
       double budgetValue = 0.0;
       if (_budgetController.text.trim().isNotEmpty) {
         budgetValue = double.tryParse(_budgetController.text.trim()) ?? 0.0;
@@ -173,6 +173,47 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         collaborators: validCollaboratorIds,
         budget: budgetValue,
       );
+
+      // Send notifikasi ke semua collaborator setelah event berhasil dibuat
+      if (result['success'] && validCollaboratorIds.isNotEmpty) {
+        final notificationService = NotificationService();
+
+        String currentUsername = 'Unknown';
+        try {
+          final userDoc = await _firestore.collection('users').doc(user.uid).get();
+          if (userDoc.exists) {
+            currentUsername = userDoc.data()?['username'] ?? user.displayName ?? 'Unknown';
+          }
+        } catch (e) {
+          debugPrint('Error getting username: $e');
+          currentUsername = user.displayName ?? 'Unknown';
+        }
+
+        final eventName = _nameController.text.trim();
+        final eventId = result['eventId'] as String;
+
+        debugPrint('════════════════════════════════════════');
+        debugPrint('🔔 SENDING COLLABORATOR INVITES');
+        debugPrint('EVENT: $eventName (ID: $eventId)');
+        debugPrint('OWNER: $currentUsername (${user.uid})');
+        debugPrint('COLLABORATORS: ${validCollaboratorIds.length}');
+        debugPrint('════════════════════════════════════════');
+
+        for (String collaboratorId in validCollaboratorIds) {
+          try {
+            await notificationService.sendNotification(
+              userId: collaboratorId,
+              title: 'Collaborator Invite',
+              message: '$currentUsername invited you as collaborator to "$eventName"',
+              type: 'event',
+              relatedId: eventId,
+            );
+            debugPrint('✅ Notifikasi terkirim ke collaborator: $collaboratorId');
+          } catch (e) {
+            debugPrint('❌ Gagal kirim notif ke $collaboratorId: $e');
+          }
+        }
+      }
 
       if (mounted) {
         if (result['success']) {
@@ -202,27 +243,30 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppResponsive.init(context);
+    final isLandscape = AppResponsive.isLandscape();
+
     return Scaffold(
       body: Stack(
         children: [
-          // Animated Gradient Background
           Positioned.fill(
             child: AnimatedGradientBackground(),
           ),
 
-          // Main Content (Header + Form in Column)
           Column(
             children: [
-              // Header dengan SafeArea
               SafeArea(
                 bottom: false,
                 child: Container(
-                  height: 100,
-                  padding: const EdgeInsets.symmetric(horizontal: 35),
+                  height: isLandscape
+                      ? AppResponsive.getHeight(12)
+                      : AppResponsive.getHeight(11),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppResponsive.responsivePadding() * 1.5,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Close Button
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Container(
@@ -232,24 +276,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
-                      // Title
-                      const Text(
+                      Text(
                         'Create an Event',
                         style: TextStyle(
                           color: Colors.black,
-                          fontSize: 25,
+                          fontSize: AppResponsive.headerFontSize(),
                           fontFamily: 'SF Pro',
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      // Save Button
                       GestureDetector(
                         onTap: _isLoading ? null : _createEvent,
                         child: Container(
@@ -259,10 +301,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.save,
                             color: Colors.white,
-                            size: 24,
+                            size: AppResponsive.responsiveIconSize(24),
                           ),
                         ),
                       ),
@@ -271,11 +313,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 ),
               ),
 
-              // Form Section (Scrollable)
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 35),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.responsivePadding() * 1.5,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -284,13 +327,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           'Type here',
                           _nameController,
                         ),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
 
                         _buildEventTypeDropdown(),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
 
                         _buildDateField(),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
 
                         _buildTextField(
                           'Budget',
@@ -298,19 +341,18 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           _budgetController,
                           keyboardType: TextInputType.number,
                         ),
-                        const SizedBox(height: 15),
+                        SizedBox(height: AppResponsive.spacingMedium()),
 
                         _buildTextField(
                           'Location',
                           'Type here',
                           _locationController,
                         ),
-                        const SizedBox(height: 20),
+                        SizedBox(height: AppResponsive.spacingLarge()),
 
-                        // Collaborators Section
                         _buildCollaboratorsSection(),
 
-                        const SizedBox(height: 280),
+                        SizedBox(height: AppResponsive.getHeight(30)),
                       ],
                     ),
                   ),
@@ -319,7 +361,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             ],
           ),
 
-          // Status Section (Draggable Bottom Sheet) - Positioned in Stack
           DraggableScrollableSheet(
             initialChildSize: 0.25,
             minChildSize: 0.25,
@@ -329,24 +370,26 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             builder: (context, scrollController) {
               return Container(
                 width: double.infinity,
-                decoration: const ShapeDecoration(
+                decoration: ShapeDecoration(
                   color: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(40),
-                      topRight: Radius.circular(40),
+                      topLeft: Radius.circular(AppResponsive.borderRadiusLarge()),
+                      topRight: Radius.circular(AppResponsive.borderRadiusLarge()),
                     ),
                   ),
                 ),
                 child: SingleChildScrollView(
                   controller: scrollController,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 31, vertical: 31),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.responsivePadding() * 1.2,
+                      vertical: AppResponsive.responsivePadding() * 1.2,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Drag Handle
                         Center(
                           child: Container(
                             width: 40,
@@ -357,19 +400,19 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        const Text(
+                        SizedBox(height: AppResponsive.spacingLarge()),
+                        Text(
                           'Status',
                           style: TextStyle(
                             color: Colors.black,
-                            fontSize: 14,
+                            fontSize: AppResponsive.smallFontSize(),
                             fontFamily: 'SF Pro',
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: 7),
+                        SizedBox(height: AppResponsive.spacingSmall()),
                         _buildStatusSelector(),
-                        const SizedBox(height: 20),
+                        SizedBox(height: AppResponsive.spacingLarge()),
                       ],
                     ),
                   ),
@@ -386,45 +429,42 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Collaborators',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
 
-        // Field container yang memanjang dengan collaborators di dalam
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(AppResponsive.spacingMedium()),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top row: Collaborators chips + buttons (atas)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Collaborators chips (left side)
                   Expanded(
                     child: _collaborators.isEmpty
                         ? const SizedBox.shrink()
                         : Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                      spacing: AppResponsive.spacingSmall(),
+                      runSpacing: AppResponsive.spacingSmall(),
                       children: List.generate(
                         _collaborators.length,
                             (index) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppResponsive.spacingSmall(),
+                              vertical: AppResponsive.spacingSmall() * 0.75,
                             ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFE100),
@@ -439,20 +479,20 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                               children: [
                                 Text(
                                   _collaborators[index],
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 12,
+                                    fontSize: AppResponsive.extraSmallFontSize(),
                                     fontFamily: 'SF Pro',
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
+                                SizedBox(width: AppResponsive.spacingSmall() * 0.5),
                                 GestureDetector(
                                   onTap: () => _removeCollaborator(index),
                                   child: Icon(
                                     Icons.close,
-                                    size: 14,
-                                    color: Colors.black.withOpacity(0.6),
+                                    size: AppResponsive.responsiveIconSize(14),
+                                    color: Colors.black.withValues(alpha: 0.6),
                                   ),
                                 ),
                               ],
@@ -463,12 +503,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     ),
                   ),
 
-                  // Buttons on the right (atas)
                   Padding(
-                    padding: const EdgeInsets.only(left: 8),
+                    padding: EdgeInsets.only(left: AppResponsive.spacingSmall()),
                     child: Row(
                       children: [
-                        // Remove button (-)
                         if (_collaborators.isNotEmpty)
                           GestureDetector(
                             onTap: () =>
@@ -476,18 +514,17 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                             child: Icon(
                               Icons.remove_circle,
                               color: Colors.red[600],
-                              size: 20,
+                              size: AppResponsive.responsiveIconSize(20),
                             ),
                           ),
                         if (_collaborators.isNotEmpty)
-                          const SizedBox(width: 4),
-                        // Add button (+)
+                          SizedBox(width: AppResponsive.spacingSmall() * 0.5),
                         GestureDetector(
                           onTap: _addCollaborator,
-                          child: const Icon(
+                          child: Icon(
                             Icons.add_circle,
-                            color: Color(0xFFFFE100),
-                            size: 20,
+                            color: const Color(0xFFFFE100),
+                            size: AppResponsive.responsiveIconSize(20),
                           ),
                         ),
                       ],
@@ -496,23 +533,24 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 ],
               ),
 
-              // Spacing
-              if (_collaborators.isNotEmpty) const SizedBox(height: 8),
+              if (_collaborators.isNotEmpty) SizedBox(height: AppResponsive.spacingSmall()),
 
-              // Input field (bawah)
               TextField(
                 controller: _collaboratorController,
                 decoration: InputDecoration(
                   hintText: 'Email or username',
                   hintStyle: TextStyle(
                     color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                    fontSize: 13,
+                    fontSize: AppResponsive.smallFontSize(),
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w600,
                   ),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.zero,
+                ),
+                style: TextStyle(
+                  fontSize: AppResponsive.smallFontSize(),
                 ),
               ),
             ],
@@ -534,29 +572,32 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(AppResponsive.spacingMedium()),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
             maxLines: maxLines,
+            style: TextStyle(
+              fontSize: AppResponsive.bodyFontSize(),
+            ),
             decoration: InputDecoration(
               hintText: hintText,
               hintStyle: TextStyle(
                 color: const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                fontSize: 13,
+                fontSize: AppResponsive.smallFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -574,23 +615,23 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Date',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         GestureDetector(
           onTap: _selectDate,
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(AppResponsive.spacingMedium()),
             decoration: BoxDecoration(
               border: Border.all(width: 2, color: Colors.black),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
             ),
             child: Row(
               children: [
@@ -603,13 +644,16 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       color: _selectedDate != null
                           ? Colors.black
                           : const Color(0xFF1D1D1D).withValues(alpha: 0.6),
-                      fontSize: 13,
+                      fontSize: AppResponsive.smallFontSize(),
                       fontFamily: 'SF Pro',
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const Icon(Icons.calendar_today, size: 18),
+                Icon(
+                  Icons.calendar_today,
+                  size: AppResponsive.responsiveIconSize(18),
+                ),
               ],
             ),
           ),
@@ -630,7 +674,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             children: statuses.map((status) {
               final isSelected = _selectedStatus == status;
               return Container(
-                margin: const EdgeInsets.only(bottom: 7),
+                margin: EdgeInsets.only(bottom: AppResponsive.spacingSmall()),
                 child: GestureDetector(
                   onTap: () {
                     setState(() {
@@ -638,7 +682,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.responsivePadding() * 1.5,
+                      vertical: AppResponsive.spacingSmall(),
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected ? const Color(0xFFFFE100) : Colors.white,
                       border: Border.all(width: 1, color: Colors.black),
@@ -648,7 +695,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       status,
                       style: TextStyle(
                         color: Colors.black,
-                        fontSize: 14,
+                        fontSize: AppResponsive.smallFontSize(),
                         fontFamily: 'SF Pro',
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                       ),
@@ -659,10 +706,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             }).toList(),
           ),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: AppResponsive.spacingMedium()),
         Image.asset(
           'assets/image/AddTaskImageCat.png',
-          height: 110,
+          height: AppResponsive.getHeight(12),
           fit: BoxFit.contain,
         ),
       ],
@@ -675,30 +722,37 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Event Type',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 14,
+            fontSize: AppResponsive.smallFontSize(),
             fontFamily: 'SF Pro',
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 9),
+        SizedBox(height: AppResponsive.spacingSmall()),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppResponsive.spacingMedium(),
+            vertical: AppResponsive.spacingSmall() * 0.5,
+          ),
           decoration: BoxDecoration(
             border: Border.all(width: 2, color: Colors.black),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppResponsive.borderRadiusMedium()),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: _selectedEventType,
               isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.black, size: 24),
-              style: const TextStyle(
+              icon: Icon(
+                Icons.arrow_drop_down,
                 color: Colors.black,
-                fontSize: 13,
+                size: AppResponsive.responsiveIconSize(24),
+              ),
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: AppResponsive.smallFontSize(),
                 fontFamily: 'SF Pro',
                 fontWeight: FontWeight.w600,
               ),
@@ -713,7 +767,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 return DropdownMenuItem<String>(
                   value: eventType,
                   child: Padding(
-                    padding: const EdgeInsets.only(left: 4),
+                    padding: EdgeInsets.only(left: AppResponsive.spacingSmall()),
                     child: Text(eventType),
                   ),
                 );

@@ -23,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLogin = true;
   bool _isLoading = false;
 
-  // Password visibility states
   bool _obscureLoginPassword = true;
   bool _obscureSignupPassword = true;
   bool _obscureConfirmPassword = true;
@@ -42,7 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  // Handle login
   Future<void> _handleLogin() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
       _showErrorDialog('Please fill in all fields');
@@ -57,7 +55,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result['success']) {
-        // Login SELALU ke HomeScreen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomeScreen()),
@@ -72,7 +69,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Handle signup
   Future<void> _handleSignUp() async {
     if (usernameController.text.isEmpty ||
         signupEmailController.text.isEmpty ||
@@ -97,7 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result['success']) {
-        // Sign Up SELALU ke WelcomeScreen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => WelcomeScreen()),
@@ -162,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Handle Google sign in
+
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
 
@@ -170,15 +165,15 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _authService.signInWithGoogle();
 
       if (result['success']) {
-        // Cek apakah user baru atau lama
+
         if (result['isNewUser'] == true) {
-          // User baru dari Google → Welcome Screen
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => WelcomeScreen()),
           );
         } else {
-          // User lama → Home Screen
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => HomeScreen()),
@@ -498,7 +493,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // Password input field
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               decoration: ShapeDecoration(
@@ -742,7 +737,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Log in with',
+            'Sign Up with',
             style: TextStyle(
               color: isLogin ? Colors.white : Colors.black,
               fontSize: 13,

@@ -122,13 +122,13 @@ class EventModel {
     );
   }
 
-  /// Helper: Format budget as currency
+  // Helper: Format budget as currency
   String formatBudget() {
     if (budget == 0) return 'No budget set';
     return 'Rp${budget.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}';
   }
 
-  /// Helper: Check if budget is set
+  //Helper: Check if budget is set
   bool hasBudget() {
     return budget > 0;
   }

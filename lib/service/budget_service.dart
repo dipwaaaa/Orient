@@ -5,9 +5,7 @@ import '../model/budget_model.dart';
 class BudgetService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ============= BUDGET CREATION & MANAGEMENT =============
 
-  /// ✅ Create new budget - FIXED to save in events/{eventId}/budgets/
   Future<Map<String, dynamic>> createBudget({
     required String eventId,
     required String itemName,
@@ -16,7 +14,6 @@ class BudgetService {
     String? note,
   }) async {
     try {
-      // ✅ FIXED: Generate ID from dummy collection
       final budgetId = _firestore.collection('dummy').doc().id;
       final now = DateTime.now();
 
@@ -29,13 +26,13 @@ class BudgetService {
         paidAmount: 0,
         unpaidAmount: totalCost,
         note: note,
-        linkedVendors: [], // NEW - empty initially
+        linkedVendors: [],
         payments: [],
         lastUpdated: now,
         createdAt: now,
       );
 
-      // ✅ FIXED: Save to events/{eventId}/budgets/{budgetId}
+
       await _firestore
           .collection('events')
           .doc(eventId)
@@ -59,7 +56,6 @@ class BudgetService {
     }
   }
 
-  /// ✅ Get all budgets for an event - FIXED path
   Stream<List<BudgetModel>> getBudgetsByEvent(String eventId) {
     return _firestore
         .collection('events')
@@ -75,11 +71,9 @@ class BudgetService {
     });
   }
 
-  /// Get single budget
+
   Future<BudgetModel?> getBudget(String budgetId) async {
     try {
-      // This requires eventId - need to refactor
-      // For now, search in all events
       final eventsSnapshot = await _firestore.collection('events').get();
 
       for (var eventDoc in eventsSnapshot.docs) {
@@ -100,7 +94,7 @@ class BudgetService {
     }
   }
 
-  /// Update budget - FIXED path
+
   Future<Map<String, dynamic>> updateBudget({
     required String budgetId,
     String? itemName,
@@ -110,7 +104,6 @@ class BudgetService {
     DateTime? dueDate,
   }) async {
     try {
-      // Get budget first to find eventId
       final budget = await getBudget(budgetId);
       if (budget == null) {
         return {
@@ -134,7 +127,6 @@ class BudgetService {
         updates['unpaidAmount'] = newUnpaid;
       }
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -155,10 +147,6 @@ class BudgetService {
     }
   }
 
-  // ============= VENDOR LINKING OPERATIONS =============
-
-  /// Add vendor to budget (create link di Firestore)
-  /// Ini dipanggil dari VendorService setelah vendor update
   Future<Map<String, dynamic>> addLinkedVendor({
     required String budgetId,
     required String vendorId,
@@ -175,7 +163,6 @@ class BudgetService {
         };
       }
 
-      // Check duplicate
       if (budget.linkedVendors.any((v) => v.vendorId == vendorId)) {
         return {
           'success': false,
@@ -195,7 +182,6 @@ class BudgetService {
       final newTotalCost = budget.calculateTotalWithVendors() + contribution;
       final newUnpaidAmount = newTotalCost - budget.paidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -222,7 +208,6 @@ class BudgetService {
     }
   }
 
-  /// Remove vendor from budget
   Future<Map<String, dynamic>> removeLinkedVendor({
     required String budgetId,
     required String vendorId,
@@ -236,20 +221,18 @@ class BudgetService {
         };
       }
 
-      // Find vendor contribution
-      final vendorToRemove = budget.linkedVendors
+
+      final _ = budget.linkedVendors
           .firstWhere((v) => v.vendorId == vendorId);
       final updatedLinkedVendors = budget.linkedVendors
           .where((v) => v.vendorId != vendorId)
           .toList();
 
-      // Recalculate unpaid amount
       final newTotalCost = budget.totalCost +
           updatedLinkedVendors.fold(
-              0, (sum, v) => (sum as double) + v.contribution);
+              0, (num sum, v) => (sum as double) + v.contribution);
       final newUnpaidAmount = newTotalCost - budget.paidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -276,7 +259,6 @@ class BudgetService {
     }
   }
 
-  /// Update vendor contribution amount di budget
   Future<Map<String, dynamic>> updateVendorContribution({
     required String budgetId,
     required String vendorId,
@@ -291,7 +273,6 @@ class BudgetService {
         };
       }
 
-      // Find dan update vendor contribution
       final updatedLinkedVendors = budget.linkedVendors.map((v) {
         if (v.vendorId == vendorId) {
           return v.copyWith(contribution: newContribution);
@@ -299,13 +280,11 @@ class BudgetService {
         return v;
       }).toList();
 
-      // Recalculate unpaid amount
       final newTotalCost = budget.totalCost +
           updatedLinkedVendors.fold(
-              0, (sum, v) => (sum as double) + v.contribution);
+              0, (num sum, v) => (sum as double) + v.contribution);
       final newUnpaidAmount = newTotalCost - budget.paidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -330,7 +309,6 @@ class BudgetService {
     }
   }
 
-  /// Get all linked vendors untuk budget
   Future<List<LinkedVendor>> getLinkedVendors(String budgetId) async {
     try {
       final budget = await getBudget(budgetId);
@@ -344,9 +322,6 @@ class BudgetService {
     }
   }
 
-  // ============= PAYMENT MANAGEMENT =============
-
-  /// Add payment to budget
   Future<Map<String, dynamic>> addPayment({
     required String budgetId,
     required double amount,
@@ -373,7 +348,6 @@ class BudgetService {
       final newPaidAmount = budget.paidAmount + amount;
       final newUnpaidAmount = budget.calculateTotalWithVendors() - newPaidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -399,7 +373,6 @@ class BudgetService {
     }
   }
 
-  /// Update payment
   Future<Map<String, dynamic>> updatePayment({
     required String budgetId,
     required String paymentId,
@@ -437,11 +410,10 @@ class BudgetService {
       payments[paymentIndex] = newPayment;
 
       final newPaidAmount =
-      payments.fold<double>(0, (sum, p) => sum + p.amount);
+      payments.fold<double>(0, (double sum, p) => sum + p.amount);
       final newUnpaidAmount =
           budget.calculateTotalWithVendors() - newPaidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -467,7 +439,6 @@ class BudgetService {
     }
   }
 
-  /// Update a payment at a specific index in the payments array
   Future<Map<String, dynamic>> updatePaymentAtIndex({
     required String budgetId,
     required int paymentIndex,
@@ -501,10 +472,9 @@ class BudgetService {
         note: note,
       );
 
-      final newPaidAmount = payments.fold<double>(0, (sum, p) => sum + p.amount);
+      final newPaidAmount = payments.fold<double>(0, (double sum, p) => sum + p.amount);
       final newUnpaidAmount = budget.calculateTotalWithVendors() - newPaidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -530,7 +500,6 @@ class BudgetService {
     }
   }
 
-  /// Delete payment at specific index
   Future<Map<String, dynamic>> deletePaymentAtIndex({
     required String budgetId,
     required int paymentIndex,
@@ -561,7 +530,6 @@ class BudgetService {
       final totalWithVendors = budget.calculateTotalWithVendors();
       final newUnpaidAmount = totalWithVendors - newPaidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -587,7 +555,6 @@ class BudgetService {
     }
   }
 
-  /// Delete payment
   Future<Map<String, dynamic>> deletePayment({
     required String budgetId,
     required String paymentId,
@@ -605,11 +572,10 @@ class BudgetService {
       budget.payments.where((p) => p.paymentId != paymentId).toList();
 
       final newPaidAmount =
-      payments.fold<double>(0, (sum, p) => sum + p.amount);
+      payments.fold<double>(0, (double sum, p) => sum + p.amount);
       final newUnpaidAmount =
           budget.calculateTotalWithVendors() - newPaidAmount;
 
-      // ✅ FIXED: Update path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(budget.eventId)
@@ -635,15 +601,14 @@ class BudgetService {
     }
   }
 
-  // ============= BUDGET SUMMARY & DELETION =============
 
-  /// Delete budget
+
+
   Future<Map<String, dynamic>> deleteBudget({
     required String eventId,
     required String budgetId,
   }) async {
     try {
-      // ✅ FIXED: Delete path is events/{eventId}/budgets/{budgetId}
       await _firestore
           .collection('events')
           .doc(eventId)
@@ -666,11 +631,8 @@ class BudgetService {
     }
   }
 
-  /// Get budget summary untuk event (Future - one-time load)
-  /// Includes linked vendors dalam calculation
   Future<Map<String, double>> getBudgetSummary(String eventId) async {
     try {
-      // ✅ FIXED: Query from events/{eventId}/budgets/
       final snapshot = await _firestore
           .collection('events')
           .doc(eventId)
@@ -710,8 +672,6 @@ class BudgetService {
     }
   }
 
-  /// ✅ NEW: Get budget summary as STREAM (Real-time updates!)
-  /// Emits new data whenever any budget changes
   Stream<Map<String, double>> getBudgetSummaryStream(String eventId) {
     return _firestore
         .collection('events')
@@ -749,7 +709,6 @@ class BudgetService {
     });
   }
 
-  /// Get budget breakdown untuk display
   Future<Map<String, dynamic>> getBudgetBreakdown(String budgetId) async {
     try {
       final budget = await getBudget(budgetId);

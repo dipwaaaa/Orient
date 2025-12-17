@@ -10,11 +10,11 @@ class DeleteAccountDialog extends StatefulWidget {
   final VoidCallback onDeleteSuccess;
 
   const DeleteAccountDialog({
-    Key? key,
+    super.key,
     required this.authService,
     required this.userEmail,
     required this.onDeleteSuccess,
-  }) : super(key: key);
+  });
 
   @override
   State<DeleteAccountDialog> createState() => _DeleteAccountDialogState();
@@ -35,7 +35,6 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   Icon(Icons.warning_rounded, color: Colors.red, size: 28),
@@ -60,7 +59,6 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
               ),
               SizedBox(height: 20),
 
-              // Warning Box
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -93,7 +91,6 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
               ),
               SizedBox(height: 16),
 
-              // Checkbox
               Container(
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
@@ -117,7 +114,6 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
               ),
               SizedBox(height: 24),
 
-              // Action Buttons
               Row(
                 children: [
                   Expanded(
@@ -178,26 +174,6 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
     );
   }
 
-  Widget _buildDeleteItem(String item) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          Icon(Icons.close, size: 16, color: Colors.red.shade700),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              item,
-              style: TextStyle(
-                color: Colors.red.shade700,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _handleDelete() async {
     if (!_agreedToDelete) {
@@ -213,21 +189,18 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
         throw Exception('No user logged in');
       }
 
-      debugPrint('🗑️ Starting account deletion...');
+      debugPrint(' Starting account deletion...');
 
-      // Delete account (AuthService handles both Google & password users)
       final result = await widget.authService.deleteAccount(password: '');
 
       if (!mounted) return;
 
       if (result['success'] == true) {
-        debugPrint('✅ Account deleted successfully');
+        debugPrint('Account deleted successfully');
         _showSuccessMessage();
         await Future.delayed(Duration(milliseconds: 500));
 
-        // Redirect ke LoginScreen immediately
         if (mounted) {
-          // Import needed di top: import 'login_signup_screen.dart';
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => LoginScreen()),
                 (route) => false,
@@ -235,14 +208,13 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
         }
       } else {
         setState(() => _isLoading = false);
-        debugPrint('❌ Delete failed: ${result['error']}');
+        debugPrint(' Delete failed: ${result['error']}');
         _showErrorSnackBar(result['error'] ?? 'Failed to delete account');
       }
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('❌ Firebase Error: ${e.code} - ${e.message}');
+      debugPrint(' Firebase Error: ${e.code} - ${e.message}');
 
-      // Redirect ke login
       if (mounted) {
         _showErrorSnackBar('Account deleted. Redirecting to login...');
         await Future.delayed(Duration(seconds: 1));
@@ -255,7 +227,7 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint('❌ Unexpected error: $e');
+      debugPrint(' Unexpected error: $e');
       if (mounted) {
         _showErrorSnackBar('An error occurred: $e');
       }

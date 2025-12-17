@@ -5,9 +5,9 @@ class ForgotPasswordDialog extends StatefulWidget {
   final AuthService authService;
 
   const ForgotPasswordDialog({
-    Key? key,
+    super.key,
     required this.authService,
-  }) : super(key: key);
+  });
 
   @override
   State<ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
@@ -20,7 +20,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
   String? _errorMessage;
 
   Future<void> _handleForgotPassword() async {
-    // Clear previous messages
     setState(() {
       _successMessage = null;
       _errorMessage = null;
@@ -48,7 +47,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             _emailController.clear();
           });
 
-          // Auto-close dialog after 3 seconds
           await Future.delayed(Duration(seconds: 3));
           if (mounted) {
             Navigator.pop(context);
@@ -81,7 +79,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Title
             Text(
               'Reset Password',
               style: TextStyle(
@@ -93,7 +90,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Description
             Text(
               'Enter your email address and we\'ll send you a link to reset your password.',
               textAlign: TextAlign.center,
@@ -106,7 +102,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             ),
             const SizedBox(height: 24),
 
-            // Email Input Field
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -159,7 +154,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Error Message
             if (_errorMessage != null)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -187,7 +181,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
                 ),
               ),
 
-            // Success Message
             if (_successMessage != null)
               Container(
                 padding: const EdgeInsets.all(12),
@@ -219,7 +212,6 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
             if (_errorMessage != null || _successMessage != null)
               const SizedBox(height: 16),
 
-            // Buttons
             Row(
               children: [
                 Expanded(

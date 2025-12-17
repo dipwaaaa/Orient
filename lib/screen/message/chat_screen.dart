@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/service/auth_service.dart';
 import '/service/encryption_service.dart';
-import '/widget/NavigationBar.dart';
+import '/widget/navigation_bar.dart';
 import '/widget/profile_menu.dart';
 import 'room_chat_screen.dart';
 import '../login_signup_screen.dart';
@@ -26,7 +26,8 @@ class _ChatScreenState extends State<ChatScreen> {
   List<ChatItem> _filteredChatList = [];
   StreamSubscription? _authSubscription;
   StreamSubscription? _chatStreamSubscription;
-  Map<String, int> _unreadCounts = {}; // Track unread messages per chat
+  Map<String, int> _unreadCounts = {};
+  Map<String, String> _profileImages = {};
 
   @override
   void initState() {
@@ -46,14 +47,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _filterChats() {
-    final query = _searchController.text.toLowerCase();
+    final query = _searchController.text;
     setState(() {
       if (query.isEmpty) {
         _filteredChatList = _chatList;
       } else {
         _filteredChatList = _chatList.where((chat) {
-          return chat.username.toLowerCase().contains(query) ||
-              chat.lastMessage.toLowerCase().contains(query);
+          return chat.username.contains(query) ||
+              chat.lastMessage.contains(query);
         }).toList();
       }
     });
@@ -76,6 +77,37 @@ class _ChatScreenState extends State<ChatScreen> {
         MaterialPageRoute(builder: (context) => LoginScreen()),
             (route) => false,
       );
+    }
+  }
+
+  Future<String?> _fetchProfileImage(String userId) async {
+    try {
+      // Check cache first
+      if (_profileImages.containsKey(userId)) {
+        return _profileImages[userId];
+      }
+
+      final userDoc = await _authService.firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        final profileImageUrl = userDoc.data()?['profileImageUrl'] as String?;
+
+        // Cache the result (even if null)
+        if (mounted) {
+          setState(() {
+            _profileImages[userId] = profileImageUrl ?? '';
+          });
+        }
+
+        return profileImageUrl;
+      }
+      return null;
+    } catch (e) {
+      debugPrint(' Error fetching profile image for $userId: $e');
+      return null;
     }
   }
 
@@ -110,14 +142,37 @@ class _ChatScreenState extends State<ChatScreen> {
 
             final otherUserData = participantDetails[otherUserId] as Map<String, dynamic>?;
             final otherUsername = otherUserData?['username'] ?? 'Unknown';
-            final otherProfileImageUrl = otherUserData?['profileImageUrl'] as String?;
+
+
+            String? profileImageUrl = _profileImages[otherUserId];
+            if (profileImageUrl == null) {
+
+              _fetchProfileImage(otherUserId).then((imageUrl) {
+                if (imageUrl != null && mounted) {
+                  setState(() {
+                    final index = _chatList.indexWhere((chat) => chat.chatId == chatId);
+                    if (index != -1) {
+                      _chatList[index] = ChatItem(
+                        username: _chatList[index].username,
+                        lastMessage: _chatList[index].lastMessage,
+                        time: _chatList[index].time,
+                        chatId: _chatList[index].chatId,
+                        profileImageUrl: imageUrl,
+                        otherUserId: _chatList[index].otherUserId,
+                      );
+                      _filteredChatList = _chatList;
+                    }
+                  });
+                }
+              });
+            }
 
             String lastMessage = data['lastMessage'] ?? '';
             if (lastMessage.isNotEmpty) {
               try {
                 lastMessage = EncryptionService.decryptLastMessage(lastMessage, chatId);
               } catch (e) {
-                debugPrint('Error decrypting last message: $e');
+                debugPrint(' Error decrypting last message: $e');
                 lastMessage = '[Encrypted]';
               }
             }
@@ -142,13 +197,13 @@ class _ChatScreenState extends State<ChatScreen> {
               lastMessage: lastMessage,
               time: time,
               chatId: chatId,
-              profileImageUrl: otherProfileImageUrl,
+              profileImageUrl: profileImageUrl,
+              otherUserId: otherUserId,
             );
           }).toList();
           _filteredChatList = _chatList;
         });
 
-        // Load unread counts untuk setiap chat
         _loadUnreadCounts(user.uid);
       },
       onError: (error) {
@@ -157,7 +212,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // Fungsi untuk load unread message counts
   void _loadUnreadCounts(String currentUserId) {
     for (final chat in _chatList) {
       _authService.firestore
@@ -629,6 +683,17 @@ class _ChatScreenState extends State<ChatScreen> {
                         ? Image.network(
                       chat.profileImageUrl!,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                : null,
+                            strokeWidth: 2,
+                          ),
+                        );
+                      },
                       errorBuilder: (context, error, stackTrace) {
                         return Center(
                           child: Text(
@@ -743,7 +808,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-
   Widget _buildSearchBar(double screenWidth, double screenHeight) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.044),
@@ -793,6 +857,7 @@ class ChatItem {
   final String time;
   final String chatId;
   final String? profileImageUrl;
+  final String otherUserId;
 
   ChatItem({
     required this.username,
@@ -800,5 +865,6 @@ class ChatItem {
     required this.time,
     required this.chatId,
     this.profileImageUrl,
+    required this.otherUserId,
   });
 }

@@ -42,12 +42,11 @@ class _AnimatedGradientBackgroundState extends State<AnimatedGradientBackground>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: double.infinity,
       child: Stack(
         children: [
-          // Animated Background
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _controller,
@@ -68,7 +67,6 @@ class _AnimatedGradientBackgroundState extends State<AnimatedGradientBackground>
               },
             ),
           ),
-          // Child content
           if (widget.child != null) widget.child!,
         ],
       ),

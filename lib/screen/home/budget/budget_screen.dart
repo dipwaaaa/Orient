@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
 import '../../../service/budget_service.dart';
 import '../../../model/budget_model.dart';
+import '../../../utilty/app_responsive.dart';
 import '../../../widget/profile_menu.dart';
 import 'budget_detail_screen.dart';
 import 'create_budget_screen.dart';
-import 'payment_detail_screen.dart';
 
 class BudgetScreen extends StatefulWidget {
   final String? eventId;
@@ -30,8 +29,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   String _username = 'User';
   String _selectedEventName = '';
 
-  //  Keep fallback for loading state only
-  Map<String, double> _budgetSummaryFallback = {
+  final Map<String, double> _budgetSummaryFallback = {
     'totalPaid': 0,
     'totalUnpaid': 0,
     'remainingBalance': 0,
@@ -48,7 +46,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
       if (_selectedEventName.isEmpty) {
         _loadEventName();
       }
-      //  Remove _loadBudgetSummary() call - use Stream instead!
     }
   }
 
@@ -114,14 +111,14 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    AppResponsive.init(context);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(screenWidth),
+            _buildHeader(),
             Expanded(
               child: widget.eventId == null
                   ? _buildNoEventState()
@@ -150,12 +147,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   final budgets = snapshotBudgets.data ?? [];
                   debugPrint('Budgets count: ${budgets.length}');
 
-                  //  Wrap with StreamBuilder for summary (real-time updates!)
                   return StreamBuilder<Map<String, double>>(
                     stream: _budgetService
                         .getBudgetSummaryStream(widget.eventId!),
                     builder: (context, snapshotSummary) {
-                      // Handle loading state
                       if (snapshotSummary.connectionState ==
                           ConnectionState.waiting) {
                         return ListView(
@@ -163,39 +158,33 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           children: [
                             const SizedBox(height: 15),
                             _buildBalanceCarousel(
-                              screenWidth,
                               snapshotSummary.data ??
                                   _budgetSummaryFallback,
                             ),
                             const SizedBox(height: 20),
-                            _buildToSpendSection(screenWidth),
+                            _buildToSpendSection(),
                             const SizedBox(height: 15),
                             budgets.isEmpty
                                 ? _buildEmptyState()
-                                : _buildBudgetList(
-                                screenWidth, budgets),
+                                : _buildBudgetList(budgets),
                             const SizedBox(height: 20),
                           ],
                         );
                       }
 
-                      // Main UI with real-time data
                       final summary = snapshotSummary.data ?? {};
 
                       return ListView(
                         padding: EdgeInsets.zero,
                         children: [
                           const SizedBox(height: 15),
-                          _buildBalanceCarousel(
-                            screenWidth,
-                            summary,
-                          ), //  Real-time summary!
+                          _buildBalanceCarousel(summary),
                           const SizedBox(height: 20),
-                          _buildToSpendSection(screenWidth),
+                          _buildToSpendSection(),
                           const SizedBox(height: 15),
                           budgets.isEmpty
                               ? _buildEmptyState()
-                              : _buildBudgetList(screenWidth, budgets),
+                              : _buildBudgetList(budgets),
                           const SizedBox(height: 20),
                         ],
                       );
@@ -210,9 +199,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  Widget _buildHeader(double screenWidth) {
+  Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.all(screenWidth * 0.044),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppResponsive.responsivePadding(),
+        vertical: AppResponsive.spacingSmall(),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -232,23 +224,21 @@ class _BudgetScreenState extends State<BudgetScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Your Budget',
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 25,
+                    fontSize: AppResponsive.responsiveFont(25),
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: AppResponsive.spacingSmall() * 0.5),
                 Text(
-                  _selectedEventName.isNotEmpty
-                      ? 'For $_selectedEventName'
-                      : 'As per ${DateFormat('MMMM dd, yyyy').format(DateTime.now())}',
-                  style: const TextStyle(
+                  'For ${DateFormat('MMMM dd, yyyy').format(DateTime.now())}',
+                  style: TextStyle(
                     color: Colors.black,
-                    fontSize: 13,
+                    fontSize: AppResponsive.responsiveFont(13),
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w500,
                   ),
@@ -257,31 +247,27 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
           ),
           Container(
-            padding: EdgeInsets.all(screenWidth * 0.022),
+            padding: EdgeInsets.all(AppResponsive.responsivePadding() * 0.5),
             decoration: BoxDecoration(
               color: Colors.black,
-              borderRadius: BorderRadius.circular(screenWidth * 0.069),
+              borderRadius: BorderRadius.circular(AppResponsive.borderRadiusLarge()),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Notification Icon
                 Container(
-                  width: screenWidth * 0.089,
-                  height: screenWidth * 0.089,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
+                  width: AppResponsive.notificationIconSize(),
+                  height: AppResponsive.notificationIconSize(),
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.notifications,
                     color: Colors.white,
-                    size: screenWidth * 0.069,
+                    size: AppResponsive.notificationIconSize(),
                   ),
                 ),
-                SizedBox(width: screenWidth * 0.022),
-
-                // Avatar - Tap to show ProfileMenu
+                SizedBox(width: AppResponsive.spacingSmall()),
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
@@ -292,7 +278,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                       );
                       return;
                     }
-                    // Open ProfileMenu
                     ProfileMenu.show(context, _authService, _username);
                   },
                   child: AvatarWidgetCompact(
@@ -308,9 +293,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  //  Update signature to accept summary parameter
   Widget _buildBalanceCarousel(
-      double screenWidth,
       Map<String, double> summary,
       ) {
     debugPrint(
@@ -319,7 +302,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     debugPrint('Building carousel - totalUnpaid: ${summary['totalUnpaid']}');
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: AppResponsive.responsivePadding()),
       height: 100,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -332,14 +315,14 @@ class _BudgetScreenState extends State<BudgetScreen> {
               backgroundColor: const Color(0xFFFFE100),
               imagePath: 'assets/image/balance-pig.png',
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: AppResponsive.spacingSmall()),
             _buildCarouselCard(
               label: 'Amount Paid',
               amount: _formatCurrency(summary['totalPaid'] ?? 0),
               backgroundColor: const Color(0xFF51FF00),
               imagePath: 'assets/image/bussines.png',
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: AppResponsive.spacingSmall()),
             _buildCarouselCard(
               label: 'Amount Unpaid',
               amount: _formatCurrency(summary['totalUnpaid'] ?? 0),
@@ -382,7 +365,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
       ),
       child: Stack(
         children: [
-          // Text content on the left
           Positioned(
             left: 20,
             top: 0,
@@ -393,9 +375,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.black,
-                    fontSize: 9,
+                    fontSize: AppResponsive.responsiveFont(9),
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w600,
                   ),
@@ -403,9 +385,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 const SizedBox(height: 4),
                 Text(
                   amount,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.black,
-                    fontSize: 16,
+                    fontSize: AppResponsive.responsiveFont(16),
                     fontFamily: 'SF Pro',
                     fontWeight: FontWeight.w700,
                   ),
@@ -413,7 +395,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
               ],
             ),
           ),
-          // Image on the right
           Positioned(
             right: 10,
             top: 0,
@@ -442,17 +423,17 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  Widget _buildToSpendSection(double screenWidth) {
+  Widget _buildToSpendSection() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsivePadding()),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'To Spend',
             style: TextStyle(
               color: Colors.black,
-              fontSize: 25,
+              fontSize: AppResponsive.responsiveFont(25),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w800,
             ),
@@ -468,7 +449,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ),
                   ),
                 );
-                //  No need to manually refresh - Stream will auto-update!
               }
             },
             child: Container(
@@ -490,9 +470,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  Widget _buildBudgetList(double screenWidth, List<BudgetModel> budgets) {
+  Widget _buildBudgetList(List<BudgetModel> budgets) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsivePadding()),
       child: Column(
         children: budgets.map((budget) {
           final isPaid = budget.unpaidAmount <= 0;
@@ -502,14 +482,14 @@ class _BudgetScreenState extends State<BudgetScreen> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => BudgetDetailScreen(
-                    budgetId: budget.budgetId,
+                    budgetId: budget.budgetId, eventId: '',
                   ),
                 ),
               );
             },
             child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
+              margin: EdgeInsets.only(bottom: AppResponsive.spacingMedium()),
+              padding: EdgeInsets.all(AppResponsive.responsivePadding()),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
@@ -542,37 +522,37 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         ? const Icon(Icons.check, size: 12, color: Colors.white)
                         : null,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: AppResponsive.spacingSmall()),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           budget.itemName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.black,
-                            fontSize: 15,
+                            fontSize: AppResponsive.responsiveFont(15),
                             fontFamily: 'SF Pro',
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: AppResponsive.spacingSmall() * 0.5),
                         Row(
                           children: [
                             Text(
                               _formatCurrency(budget.totalCost),
                               style: TextStyle(
                                 color: Colors.grey[700],
-                                fontSize: 13,
+                                fontSize: AppResponsive.responsiveFont(13),
                                 fontFamily: 'SF Pro',
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: AppResponsive.spacingSmall()),
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppResponsive.spacingSmall(),
+                                vertical: AppResponsive.spacingSmall() * 0.25,
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFFE100)
@@ -581,9 +561,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                               ),
                               child: Text(
                                 budget.category,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.black,
-                                  fontSize: 10,
+                                  fontSize: AppResponsive.responsiveFont(10),
                                   fontFamily: 'SF Pro',
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -596,7 +576,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                   ),
                   Icon(
                     Icons.arrow_forward_ios,
-                    size: 16,
+                    size: AppResponsive.responsiveFont(16),
                     color: Colors.grey[400],
                   ),
                 ],
@@ -610,7 +590,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   Widget _buildEmptyState() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 40),
+      padding: EdgeInsets.symmetric(
+        vertical: AppResponsive.spacingLarge() * 3,
+        horizontal: AppResponsive.responsivePadding() * 2,
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -620,24 +603,24 @@ class _BudgetScreenState extends State<BudgetScreen> {
             height: 136,
             fit: BoxFit.contain,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: AppResponsive.spacingLarge()),
           Text(
             'There are no budgets',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.black.withValues(alpha: 0.30),
-              fontSize: 15,
+              fontSize: AppResponsive.responsiveFont(15),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: AppResponsive.spacingSmall()),
           Text(
             'Create your first budget to start tracking expenses',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.black.withValues(alpha: 0.20),
-              fontSize: 12,
+              fontSize: AppResponsive.responsiveFont(12),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w500,
             ),
@@ -657,12 +640,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
             size: 80,
             color: Colors.grey,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: AppResponsive.spacingLarge()),
           Text(
             'No event selected',
             style: TextStyle(
               color: Colors.black.withValues(alpha: 0.30),
-              fontSize: 18,
+              fontSize: AppResponsive.responsiveFont(18),
               fontFamily: 'SF Pro',
               fontWeight: FontWeight.w600,
             ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../onboarding/onboarding_chatbot_screen.dart'; // UPDATE IMPORT INI
-import '../../widget/Animated_Gradient_Background.dart';
+import '../onboarding/onboarding_chatbot_screen.dart';
+import '../../utilty/app_responsive.dart';
+import '../../widget/animated_gradient_background.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -124,16 +125,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+    AppResponsive.init(context);
 
-    final imageSize = screenWidth * 0.75;
-    final maxImageSize = screenHeight * 0.35;
+    final imageSize = AppResponsive.screenWidth * 0.75;
+    final maxImageSize = AppResponsive.screenHeight * 0.35;
     final finalImageSize = imageSize > maxImageSize ? maxImageSize : imageSize;
-    final horizontalPadding = screenWidth * 0.07;
-    final titleFontSize = screenWidth * 0.07;
-    final descriptionFontSize = screenWidth * 0.04;
-    final buttonPadding = screenWidth * 0.1;
 
     return Scaffold(
       body: AnimatedGradientBackground(
@@ -156,22 +152,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       onTap: _handlePageTap,
                       child: _buildPage(
                         _pages[index],
-                        screenWidth,
-                        screenHeight,
                         finalImageSize,
-                        horizontalPadding,
-                        titleFontSize,
-                        descriptionFontSize,
                       ),
                     );
                   },
                 ),
               ),
-              _buildPageIndicators(screenWidth),
-              _buildGetStartedButton(buttonPadding, screenWidth),
-              SizedBox(height: screenHeight * 0.025),
-              _buildHomeIndicator(screenWidth),
-              SizedBox(height: screenHeight * 0.01),
+              _buildPageIndicators(),
+              _buildGetStartedButton(),
+              SizedBox(height: AppResponsive.responsiveHeight(1)),
+              _buildHomeIndicator(),
+              SizedBox(height: AppResponsive.responsiveHeight(0.5)),
             ],
           ),
         ),
@@ -188,69 +179,68 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   Widget _buildPage(
       PageData pageData,
-      double screenWidth,
-      double screenHeight,
       double imageSize,
-      double horizontalPadding,
-      double titleFontSize,
-      double descriptionFontSize,
       ) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: imageSize,
-            height: imageSize,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(screenWidth * 0.03),
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: _buildImageWidget(pageData, screenWidth),
-          ),
-          SizedBox(height: screenHeight * 0.05),
-
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: screenHeight * 0.1),
-            child: Text(
-              pageData.title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: titleFontSize.clamp(20.0, 32.0),
-                fontWeight: FontWeight.w900,
-                height: 1.1,
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsiveFont(7)),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(height: AppResponsive.responsiveHeight(5)),
+            Container(
+              width: imageSize,
+              height: imageSize,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(3)),
+                color: Colors.white.withOpacity(0.1),
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              clipBehavior: Clip.antiAlias,
+              child: _buildImageWidget(pageData),
             ),
-          ),
+            SizedBox(height: AppResponsive.responsiveHeight(5)),
 
-          SizedBox(height: screenHeight * 0.025),
-
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: screenHeight * 0.15),
-            child: Text(
-              pageData.description,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: descriptionFontSize.clamp(14.0, 18.0),
-                fontWeight: FontWeight.w400,
-                height: 1.4,
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: AppResponsive.responsiveHeight(10)),
+              child: Text(
+                pageData.title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AppResponsive.responsiveFont(28).clamp(20.0, 32.0),
+                  fontWeight: FontWeight.w900,
+                  height: 1.1,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+
+            SizedBox(height: AppResponsive.responsiveHeight(2.5)),
+
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: AppResponsive.responsiveHeight(15)),
+              child: Text(
+                pageData.description,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AppResponsive.responsiveFont(16).clamp(14.0, 18.0),
+                  fontWeight: FontWeight.w400,
+                  height: 1.4,
+                ),
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(height: AppResponsive.responsiveHeight(5)),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildImageWidget(PageData pageData, double screenWidth) {
+  Widget _buildImageWidget(PageData pageData) {
     final imageExists = _imageCache[pageData.imageUrl];
 
     if (imageExists == null) {
@@ -265,27 +255,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       return Image.asset(
         pageData.imageUrl,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackWidget(pageData, screenWidth),
+        errorBuilder: (context, error, stackTrace) => _buildFallbackWidget(pageData),
       );
     }
 
-    return _buildFallbackWidget(pageData, screenWidth);
+    return _buildFallbackWidget(pageData);
   }
 
-  Widget _buildFallbackWidget(PageData pageData, double screenWidth) {
+  Widget _buildFallbackWidget(PageData pageData) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            pageData.iconColor.withValues(alpha: 0.3),
-            pageData.iconColor.withValues(alpha: 0.1),
+            pageData.iconColor.withOpacity(0.3),
+            pageData.iconColor.withOpacity(0.1),
           ],
         ),
-        borderRadius: BorderRadius.circular(screenWidth * 0.03),
+        borderRadius: BorderRadius.circular(AppResponsive.responsiveFont(3)),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
+          color: Colors.white.withOpacity(0.3),
           width: 1,
         ),
       ),
@@ -293,48 +283,50 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: EdgeInsets.all(screenWidth * 0.05),
+            padding: EdgeInsets.all(AppResponsive.responsiveFont(5)),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(
               pageData.iconData,
-              size: screenWidth * 0.2,
+              size: AppResponsive.responsiveFont(20),
               color: Colors.white,
             ),
           ),
-          SizedBox(height: screenWidth * 0.05),
+          SizedBox(height: AppResponsive.responsiveFont(5)),
           Text(
             pageData.title.split(' ').first,
             style: TextStyle(
               color: Colors.white,
-              fontSize: screenWidth * 0.05,
+              fontSize: AppResponsive.responsiveFont(18),
               fontWeight: FontWeight.bold,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPageIndicators(double screenWidth) {
+  Widget _buildPageIndicators() {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: screenWidth * 0.04),
+      padding: EdgeInsets.symmetric(vertical: AppResponsive.responsiveFont(4)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(_pages.length, (index) {
           final isActive = index == _currentPage;
-          final indicatorSize = screenWidth * 0.02;
+          final indicatorSize = AppResponsive.responsiveFont(2);
           return AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.01),
+            margin: EdgeInsets.symmetric(horizontal: AppResponsive.responsiveFont(1)),
             width: isActive ? indicatorSize * 2.5 : indicatorSize,
             height: indicatorSize,
             decoration: BoxDecoration(
               color: isActive
                   ? const Color(0xFFD9D9D9)
-                  : const Color(0xFF9B9B9B).withValues(alpha: 0.6),
+                  : const Color(0xFF9B9B9B).withOpacity(0.6),
               borderRadius: BorderRadius.circular(indicatorSize / 2),
             ),
           );
@@ -343,15 +335,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  Widget _buildGetStartedButton(double buttonPadding, double screenWidth) {
+  Widget _buildGetStartedButton() {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: buttonPadding),
+      padding: EdgeInsets.symmetric(horizontal: AppResponsive.responsiveFont(10)),
       child: SizedBox(
         width: double.infinity,
         child: ElevatedButton(
           onPressed: () {
             _stopAutoScroll();
-            // NAVIGATE KE ONBOARDING CHATBOT
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -362,7 +353,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFFFE100),
             foregroundColor: Colors.black,
-            padding: EdgeInsets.symmetric(vertical: screenWidth * 0.04),
+            padding: EdgeInsets.symmetric(vertical: AppResponsive.responsiveFont(4)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(50),
             ),
@@ -371,19 +362,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           child: Text(
             "Let's Get Started!",
             style: TextStyle(
-              fontSize: (screenWidth * 0.045).clamp(16.0, 20.0),
+              fontSize: AppResponsive.responsiveFont(18).clamp(16.0, 20.0),
               fontWeight: FontWeight.w600,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHomeIndicator(double screenWidth) {
+  Widget _buildHomeIndicator() {
     return Container(
-      width: screenWidth * 0.35,
-      height: screenWidth * 0.0125,
+      width: AppResponsive.responsiveWidth(35),
+      height: AppResponsive.responsiveFont(1.25),
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(100),

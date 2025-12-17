@@ -56,7 +56,6 @@ class TaskListWidget extends StatelessWidget {
 
         var filteredTasks = _filterTasksByDate(tasks);
 
-        // Hide completed tasks in HomeScreen if hideCompletedInHome is true
         if (hideCompletedInHome) {
           filteredTasks =
               filteredTasks
@@ -68,7 +67,6 @@ class TaskListWidget extends StatelessWidget {
           return _buildEmptyState();
         }
 
-        // Limit tasks if maxItems is specified
         final displayTasks = maxItems != null &&
             maxItems! < filteredTasks.length
             ? filteredTasks.take(maxItems!).toList()
@@ -170,8 +168,6 @@ class TaskListWidget extends StatelessWidget {
     }
   }
 
-// Ganti method _buildTaskCard di TaskListWidget dengan kode ini:
-
   Widget _buildTaskCard(BuildContext context, TaskModel task, int totalTasks) {
     final isCompleted = task.status == 'completed';
 
@@ -187,7 +183,6 @@ class TaskListWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          // Background hitam untuk month view, putih untuk week view
           color: showInBlackBackground
               ? Colors.black.withOpacity(0.9)
               : Colors.white.withOpacity(0.9),
@@ -237,7 +232,6 @@ class TaskListWidget extends StatelessWidget {
                   child: Text(
                     task.name,
                     style: TextStyle(
-                      // Warna teks: putih untuk black background (month), hitam untuk week
                       color: showInBlackBackground ? Colors.white : Colors.black,
                       fontSize: 16,
                       fontFamily: 'SF Pro',
@@ -249,7 +243,6 @@ class TaskListWidget extends StatelessWidget {
                 Text(
                   DateFormat('MM/dd/yyyy').format(task.dueDate),
                   style: TextStyle(
-                    // Warna tanggal: putih dengan opacity untuk month, hitam dengan opacity untuk week
                     color: showInBlackBackground
                         ? Colors.white.withOpacity(0.7)
                         : Colors.black.withOpacity(0.6),
@@ -291,7 +284,6 @@ class TaskListWidget extends StatelessWidget {
                 Text(
                   '${isCompleted ? 100 : 0}% completed',
                   style: TextStyle(
-                    // Warna progress text: putih untuk month, hitam untuk week
                     color: showInBlackBackground
                         ? Colors.white.withOpacity(0.6)
                         : Colors.black.withOpacity(0.5),
