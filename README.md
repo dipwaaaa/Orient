@@ -377,3 +377,5 @@ Orient menggunakan **model data berbentuk V** dengan Events di tengah:
 **Dibuat dengan ❤️ oleh Kelompok Kucing Oyen**
 
 </div>
+
+Link SRS dan Aplikasi: https://drive.google.com/drive/folders/1C6SgBfBlwRphLo7NUDQCAglM026pBPg9?usp=sharing
