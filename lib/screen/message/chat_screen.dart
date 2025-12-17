@@ -508,6 +508,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  //
   Future<void> _navigateToRoomChat(String username, String chatId) async {
     try {
       debugPrint(' Looking up user: $username');
