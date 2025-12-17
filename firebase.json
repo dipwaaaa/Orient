@@ -1,0 +1,45 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "orient-eb724",
+          "appId": "1:249442742487:android:aca8990889d100cecec092",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "orient-eb724",
+          "configurations": {
+            "android": "1:249442742487:android:aca8990889d100cecec092",
+            "ios": "1:249442742487:ios:c1ff621296ac8c3ecec092",
+            "macos": "1:249442742487:ios:c1ff621296ac8c3ecec092",
+            "web": "1:249442742487:web:dbd03c6a8d34073fcec092",
+            "windows": "1:249442742487:web:33ac80c3cd4babe0cec092"
+          }
+        }
+      }
+    }
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}

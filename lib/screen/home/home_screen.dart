@@ -95,18 +95,18 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final user = _authService.currentUser;
       if (user == null) {
-        debugPrint('❌ No user logged in, skipping auto-delete');
+        debugPrint(' No user logged in, skipping auto-delete');
         return;
       }
 
       if (_isAutoDeleting) {
-        debugPrint('⏳ Auto-delete already in progress, skipping');
+        debugPrint(' Auto-delete already in progress, skipping');
         return;
       }
 
       setState(() => _isAutoDeleting = true);
 
-      debugPrint('🗑️ Starting auto-delete for past events...');
+      debugPrint('🗑 Starting auto-delete for past events...');
 
       // Call auto-delete service
       final deletedCount = await _eventService.autoDeletePastEvents(user.uid);
@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _isAutoDeleting = false);
 
         if (deletedCount > 0) {
-          debugPrint('✅ Auto-deleted $deletedCount past events');
+          debugPrint('Auto-deleted $deletedCount past events');
 
           // Show snackbar notification
           ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error in auto-delete: $e');
+      debugPrint(' Error in auto-delete: $e');
       if (mounted) {
         setState(() => _isAutoDeleting = false);
       }
@@ -307,33 +307,40 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    _budgetSubscription = _firestore
-        .collection('budgets')
-        .where('eventId', isEqualTo: eventId)
-        .snapshots()
-        .listen((snapshot) {
-      double totalBudget = 0;
-      double totalPaid = 0;
-      double totalUnpaid = 0;
+    _budgetSubscription = _budgetService
+        .getBudgetSummaryStream(eventId)  // ← Service method yang benar
+        .listen(
+          (summary) {
+        if (mounted) {
+          debugPrint(' HomeScreen - Budget summary updated from service:');
+          debugPrint('   - Paid: ${summary['totalPaid']}');
+          debugPrint('   - Unpaid: ${summary['totalUnpaid']}');
+          debugPrint('   - Remaining: ${summary['remainingBalance']}');
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        totalBudget += (data['totalCost'] ?? 0).toDouble();
-        totalPaid += (data['paidAmount'] ?? 0).toDouble();
-        totalUnpaid += (data['unpaidAmount'] ?? 0).toDouble();
-      }
-
-      if (mounted) {
-        setState(() {
-          _budgetSummary = {
-            'totalPaid': totalPaid,
-            'totalUnpaid': totalUnpaid,
-            'remainingBalance': totalBudget - totalPaid,
-          };
-        });
-      }
-    });
+          setState(() {
+            _budgetSummary = {
+              'totalPaid': summary['totalPaid'] ?? 0,
+              'totalUnpaid': summary['totalUnpaid'] ?? 0,
+              'remainingBalance': summary['remainingBalance'] ?? 0,
+            };
+          });
+        }
+      },
+      onError: (error) {
+        debugPrint(' Budget summary stream error: $error');
+        if (mounted) {
+          setState(() {
+            _budgetSummary = {
+              'totalPaid': 0,
+              'totalUnpaid': 0,
+              'remainingBalance': 0,
+            };
+          });
+        }
+      },
+    );
   }
+
 
   void _updateCurrentEvent(int index) {
     if (_userEvents.isEmpty) {
