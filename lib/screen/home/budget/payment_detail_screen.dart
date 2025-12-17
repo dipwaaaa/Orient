@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../model/budget_model.dart' as budget_models;
 import '../../../service/budget_service.dart';
 import '../../../utilty/app_responsive.dart';
-import '../../../widget/Animated_Gradient_Background.dart';
+import '../../../widget/animated_gradient_background.dart';
 
 class PaymentDetailScreen extends StatefulWidget {
   final String budgetId;

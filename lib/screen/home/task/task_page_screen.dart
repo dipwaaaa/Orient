@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'add_task_screen.dart';
 import '../../../widget/profile_menu.dart';
-import '../../../widget/TaskLitWidget.dart';
+import '../../../widget/taskLitWidget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../service/auth_service.dart';
 import '../../../utilty/app_responsive.dart';
