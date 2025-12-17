@@ -79,13 +79,18 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'We will permanently delete all information',
+                      'We will permanently delete:',
                       style: TextStyle(
                         color: Colors.red.shade700,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
                     ),
+                    SizedBox(height: 8),
+                    _buildDeleteItem('All your events and tasks'),
+                    _buildDeleteItem('All messages and chats'),
+                    _buildDeleteItem('Your profile and settings'),
+                    _buildDeleteItem('All associated data'),
                   ],
                 ),
               ),
@@ -174,6 +179,32 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
     );
   }
 
+  Widget _buildDeleteItem(String text) {
+    return Padding(
+      padding: EdgeInsets.only(left: 8, top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '• ',
+            style: TextStyle(
+              color: Colors.red.shade700,
+              fontSize: 13,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _handleDelete() async {
     if (!_agreedToDelete) {
@@ -189,14 +220,15 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
         throw Exception('No user logged in');
       }
 
-      debugPrint(' Starting account deletion...');
+      debugPrint('🗑️ Starting account deletion...');
 
-      final result = await widget.authService.deleteAccount(password: '');
+      // Panggil deleteAccount tanpa password
+      final result = await widget.authService.deleteAccount();
 
       if (!mounted) return;
 
       if (result['success'] == true) {
-        debugPrint('Account deleted successfully');
+        debugPrint('✅ Account deleted successfully');
         _showSuccessMessage();
         await Future.delayed(Duration(milliseconds: 500));
 
@@ -208,12 +240,12 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
         }
       } else {
         setState(() => _isLoading = false);
-        debugPrint(' Delete failed: ${result['error']}');
+        debugPrint('❌ Delete failed: ${result['error']}');
         _showErrorSnackBar(result['error'] ?? 'Failed to delete account');
       }
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
-      debugPrint(' Firebase Error: ${e.code} - ${e.message}');
+      debugPrint('❌ Firebase Error: ${e.code} - ${e.message}');
 
       if (mounted) {
         _showErrorSnackBar('Account deleted. Redirecting to login...');
@@ -227,7 +259,7 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint(' Unexpected error: $e');
+      debugPrint('❌ Unexpected error: $e');
       if (mounted) {
         _showErrorSnackBar('An error occurred: $e');
       }
@@ -254,4 +286,3 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
     );
   }
 }
-

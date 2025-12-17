@@ -455,17 +455,15 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> deleteAccount({
-    required String password,
-    String? googleAccessToken,
-  }) async {
+
+  Future<Map<String, dynamic>> deleteAccount() async {
     try {
       final user = currentUser;
       if (user == null) {
         return {'success': false, 'error': 'No user logged in'};
       }
 
-      debugPrint('Starting account deletion process for user: ${user.uid}');
+      debugPrint('🗑 Starting account deletion process for user: ${user.uid}');
 
       final hasPassword = user.providerData.any((info) => info.providerId == 'password');
       final hasGoogle = user.providerData.any((info) => info.providerId == 'google.com');
@@ -474,29 +472,27 @@ class AuthService {
         return {'success': false, 'error': 'No authentication method found'};
       }
 
-      try {
-        if (hasPassword) {
-          if (password.isEmpty) {
-            return {'success': false, 'error': 'Password required for account deletion'};
-          }
-          final credential = EmailAuthProvider.credential(
-            email: user.email!,
-            password: password,
-          );
-          await user.reauthenticateWithCredential(credential);
-          debugPrint('Re-authenticated with email/password');
-        } else if (hasGoogle) {
-          debugPrint('Google account detected - proceeding with deletion');
-        }
-      } catch (e) {
-        debugPrint('Re-authentication failed: $e');
-        return {'success': false, 'error': 'Authentication failed. Please check your credentials.'};
-      }
 
+      debugPrint('️ Deleting user data...');
       await _deleteUserData(user.uid);
 
-      await user.delete();
-      debugPrint('Firebase user account deleted');
+
+      debugPrint(' Attempting to delete Firebase Auth account...');
+      try {
+        await user.delete();
+        debugPrint(' Firebase user account deleted successfully');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'requires-recent-login') {
+
+          debugPrint(' Recent login required');
+          return {
+            'success': false,
+            'error': 'For security, please sign out and sign in again, then try deleting your account.',
+          };
+        } else {
+          throw e;
+        }
+      }
 
       await signOut();
 
@@ -505,13 +501,13 @@ class AuthService {
         'message': 'Account deleted successfully',
       };
     } on FirebaseAuthException catch (e) {
-      debugPrint('Firebase Auth Error: ${e.code} - ${e.message}');
+      debugPrint('❌ Firebase Auth Error: ${e.code} - ${e.message}');
       return {
         'success': false,
         'error': _handleDeleteAccountError(e),
       };
     } catch (e) {
-      debugPrint('Unexpected error during account deletion: $e');
+      debugPrint('❌ Unexpected error during account deletion: $e');
       return {
         'success': false,
         'error': 'An unexpected error occurred. Please try again.',
