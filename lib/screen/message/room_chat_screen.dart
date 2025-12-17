@@ -561,9 +561,9 @@ class _RoomChatScreenState extends State<RoomChatScreen> {
         fileType: fileType,
       );
 
-      debugPrint('✅ File uploaded and message sent successfully!\n');
+      debugPrint(' File uploaded and message sent successfully!\n');
     } catch (e) {
-      debugPrint('❌ Error uploading file: $e\n');
+      debugPrint(' Error uploading file: $e\n');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

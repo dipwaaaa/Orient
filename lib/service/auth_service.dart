@@ -120,7 +120,7 @@ class AuthService {
         try {
           await user.getIdToken(true).timeout(Duration(seconds: 10));
         } catch (e) {
-          debugPrint('⚠️ Token refresh timeout: $e');
+          debugPrint('️ Token refresh timeout: $e');
         }
 
         final ref = firestore.collection('users').doc(user.uid);
@@ -154,50 +154,98 @@ class AuthService {
     }
   }
 
+  Future<bool> completeOnboarding() async {
+    final user = currentUser;
+    if (user == null) {
+      debugPrint(' No user logged in for onboarding completion');
+      return false;
+    }
+
+    try {
+      debugPrint(' Marking onboarding as completed for user: ${user.uid}');
+
+      await firestore
+          .collection('users')
+          .doc(user.uid)
+          .update({
+        'hasCompletedOnboarding': true,
+        'isNewUser': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint(' Onboarding marked as completed');
+      return true;
+    } catch (e) {
+      debugPrint(' Error completing onboarding: $e');
+      return false;
+    }
+  }
+
   Future<bool> hasCompletedOnboarding() async {
     final user = currentUser;
-    if (user == null) return false;
+    if (user == null) {
+      debugPrint(' No user logged in');
+      return false;
+    }
 
     try {
       final snap = await firestore.collection('users').doc(user.uid).get();
-      if (!snap.exists) return false;
+      if (!snap.exists) {
+        debugPrint('User document tidak ditemukan');
+        return false;
+      }
 
       final data = snap.data();
-      return data?['hasCompletedOnboarding'] ?? false;
+      final hasCompleted = data?['hasCompletedOnboarding'] ?? false;
+      debugPrint(' Onboarding status: $hasCompleted');
+      return hasCompleted;
     } catch (e) {
-      debugPrint('Error checking onboarding status: $e');
+      debugPrint(' Error checking onboarding status: $e');
       return false;
     }
   }
 
   Future<bool> shouldShowWelcomeScreen() async {
     final user = currentUser;
-    if (user == null) return false;
+    if (user == null) {
+      debugPrint('️ No user logged in for welcome screen check');
+      return false;
+    }
 
     try {
       final snap = await firestore.collection('users').doc(user.uid).get();
       if (!snap.exists) {
+        debugPrint('️ User document tidak ditemukan, show welcome screen');
         return true;
       }
 
       final data = snap.data();
-      final isNew = data?['isNewUser'] ?? false;
+      final isNewUser = data?['isNewUser'] ?? false;
+      final hasCompleted = data?['hasCompletedOnboarding'] ?? false;
 
-      if (isNew) {
+      debugPrint(' User status - isNewUser: $isNewUser, hasCompleted: $hasCompleted');
+
+      if (isNewUser && !hasCompleted) {
+        debugPrint(' Show welcome screen');
+        return true;
+      }
+
+      if (hasCompleted && isNewUser) {
         try {
+          debugPrint(' Updating isNewUser flag to false');
           await firestore
               .collection('users')
               .doc(user.uid)
               .update({'isNewUser': false});
         } catch (e) {
-          debugPrint('Failed to update isNewUser flag: $e');
+          debugPrint(' Failed to update isNewUser flag: $e');
         }
-        return true;
       }
 
+      debugPrint(' Hide welcome screen');
       return false;
     } catch (e) {
-      debugPrint('Error checking welcome screen status: $e');
+      debugPrint(' Error checking welcome screen status: $e');
       return false;
     }
   }
@@ -386,7 +434,7 @@ class AuthService {
 
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
-      debugPrint('🔵 Starting Google Sign-In...');
+      debugPrint(' Starting Google Sign-In...');
 
       await GoogleSignIn.instance.initialize(
         serverClientId: '249442742487-mnc33cfun8jfdivk4p4rj102nmjuc8l0.apps.googleusercontent.com',
@@ -472,45 +520,141 @@ class AuthService {
         return {'success': false, 'error': 'No authentication method found'};
       }
 
+      try {
+        debugPrint(' Refreshing auth token before deletion...');
+        await user.getIdToken(true);
+        debugPrint(' Token refreshed successfully');
+      } catch (e) {
+        debugPrint('⚠ Token refresh failed (non-critical): $e');
+      }
 
-      debugPrint('️ Deleting user data...');
-      await _deleteUserData(user.uid);
-
+      debugPrint('️ Deleting user data from Firestore...');
+      try {
+        await _deleteUserData(user.uid);
+        debugPrint(' User data deleted successfully');
+      } catch (e) {
+        debugPrint('️ Error deleting user data: $e');
+      }
 
       debugPrint(' Attempting to delete Firebase Auth account...');
-      try {
-        await user.delete();
-        debugPrint(' Firebase user account deleted successfully');
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'requires-recent-login') {
 
-          debugPrint(' Recent login required');
+      int retryCount = 0;
+      const maxRetries = 2;
+
+      while (retryCount < maxRetries) {
+        try {
+          // Reload user untuk ensure state terbaru
+          await user.reload();
+
+          // Coba delete
+          await user.delete();
+
+          debugPrint(' Firebase user account deleted successfully');
+          break;
+
+        } on FirebaseAuthException catch (e) {
+          retryCount++;
+
+          if (e.code == 'requires-recent-login') {
+            debugPrint(' Requires recent login (attempt $retryCount/$maxRetries)');
+
+            if (retryCount < maxRetries) {
+              // Try refreshing token again
+              try {
+                debugPrint(' Re-authenticating user...');
+                await user.getIdToken(true);
+                debugPrint(' Re-authentication successful, retrying delete...');
+                continue;
+              } catch (reAuthError) {
+                debugPrint(' Re-authentication failed: $reAuthError');
+                return {
+                  'success': false,
+                  'error': 'Account deletion requires recent login. Please sign out and sign in again, then try deleting your account.',
+                  'requiresReauth': true,
+                };
+              }
+            } else {
+              return {
+                'success': false,
+                'error': 'Account deletion requires recent login. Please sign out and sign in again, then try deleting your account.',
+                'requiresReauth': true,
+              };
+            }
+          } else {
+            debugPrint(' Firebase Auth Error: ${e.code} - ${e.message}');
+            return {
+              'success': false,
+              'error': _handleDeleteAccountError(e),
+            };
+          }
+        } catch (e) {
+          debugPrint(' Unexpected error: $e');
           return {
             'success': false,
-            'error': 'For security, please sign out and sign in again, then try deleting your account.',
+            'error': 'An unexpected error occurred. Please try again.',
           };
-        } else {
-          throw e;
         }
       }
 
+      debugPrint(' Signing out user...');
       await signOut();
 
       return {
         'success': true,
         'message': 'Account deleted successfully',
       };
-    } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Firebase Auth Error: ${e.code} - ${e.message}');
-      return {
-        'success': false,
-        'error': _handleDeleteAccountError(e),
-      };
+
     } catch (e) {
-      debugPrint('❌ Unexpected error during account deletion: $e');
+      debugPrint(' Unexpected error during account deletion: $e');
       return {
         'success': false,
         'error': 'An unexpected error occurred. Please try again.',
+      };
+    }
+  }
+  Future<Map<String, dynamic>> reauthenticateForDeletion(String password) async {
+    try {
+      final user = currentUser;
+      if (user == null) {
+        return {'success': false, 'error': 'No user logged in'};
+      }
+
+      final hasPassword = user.providerData.any((info) => info.providerId == 'password');
+
+      if (!hasPassword) {
+        return {
+          'success': false,
+          'error': 'Password-based authentication not available for this account'
+        };
+      }
+
+      debugPrint(' Reauthenticating user for account deletion...');
+
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+
+      try {
+        await user.reauthenticateWithCredential(credential);
+        debugPrint(' User reauthenticated successfully');
+
+        return {
+          'success': true,
+          'message': 'Reauthentication successful. You can now delete your account.',
+        };
+      } on FirebaseAuthException catch (e) {
+        debugPrint(' Reauthentication failed: ${e.code} - ${e.message}');
+        return {
+          'success': false,
+          'error': _handleAuthError(e),
+        };
+      }
+    } catch (e) {
+      debugPrint(' Unexpected reauthentication error: $e');
+      return {
+        'success': false,
+        'error': 'Reauthentication failed: $e',
       };
     }
   }
